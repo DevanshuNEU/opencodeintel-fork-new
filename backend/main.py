@@ -262,10 +262,9 @@ async def websocket_index(websocket: WebSocket, repo_id: str):
 async def index_repository(
     repo_id: str,
     incremental: bool = True,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Trigger indexing for a repository - automatically uses incremental if possible"""
-    verify_api_key(api_key)
     
     import time
     import git
@@ -322,10 +321,9 @@ async def index_repository(
 @app.post("/api/search")
 async def search_code(
     request: SearchRequest,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Search code semantically with caching and validation"""
-    verify_api_key(api_key)
     
     # Validate search query
     valid_query, query_error = InputValidator.validate_search_query(request.query)
@@ -368,10 +366,9 @@ async def search_code(
 @app.post("/api/explain")
 async def explain_code(
     request: ExplainRequest,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Generate code explanation"""
-    verify_api_key(api_key)
     
     try:
         repo = repo_manager.get_repo(request.repo_id)
@@ -400,10 +397,9 @@ class ImpactRequest(BaseModel):
 @app.get("/api/repos/{repo_id}/dependencies")
 async def get_dependency_graph(
     repo_id: str,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Get dependency graph for repository with Supabase caching"""
-    verify_api_key(api_key)
     
     try:
         repo = repo_manager.get_repo(repo_id)
@@ -434,10 +430,9 @@ async def get_dependency_graph(
 async def analyze_impact(
     repo_id: str,
     request: ImpactRequest,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Analyze impact of changing a file with validation and caching"""
-    verify_api_key(api_key)
     
     try:
         repo = repo_manager.get_repo(repo_id)
@@ -474,10 +469,9 @@ async def analyze_impact(
 @app.get("/api/repos/{repo_id}/insights")
 async def get_repository_insights(
     repo_id: str,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Get comprehensive insights about repository with Supabase caching"""
-    verify_api_key(api_key)
     
     try:
         repo = repo_manager.get_repo(repo_id)
@@ -517,10 +511,9 @@ class ImpactRequest(BaseModel):
 @app.get("/api/repos/{repo_id}/style-analysis")
 async def get_style_analysis(
     repo_id: str,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Analyze code style and team patterns with Supabase caching"""
-    verify_api_key(api_key)
     
     try:
         repo = repo_manager.get_repo(repo_id)
