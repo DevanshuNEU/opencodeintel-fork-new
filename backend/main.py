@@ -25,11 +25,17 @@ from services.rate_limiter import RateLimiter, APIKeyManager
 from services.supabase_service import get_supabase_service
 from services.input_validator import InputValidator, CostController
 
+# Import routers
+from routes.auth import router as auth_router
+
 app = FastAPI(
     title="CodeIntel API",
     description="Codebase Intelligence API for MCP",
     version="0.2.0"
 )
+
+# Include routers
+app.include_router(auth_router)
 
 # CORS middleware
 app.add_middleware(
