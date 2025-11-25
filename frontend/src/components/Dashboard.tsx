@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'sonner'
+import { useAuth } from '../contexts/AuthContext'
 import { RepoList } from './RepoList'
 import { AddRepoForm } from './AddRepoForm'
 import { SearchPanel } from './SearchPanel'
@@ -13,11 +14,11 @@ import { UserNav } from './UserNav'
 import type { Repository } from '../types'
 
 const API_URL = 'http://localhost:8000'
-const API_KEY = 'dev-secret-key'
 
 type RepoTab = 'overview' | 'search' | 'dependencies' | 'insights' | 'impact'
 
 export function Dashboard() {
+  const { session } = useAuth()
   const [repos, setRepos] = useState<Repository[]>([])
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
@@ -25,9 +26,11 @@ export function Dashboard() {
   const [showPerformance, setShowPerformance] = useState(false)
 
   const fetchRepos = async () => {
+    if (!session?.access_token) return
+    
     try {
       const response = await fetch(`${API_URL}/api/repos`, {
-        headers: { 'Authorization': `Bearer ${API_KEY}` }
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
       })
       const data = await response.json()
       setRepos(data.repositories || [])
@@ -50,7 +53,7 @@ export function Dashboard() {
       const response = await fetch(`${API_URL}/api/repos`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ name, git_url: gitUrl, branch })
@@ -60,7 +63,7 @@ export function Dashboard() {
       
       await fetch(`${API_URL}/api/repos/${data.repo_id}/index`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${API_KEY}` }
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
       })
       
       await fetchRepos()
@@ -84,7 +87,7 @@ export function Dashboard() {
       setLoading(true)
       await fetch(`${API_URL}/api/repos/${selectedRepo}/index`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${API_KEY}` }
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
       })
       await fetchRepos()
       // RepoOverview component will show the toast and progress
@@ -143,7 +146,7 @@ export function Dashboard() {
         {/* Performance Dashboard Overlay */}
         {showPerformance && (
           <div className="mb-6">
-            <PerformanceDashboard apiUrl={API_URL} apiKey={API_KEY} />
+            <PerformanceDashboard apiUrl={API_URL} apiKey={session.access_token} />
           </div>
         )}
 
@@ -254,24 +257,24 @@ export function Dashboard() {
                 repo={selectedRepoData} 
                 onReindex={handleReindex}
                 apiUrl={API_URL}
-                apiKey={API_KEY}
+                apiKey={session.access_token}
               />
             )}
 
             {activeTab === 'search' && (
-              <SearchPanel repoId={selectedRepo} apiUrl={API_URL} apiKey={API_KEY} />
+              <SearchPanel repoId={selectedRepo} apiUrl={API_URL} apiKey={session.access_token} />
             )}
 
             {activeTab === 'dependencies' && (
-              <DependencyGraph repoId={selectedRepo} apiUrl={API_URL} apiKey={API_KEY} />
+              <DependencyGraph repoId={selectedRepo} apiUrl={API_URL} apiKey={session.access_token} />
             )}
 
             {activeTab === 'insights' && (
-              <StyleInsights repoId={selectedRepo} apiUrl={API_URL} apiKey={API_KEY} />
+              <StyleInsights repoId={selectedRepo} apiUrl={API_URL} apiKey={session.access_token} />
             )}
 
             {activeTab === 'impact' && (
-              <ImpactAnalyzer repoId={selectedRepo} apiUrl={API_URL} apiKey={API_KEY} />
+              <ImpactAnalyzer repoId={selectedRepo} apiUrl={API_URL} apiKey={session.access_token} />
             )}
           </div>
         )}
