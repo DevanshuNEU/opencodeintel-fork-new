@@ -32,6 +32,12 @@ jobs:
       env:
         DEBUG: "true"
         API_KEY: "test-secret-key"
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+        PINECONE_INDEX_NAME: "codeintel-test"
       run: |
         pytest tests/ -v --cov=services --cov-report=term-missing
     
