@@ -68,7 +68,7 @@ def mock_supabase():
         client = MagicMock()
         table = MagicMock()
         
-        # Mock the fluent interface
+        # Mock the fluent interface for tables
         execute_result = MagicMock()
         execute_result.data = []
         execute_result.count = 0
@@ -84,6 +84,13 @@ def mock_supabase():
         table.execute.return_value = execute_result
         
         client.table.return_value = table
+        
+        # Mock auth.get_user to reject invalid tokens
+        # By default, return response with user=None (invalid token)
+        auth_response = MagicMock()
+        auth_response.user = None
+        client.auth.get_user.return_value = auth_response
+        
         mock.return_value = client
         yield mock
 
