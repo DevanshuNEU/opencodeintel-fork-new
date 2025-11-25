@@ -27,7 +27,7 @@ from services.input_validator import InputValidator, CostController
 
 # Import routers
 from routes.auth import router as auth_router
-from middleware.auth import get_current_user
+from middleware.auth import require_auth, AuthContext
 
 app = FastAPI(
     title="CodeIntel API",
@@ -144,9 +144,9 @@ async def health_check():
 
 
 @app.get("/api/repos")
-async def list_repositories(current_user: dict = Depends(get_current_user)):
+async def list_repositories(auth: AuthContext = Depends(require_auth)):
     """List all repositories for authenticated user"""
-    user_id = current_user["user_id"]
+    user_id = auth.user_id
     
     # TODO: Filter repos by user_id once we add user_id column to repositories table
     # For now, return all repos (will fix in next section)
@@ -157,10 +157,10 @@ async def list_repositories(current_user: dict = Depends(get_current_user)):
 @app.post("/api/repos")
 async def add_repository(
     request: AddRepoRequest,
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_auth)
 ):
     """Add a new repository with validation and cost controls"""
-    user_id = current_user["user_id"]
+    user_id = auth.user_id or auth.identifier
     
     # Validate repository name
     valid_name, name_error = InputValidator.validate_repo_name(request.name)
