@@ -2,7 +2,7 @@
 CodeIntel Backend API
 FastAPI backend for codebase intelligence
 """
-from fastapi import FastAPI, HTTPException, Header, WebSocket, WebSocketDisconnect, Depends
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -27,7 +27,7 @@ from services.input_validator import InputValidator, CostController
 
 # Import routers
 from routes.auth import router as auth_router
-from middleware.auth import get_current_user
+from middleware.auth import require_auth, AuthContext
 
 app = FastAPI(
     title="CodeIntel API",
@@ -83,34 +83,6 @@ rate_limiter = RateLimiter(redis_client=cache.redis if cache.redis else None)
 api_key_manager = APIKeyManager(get_supabase_service().client)
 cost_controller = CostController(get_supabase_service().client)
 
-# Development API Key (for local testing only)
-DEV_API_KEY = os.getenv("API_KEY", "dev-secret-key")
-
-
-def verify_api_key(authorization: str = Header(None)):
-    """Verify API key and check rate limits"""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid authorization header")
-    
-    token = authorization.replace("Bearer ", "")
-    
-    # Allow dev key for local development
-    if token == DEV_API_KEY and os.getenv("DEBUG", "false").lower() == "true":
-        return {"key": token, "tier": "enterprise", "user_id": None, "name": "Development"}
-    
-    # Verify production API key
-    key_data = api_key_manager.verify_key(token)
-    if not key_data:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-    
-    # Check rate limits
-    allowed, error_msg = rate_limiter.check_rate_limit(token, key_data.get("tier", "free"))
-    if not allowed:
-        raise HTTPException(status_code=429, detail=error_msg)
-    
-    return key_data
-
-
 # Request/Response Models
 class SearchRequest(BaseModel):
     query: str
@@ -144,9 +116,9 @@ async def health_check():
 
 
 @app.get("/api/repos")
-async def list_repositories(current_user: dict = Depends(get_current_user)):
+async def list_repositories(auth: AuthContext = Depends(require_auth)):
     """List all repositories for authenticated user"""
-    user_id = current_user["user_id"]
+    user_id = auth.user_id
     
     # TODO: Filter repos by user_id once we add user_id column to repositories table
     # For now, return all repos (will fix in next section)
@@ -157,10 +129,10 @@ async def list_repositories(current_user: dict = Depends(get_current_user)):
 @app.post("/api/repos")
 async def add_repository(
     request: AddRepoRequest,
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(require_auth)
 ):
     """Add a new repository with validation and cost controls"""
-    user_id = current_user["user_id"]
+    user_id = auth.user_id or auth.identifier
     
     # Validate repository name
     valid_name, name_error = InputValidator.validate_repo_name(request.name)
@@ -262,10 +234,9 @@ async def websocket_index(websocket: WebSocket, repo_id: str):
 async def index_repository(
     repo_id: str,
     incremental: bool = True,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Trigger indexing for a repository - automatically uses incremental if possible"""
-    verify_api_key(api_key)
     
     import time
     import git
@@ -322,10 +293,9 @@ async def index_repository(
 @app.post("/api/search")
 async def search_code(
     request: SearchRequest,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Search code semantically with caching and validation"""
-    verify_api_key(api_key)
     
     # Validate search query
     valid_query, query_error = InputValidator.validate_search_query(request.query)
@@ -368,10 +338,9 @@ async def search_code(
 @app.post("/api/explain")
 async def explain_code(
     request: ExplainRequest,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Generate code explanation"""
-    verify_api_key(api_key)
     
     try:
         repo = repo_manager.get_repo(request.repo_id)
@@ -400,10 +369,9 @@ class ImpactRequest(BaseModel):
 @app.get("/api/repos/{repo_id}/dependencies")
 async def get_dependency_graph(
     repo_id: str,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Get dependency graph for repository with Supabase caching"""
-    verify_api_key(api_key)
     
     try:
         repo = repo_manager.get_repo(repo_id)
@@ -434,10 +402,9 @@ async def get_dependency_graph(
 async def analyze_impact(
     repo_id: str,
     request: ImpactRequest,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Analyze impact of changing a file with validation and caching"""
-    verify_api_key(api_key)
     
     try:
         repo = repo_manager.get_repo(repo_id)
@@ -474,10 +441,9 @@ async def analyze_impact(
 @app.get("/api/repos/{repo_id}/insights")
 async def get_repository_insights(
     repo_id: str,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Get comprehensive insights about repository with Supabase caching"""
-    verify_api_key(api_key)
     
     try:
         repo = repo_manager.get_repo(repo_id)
@@ -517,10 +483,9 @@ class ImpactRequest(BaseModel):
 @app.get("/api/repos/{repo_id}/style-analysis")
 async def get_style_analysis(
     repo_id: str,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Analyze code style and team patterns with Supabase caching"""
-    verify_api_key(api_key)
     
     try:
         repo = repo_manager.get_repo(repo_id)
@@ -549,11 +514,9 @@ async def get_style_analysis(
 
 @app.get("/api/metrics")
 async def get_performance_metrics(
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Get performance metrics and monitoring data"""
-    verify_api_key(api_key)
-    
     return metrics.get_metrics()
 
 
@@ -567,16 +530,14 @@ class CreateAPIKeyRequest(BaseModel):
 @app.post("/api/keys/generate")
 async def generate_api_key(
     request: CreateAPIKeyRequest,
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Generate a new API key (requires existing valid key or dev mode)"""
-    key_data = verify_api_key(api_key)
-    
     # Generate new key
     new_key = api_key_manager.generate_key(
         name=request.name,
         tier=request.tier,
-        user_id=key_data.get("user_id")
+        user_id=auth.user_id
     )
     
     return {
@@ -589,21 +550,18 @@ async def generate_api_key(
 
 @app.get("/api/keys/usage")
 async def get_api_usage(
-    api_key: str = Header(None, alias="Authorization")
+    auth: AuthContext = Depends(require_auth)
 ):
     """Get current API usage stats"""
-    key_data = verify_api_key(api_key)
-    token = api_key.replace("Bearer ", "")
-    
-    usage = rate_limiter.get_usage(token)
+    usage = rate_limiter.get_usage(auth.identifier)
     
     return {
-        "tier": key_data.get("tier", "free"),
+        "tier": auth.tier,
         "limits": {
             "free": {"minute": 20, "hour": 200, "day": 1000},
             "pro": {"minute": 100, "hour": 2000, "day": 20000},
             "enterprise": {"minute": 500, "hour": 10000, "day": 100000}
-        }[key_data.get("tier", "free")],
+        }[auth.tier],
         "usage": usage
     }
 
