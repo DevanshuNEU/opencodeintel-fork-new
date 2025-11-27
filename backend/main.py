@@ -180,19 +180,56 @@ async def add_repository(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+async def authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
+    """
+    Authenticate WebSocket connection via query parameter token.
+    
+    WebSockets can't use Authorization headers during handshake,
+    so we pass the JWT token as a query parameter instead.
+    
+    Returns:
+        User dict if authenticated, None otherwise (connection closed with error)
+    """
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4001, reason="Missing authentication token")
+        return None
+    
+    try:
+        from services.auth import get_auth_service
+        auth_service = get_auth_service()
+        return auth_service.verify_jwt(token)
+    except Exception:
+        await websocket.close(code=4001, reason="Invalid or expired token")
+        return None
+
+
 @app.websocket("/ws/index/{repo_id}")
 async def websocket_index(websocket: WebSocket, repo_id: str):
-    """Real-time indexing with progress updates"""
+    """
+    Real-time repository indexing with progress updates.
+    
+    Requires JWT token passed as query parameter: ?token=<jwt>
+    Sends progress updates via JSON messages during indexing.
+    """
+    # Authenticate before accepting connection
+    user = await authenticate_websocket(websocket)
+    if not user:
+        return
+    
+    # TODO: Add repo ownership validation once user_id column exists in repos table
+    # For now, any authenticated user can index any repo they know the ID of
+    
+    # Validate repo exists before accepting connection
+    repo = repo_manager.get_repo(repo_id)
+    if not repo:
+        await websocket.close(code=4004, reason="Repository not found")
+        return
+    
+    # Connection authenticated and repo valid - accept
     await websocket.accept()
     
     try:
-        # Get repo info
-        repo = repo_manager.get_repo(repo_id)
-        if not repo:
-            await websocket.send_json({"error": "Repository not found"})
-            await websocket.close()
-            return
-        
         repo_manager.update_status(repo_id, "indexing")
         
         # Index with progress callback
