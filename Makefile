@@ -5,75 +5,92 @@ help:
 	@echo "CodeIntel - Development Commands"
 	@echo ""
 	@echo "Local Development:"
-	@echo "  make dev          - Start all services with hot reload"
-	@echo "  make prod         - Start production-like environment"
-	@echo "  make build        - Build Docker images"
+	@echo "  make dev          - Start local dev (uses .env.dev)"
+	@echo "  make dev-prod     - Test prod config locally (uses .env.prod)"
 	@echo "  make stop         - Stop all services"
 	@echo "  make clean        - Stop and remove all containers/volumes"
 	@echo "  make logs         - View all logs"
+	@echo "  make health       - Check service health"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test         - Run backend tests"
-	@echo "  make test-watch   - Run tests in watch mode"
+	@echo "  make test-ws      - Run WebSocket auth tests only"
 	@echo "  make coverage     - Run tests with coverage report"
 	@echo ""
 	@echo "Deployment:"
 	@echo "  make deploy-backend  - Deploy backend to Railway"
 	@echo "  make deploy-frontend - Deploy frontend to Vercel"
-	@echo "  make deploy-all      - Deploy both backend and frontend"
 
-# Development with hot reload
+# ============================================
+# LOCAL DEVELOPMENT
+# ============================================
+
+# Development with .env.dev
 dev:
-	docker compose -f docker-compose.dev.yml up -d
+	@echo "🚀 Starting LOCAL DEV environment..."
+	@cp .env.dev .env
+	docker compose up -d --build
 	@echo ""
 	@echo "✅ Development environment started!"
 	@echo "   Backend:  http://localhost:8000"
-	@echo "   Docs:     http://localhost:8000/docs"
+	@echo "   API Docs: http://localhost:8000/docs"
 	@echo "   Frontend: http://localhost:3000"
 	@echo "   Redis:    localhost:6379"
 	@echo ""
 	@echo "View logs: make logs"
 
-# Production-like environment
-prod:
-	docker compose up -d
+# Test production config locally (uses .env.prod)
+dev-prod:
+	@echo "🚀 Starting LOCAL environment with PROD config..."
+	@cp .env.prod .env
+	docker compose up -d --build
 	@echo ""
-	@echo "✅ Production environment started!"
+	@echo "✅ Prod-config environment started!"
 	@echo "   Backend:  http://localhost:8000"
 	@echo "   Frontend: http://localhost:3000"
-
-# Build images
-build:
-	docker compose build
 
 # Stop services
 stop:
 	docker compose down
-	docker compose -f docker-compose.dev.yml down
+	@echo "✅ Services stopped"
 
 # Clean everything (including volumes)
 clean:
-	docker compose down -v
-	docker compose -f docker-compose.dev.yml down -v
+	docker compose down -v --remove-orphans
 	@echo "✅ Cleaned all containers and volumes"
 
 # View logs
 logs:
 	docker compose logs -f
 
-# Run backend tests
-test:
-	cd backend && python -m pytest tests/ -v
+# Logs for specific service
+logs-backend:
+	docker compose logs -f backend
 
-# Run tests in watch mode
-test-watch:
-	cd backend && python -m pytest tests/ -v --looponfail
+logs-frontend:
+	docker compose logs -f frontend
+
+# ============================================
+# TESTING
+# ============================================
+
+# Run all backend tests
+test:
+	cd backend && python3 -m pytest tests/ -v --no-cov
+
+# Run WebSocket auth tests only
+test-ws:
+	cd backend && python3 -m pytest tests/test_websocket_auth.py -v --no-cov
 
 # Run tests with coverage
 coverage:
-	cd backend && python -m pytest tests/ --cov=. --cov-report=html --cov-report=term
+	cd backend && python3 -m pytest tests/ --cov=. --cov-report=html --cov-report=term
 	@echo ""
 	@echo "Coverage report: backend/htmlcov/index.html"
+
+# ============================================
+# DEPLOYMENT
+# ============================================
 
 # Deploy backend to Railway
 deploy-backend:
@@ -91,15 +108,16 @@ deploy-frontend:
 deploy-all: deploy-backend deploy-frontend
 	@echo "✅ All services deployed!"
 
-# Quick restart of backend (for dev)
-restart-backend:
-	docker compose restart backend
-	@echo "✅ Backend restarted"
+# ============================================
+# UTILITIES
+# ============================================
 
-# Quick restart of frontend (for dev)
-restart-frontend:
-	docker compose restart frontend
-	@echo "✅ Frontend restarted"
+# Check service health
+health:
+	@echo "Checking services..."
+	@curl -s http://localhost:8000/health | python3 -m json.tool 2>/dev/null || echo "❌ Backend not responding"
+	@curl -s -o /dev/null -w "" http://localhost:3000 && echo "✅ Frontend is up" || echo "❌ Frontend not responding"
+	@docker compose exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && echo "✅ Redis is up" || echo "❌ Redis not responding"
 
 # Shell into backend container
 shell-backend:
@@ -109,27 +127,12 @@ shell-backend:
 shell-redis:
 	docker compose exec redis redis-cli
 
-# View Redis stats
-redis-stats:
-	docker compose exec redis redis-cli INFO
+# Quick rebuild backend only
+rebuild-backend:
+	docker compose up -d --build backend
+	@echo "✅ Backend rebuilt and restarted"
 
-# Check service health
-health:
-	@echo "Checking services..."
-	@curl -s http://localhost:8000/health | python -m json.tool || echo "❌ Backend not responding"
-	@curl -s http://localhost:3000 > /dev/null && echo "✅ Frontend is up" || echo "❌ Frontend not responding"
-	@docker compose exec redis redis-cli ping > /dev/null && echo "✅ Redis is up" || echo "❌ Redis not responding"
-
-# Install dependencies (local dev without Docker)
-install-backend:
-	cd backend && pip install -r requirements.txt
-
-install-frontend:
-	cd frontend && npm install
-
-# Run locally without Docker
-run-backend-local:
-	cd backend && uvicorn main:app --reload --port 8000
-
-run-frontend-local:
-	cd frontend && npm run dev
+# Quick rebuild frontend only  
+rebuild-frontend:
+	docker compose up -d --build frontend
+	@echo "✅ Frontend rebuilt and restarted"
