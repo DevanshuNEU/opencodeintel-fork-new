@@ -11,8 +11,11 @@ dist/
 # Environment
 .env
 .env.local
+.env.dev
+.env.prod
 backend/.env
 backend/.env.local
+frontend/.env.local
 mcp-server/.env
 mcp-server/.env.local
 
@@ -30,3 +33,4 @@ backend/repos/
 
 # MCP Server
 mcp-server/__pycache__/
+*.code-workspace
