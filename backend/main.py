@@ -413,13 +413,16 @@ async def websocket_index(websocket: WebSocket, repo_id: str):
         
         # Index with progress callback
         async def progress_callback(files_processed: int, functions_indexed: int, total_files: int):
-            await websocket.send_json({
-                "type": "progress",
-                "files_processed": files_processed,
-                "functions_indexed": functions_indexed,
-                "total_files": total_files,
-                "progress_pct": int((files_processed / total_files) * 100) if total_files > 0 else 0
-            })
+            try:
+                await websocket.send_json({
+                    "type": "progress",
+                    "files_processed": files_processed,
+                    "functions_indexed": functions_indexed,
+                    "total_files": total_files,
+                    "progress_pct": int((files_processed / total_files) * 100) if total_files > 0 else 0
+                })
+            except Exception:
+                pass  # Client disconnected, continue indexing anyway
         
         # Index repository with progress
         total_functions = await indexer.index_repository_with_progress(
@@ -432,18 +435,27 @@ async def websocket_index(websocket: WebSocket, repo_id: str):
         repo_manager.update_file_count(repo_id, total_functions)
         
         # Send completion
-        await websocket.send_json({
-            "type": "complete",
-            "total_functions": total_functions
-        })
+        try:
+            await websocket.send_json({
+                "type": "complete",
+                "total_functions": total_functions
+            })
+        except Exception:
+            pass  # Client disconnected
         
     except WebSocketDisconnect:
         print(f"WebSocket disconnected for repo {repo_id}")
     except Exception as e:
-        await websocket.send_json({"type": "error", "message": str(e)})
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass  # Connection already closed
         repo_manager.update_status(repo_id, "error")
     finally:
-        await websocket.close()
+        try:
+            await websocket.close()
+        except Exception:
+            pass  # Already closed
 
 
 @app.post("/api/repos/{repo_id}/index")
