@@ -58,13 +58,14 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
             progress_pct: data.progress_pct
           })
         } else if (data.type === 'complete') {
-          setProgress(prev => prev ? { ...prev, progress_pct: 100 } : null)
           toast.success(`Indexing complete! ${data.total_functions} functions indexed.`, { id: 'reindex' })
           setIndexing(false)
+          setProgress(null) // Clear progress bar
           onReindex() // Refresh repo data
         } else if (data.type === 'error') {
           toast.error(`Indexing failed: ${data.message}`, { id: 'reindex' })
           setIndexing(false)
+          setProgress(null)
         }
       }
 
@@ -104,12 +105,13 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
       
       setTimeout(() => {
         clearInterval(interval)
-        setProgress(prev => prev ? { ...prev, progress_pct: 100 } : null)
+        setProgress(null) // Clear progress bar
         setIndexing(false)
       }, 8000)
       
     } catch {
       setIndexing(false)
+      setProgress(null)
       toast.error('Failed to start re-indexing', { id: 'reindex' })
     }
   }

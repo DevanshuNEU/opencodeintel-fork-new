@@ -17,10 +17,11 @@ class SupabaseService:
     
     def __init__(self):
         supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_KEY")
+        # Use service role key to bypass RLS for backend operations
+        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
         
         if not supabase_url or not supabase_key:
-            raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) must be set")
         
         # Create client with options to avoid auth cleanup issues
         options = ClientOptions(
