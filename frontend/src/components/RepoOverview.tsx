@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { Progress } from '@/components/ui/progress'
 import type { Repository } from '../types'
+import { WS_URL } from '../config/api'
 
 interface RepoOverviewProps {
   repo: Repository
@@ -10,37 +11,104 @@ interface RepoOverviewProps {
   apiKey: string
 }
 
+interface IndexProgress {
+  files_processed: number
+  functions_indexed: number
+  total_files: number
+  progress_pct: number
+}
+
 export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewProps) {
   const [indexing, setIndexing] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const [progress, setProgress] = useState<IndexProgress | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+
+  // Cleanup WebSocket on unmount
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+    }
+  }, [])
 
   const handleReindex = async () => {
     setIndexing(true)
-    setProgress(10)
-    toast.loading('Starting re-index...', { id: 'reindex' })
+    setProgress({ files_processed: 0, functions_indexed: 0, total_files: 0, progress_pct: 0 })
+    
+    // Connect to WebSocket for real-time progress
+    const wsUrl = `${WS_URL}/ws/index/${repo.id}?token=${apiKey}`
+    
+    try {
+      const ws = new WebSocket(wsUrl)
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        toast.loading('Indexing started...', { id: 'reindex' })
+      }
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+        
+        if (data.type === 'progress') {
+          setProgress({
+            files_processed: data.files_processed,
+            functions_indexed: data.functions_indexed,
+            total_files: data.total_files,
+            progress_pct: data.progress_pct
+          })
+        } else if (data.type === 'complete') {
+          setProgress(prev => prev ? { ...prev, progress_pct: 100 } : null)
+          toast.success(`Indexing complete! ${data.total_functions} functions indexed.`, { id: 'reindex' })
+          setIndexing(false)
+          onReindex() // Refresh repo data
+        } else if (data.type === 'error') {
+          toast.error(`Indexing failed: ${data.message}`, { id: 'reindex' })
+          setIndexing(false)
+        }
+      }
+
+      ws.onerror = () => {
+        // WebSocket error - fall back to HTTP
+        toast.dismiss('reindex')
+        fallbackToHttp()
+      }
+
+      ws.onclose = (event) => {
+        if (event.code !== 1000 && indexing) {
+          // Abnormal close while still indexing - fall back to HTTP
+          fallbackToHttp()
+        }
+      }
+
+    } catch {
+      // WebSocket connection failed - fall back to HTTP
+      fallbackToHttp()
+    }
+  }
+
+  const fallbackToHttp = async () => {
+    // Fallback: Use HTTP endpoint with simulated progress
+    toast.loading('Using fallback indexing...', { id: 'reindex' })
     
     try {
       await onReindex()
-      toast.success('Re-indexing started!', { 
-        id: 'reindex',
-        description: 'Using incremental mode - 100x faster!'
-      })
+      toast.success('Re-indexing started!', { id: 'reindex' })
       
-      // Simulate progress
+      // Simulate progress for HTTP fallback
+      let pct = 10
       const interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 90) return prev
-          return prev + 10
-        })
+        pct = Math.min(pct + 10, 90)
+        setProgress(prev => prev ? { ...prev, progress_pct: pct } : null)
       }, 1000)
       
       setTimeout(() => {
         clearInterval(interval)
-        setProgress(100)
+        setProgress(prev => prev ? { ...prev, progress_pct: 100 } : null)
         setIndexing(false)
       }, 8000)
       
-    } catch (error) {
+    } catch {
       setIndexing(false)
       toast.error('Failed to start re-indexing', { id: 'reindex' })
     }
@@ -81,16 +149,17 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
       </div>
 
       {/* Indexing Progress */}
-      {indexing && (
+      {indexing && progress && (
         <div className="card p-6 border-2 border-blue-500 bg-blue-50">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-base font-semibold text-gray-900">🔄 Indexing in Progress</h3>
-            <span className="text-sm font-mono text-blue-600">{progress}%</span>
+            <span className="text-sm font-mono text-blue-600">{progress.progress_pct}%</span>
           </div>
-          <Progress value={progress} className="h-2" />
-          <p className="text-xs text-gray-600 mt-2">
-            Incremental mode - only processing changed files for 100x faster updates
-          </p>
+          <Progress value={progress.progress_pct} className="h-2" />
+          <div className="flex justify-between text-xs text-gray-600 mt-2">
+            <span>Files: {progress.files_processed}/{progress.total_files || '?'}</span>
+            <span>Functions: {progress.functions_indexed}</span>
+          </div>
         </div>
       )}
 
