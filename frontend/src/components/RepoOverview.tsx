@@ -22,6 +22,7 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
   const [indexing, setIndexing] = useState(false)
   const [progress, setProgress] = useState<IndexProgress | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  const completedRef = useRef(false) // Track if indexing completed successfully
 
   // Cleanup WebSocket on unmount
   useEffect(() => {
@@ -35,6 +36,7 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
   const handleReindex = async () => {
     setIndexing(true)
     setProgress({ files_processed: 0, functions_indexed: 0, total_files: 0, progress_pct: 0 })
+    completedRef.current = false
     
     // Connect to WebSocket for real-time progress
     const wsUrl = `${WS_URL}/ws/index/${repo.id}?token=${apiKey}`
@@ -58,11 +60,13 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
             progress_pct: data.progress_pct
           })
         } else if (data.type === 'complete') {
+          completedRef.current = true
           toast.success(`Indexing complete! ${data.total_functions} functions indexed.`, { id: 'reindex' })
           setIndexing(false)
-          setProgress(null) // Clear progress bar
-          onReindex() // Refresh repo data
+          setProgress(null)
+          onReindex()
         } else if (data.type === 'error') {
+          completedRef.current = true
           toast.error(`Indexing failed: ${data.message}`, { id: 'reindex' })
           setIndexing(false)
           setProgress(null)
@@ -70,33 +74,33 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
       }
 
       ws.onerror = () => {
-        // WebSocket error - fall back to HTTP
-        toast.dismiss('reindex')
-        fallbackToHttp()
+        if (!completedRef.current) {
+          toast.dismiss('reindex')
+          fallbackToHttp()
+        }
       }
 
-      ws.onclose = (event) => {
-        if (event.code !== 1000 && indexing) {
-          // Abnormal close while still indexing - fall back to HTTP
+      ws.onclose = () => {
+        // Only fallback if we didn't complete successfully
+        if (!completedRef.current) {
           fallbackToHttp()
         }
       }
 
     } catch {
-      // WebSocket connection failed - fall back to HTTP
       fallbackToHttp()
     }
   }
 
   const fallbackToHttp = async () => {
-    // Fallback: Use HTTP endpoint with simulated progress
+    if (completedRef.current) return // Already completed
+    
     toast.loading('Using fallback indexing...', { id: 'reindex' })
     
     try {
       await onReindex()
       toast.success('Re-indexing started!', { id: 'reindex' })
       
-      // Simulate progress for HTTP fallback
       let pct = 10
       const interval = setInterval(() => {
         pct = Math.min(pct + 10, 90)
@@ -105,8 +109,9 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
       
       setTimeout(() => {
         clearInterval(interval)
-        setProgress(null) // Clear progress bar
+        setProgress(null)
         setIndexing(false)
+        completedRef.current = true
       }, 8000)
       
     } catch {
@@ -150,7 +155,7 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
         </div>
       </div>
 
-      {/* Indexing Progress */}
+      {/* Indexing Progress - only show when indexing AND progress exists */}
       {indexing && progress && (
         <div className="card p-6 border-2 border-blue-500 bg-blue-50">
           <div className="flex items-center justify-between mb-3">
