@@ -1,9 +1,11 @@
 import type { Repository } from '../types'
+import { RepoGridSkeleton } from './ui/Skeleton'
 
 interface RepoListProps {
   repos: Repository[]
   selectedRepo: string | null
   onSelect: (repoId: string) => void
+  loading?: boolean
 }
 
 // Status indicator with glow effect
@@ -40,7 +42,11 @@ const StatusIndicator = ({ status }: { status: string }) => {
   )
 }
 
-export function RepoList({ repos, selectedRepo, onSelect }: RepoListProps) {
+export function RepoList({ repos, selectedRepo, onSelect, loading }: RepoListProps) {
+  if (loading) {
+    return <RepoGridSkeleton count={3} />
+  }
+
   if (repos.length === 0) {
     return (
       <div className="bg-[#111113] border border-white/5 rounded-2xl p-16 text-center">
@@ -57,7 +63,7 @@ export function RepoList({ repos, selectedRepo, onSelect }: RepoListProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {repos.map((repo) => {
+      {repos.map((repo, index) => {
         const isSelected = selectedRepo === repo.id
 
         return (
@@ -65,11 +71,12 @@ export function RepoList({ repos, selectedRepo, onSelect }: RepoListProps) {
             key={repo.id}
             onClick={() => onSelect(repo.id)}
             className={`group relative text-left rounded-2xl p-5 transition-all duration-300 
-              bg-[#111113] border overflow-hidden
+              bg-[#111113] border overflow-hidden opacity-0 animate-fade-in focus-ring
               ${isSelected 
                 ? 'border-blue-500/50 shadow-lg shadow-blue-500/10' 
                 : 'border-white/5 hover:border-white/10 hover:bg-[#151518]'
               }`}
+            style={{ animationDelay: `${index * 0.05}s` }}
           >
             {/* Subtle gradient overlay on hover */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

@@ -20,6 +20,7 @@ export function DashboardHome() {
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
   const [loading, setLoading] = useState(false)
+  const [reposLoading, setReposLoading] = useState(true)
   const [showPerformance, setShowPerformance] = useState(false)
 
   const fetchRepos = async () => {
@@ -33,6 +34,8 @@ export function DashboardHome() {
       setRepos(data.repositories || [])
     } catch (error) {
       console.error('Error fetching repos:', error)
+    } finally {
+      setReposLoading(false)
     }
   }
 
@@ -150,6 +153,7 @@ export function DashboardHome() {
           <RepoList 
             repos={repos} 
             selectedRepo={selectedRepo}
+            loading={reposLoading}
             onSelect={(id) => {
               setSelectedRepo(id)
               setActiveTab('overview')
