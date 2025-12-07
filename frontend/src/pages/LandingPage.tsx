@@ -166,6 +166,9 @@ export function LandingPage() {
             <a href="https://github.com/opencodeintel/opencodeintel" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
               <GitHubIcon />
             </a>
+            <a href="/docs" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-white transition-colors">
+              Docs
+            </a>
             <Button variant="ghost" className="text-gray-400 hover:text-white" onClick={() => navigate('/login')}>
               Sign in
             </Button>
@@ -553,6 +556,7 @@ export function LandingPage() {
           </div>
           <div className="flex items-center gap-6">
             <a href="https://github.com/opencodeintel/opencodeintel" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">GitHub</a>
+            <a href="/docs" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Docs</a>
             <span className="text-gray-700">•</span>
             <span>Open Source</span>
           </div>
