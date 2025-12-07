@@ -4,6 +4,8 @@ import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './components/Dashboard';
+import { DocsHomePage } from './pages/DocsHomePage';
+import { MCPSetupPage } from './pages/MCPSetupPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -51,13 +53,24 @@ function AppRoutes() {
         element={user ? <Navigate to="/dashboard" replace /> : <SignupPage />} 
       />
       <Route
-        path="/dashboard"
+        path="/dashboard/*"
         element={
           <ProtectedRoute>
             <Dashboard />
           </ProtectedRoute>
         }
       />
+      
+      {/* Documentation Routes - Public, no auth required */}
+      <Route path="/docs" element={<DocsHomePage />} />
+      <Route path="/docs/mcp-setup" element={<MCPSetupPage />} />
+      
+      {/* Placeholder routes for future docs pages */}
+      <Route path="/docs/quickstart" element={<DocsHomePage />} />
+      <Route path="/docs/mcp-tools" element={<MCPSetupPage />} />
+      <Route path="/docs/mcp-examples" element={<MCPSetupPage />} />
+      <Route path="/docs/features/*" element={<DocsHomePage />} />
+      <Route path="/docs/deployment/*" element={<DocsHomePage />} />
       
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
