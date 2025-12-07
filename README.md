@@ -140,29 +140,39 @@ curl -X POST http://localhost:8000/api/repos \
 
 ## MCP Integration
 
-CodeIntel works as an MCP server with Claude Desktop:
+CodeIntel works as an MCP server with Claude Desktop. **[📚 Full MCP Setup Guide](./docs/MCP_SETUP.md)**
+
+**Quick Setup:**
 
 ```json
-// Add to Claude Desktop config (~/.config/claude/config.json)
+// Add to Claude Desktop config
 {
   "mcpServers": {
     "codeintel": {
       "command": "python",
-      "args": ["/path/to/pebble/mcp-server/server.py"]
+      "args": ["/path/to/opencodeintel/mcp-server/server.py"],
+      "env": {
+        "BACKEND_API_URL": "http://localhost:8000",
+        "API_KEY": "your-api-key"
+      }
     }
   }
 }
 ```
 
 **Available MCP Tools:**
-- `search_code` - Semantic code search
-- `list_repositories` - View indexed repos
-- `get_dependency_graph` - Analyze architecture
-- `analyze_code_style` - Team patterns
-- `analyze_impact` - Change impact prediction  
-- `get_repository_insights` - Comprehensive metrics
+| Tool | Description |
+|------|-------------|
+| `search_code` | Semantic code search - finds code by meaning |
+| `list_repositories` | View all indexed repos |
+| `get_dependency_graph` | Visualize architecture and file connections |
+| `analyze_code_style` | Team conventions and patterns |
+| `analyze_impact` | Know what breaks before you change it |
+| `get_repository_insights` | High-level codebase overview |
 
 Now ask Claude: *"What's the authentication logic in the user service?"* and it searches your actual codebase.
+
+**[→ Complete setup guide with troubleshooting](./docs/MCP_SETUP.md)**
 
 ## Architecture
 

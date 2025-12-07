@@ -47,6 +47,7 @@ interface NavItem {
   name: string
   href: string
   icon: React.ReactNode
+  external?: boolean
 }
 
 const mainNavItems: NavItem[] = [
@@ -55,7 +56,7 @@ const mainNavItems: NavItem[] = [
 ]
 
 const bottomNavItems: NavItem[] = [
-  { name: 'Documentation', href: '/docs', icon: <DocsIcon /> },
+  { name: 'Documentation', href: '/docs', icon: <DocsIcon />, external: true },
   { name: 'Settings', href: '/dashboard/settings', icon: <SettingsIcon /> },
 ]
 
@@ -70,23 +71,49 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return location.pathname === href
   }
 
-  const NavLink = ({ item }: { item: NavItem }) => (
-    <Link
-      to={item.href}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group ${
-        isActive(item.href)
-          ? 'bg-blue-500/10 text-blue-400'
-          : 'text-gray-400 hover:text-white hover:bg-white/5'
-      }`}
-    >
-      <span className={`${isActive(item.href) ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-300'}`}>
-        {item.icon}
-      </span>
-      {!collapsed && (
-        <span className="text-sm font-medium truncate">{item.name}</span>
-      )}
-    </Link>
-  )
+  const NavLink = ({ item }: { item: NavItem }) => {
+    // External links open in new tab
+    if (item.external) {
+      return (
+        <a
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group text-gray-400 hover:text-white hover:bg-white/5"
+        >
+          <span className="text-gray-500 group-hover:text-gray-300">
+            {item.icon}
+          </span>
+          {!collapsed && (
+            <>
+              <span className="text-sm font-medium truncate">{item.name}</span>
+              <svg className="w-3 h-3 ml-auto opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </>
+          )}
+        </a>
+      )
+    }
+
+    return (
+      <Link
+        to={item.href}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group ${
+          isActive(item.href)
+            ? 'bg-blue-500/10 text-blue-400'
+            : 'text-gray-400 hover:text-white hover:bg-white/5'
+        }`}
+      >
+        <span className={`${isActive(item.href) ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-300'}`}>
+          {item.icon}
+        </span>
+        {!collapsed && (
+          <span className="text-sm font-medium truncate">{item.name}</span>
+        )}
+      </Link>
+    )
+  }
 
   return (
     <aside 
