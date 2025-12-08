@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+# Explicit permissions for security (CodeQL requirement)
+permissions:
+  contents: read
+
 jobs:
   # Detect which paths changed
   changes:
