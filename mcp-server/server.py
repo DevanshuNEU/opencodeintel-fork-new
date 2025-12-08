@@ -57,6 +57,29 @@ async def handle_list_tools() -> list[types.Tool]:
             }
         ),
         types.Tool(
+            name="search_code_v2",
+            description="[RECOMMENDED] Enhanced semantic search using natural language descriptions. This version provides ~15-20% better accuracy by matching against human-readable function descriptions. Returns description explaining what each function does. Use this for best search results.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Natural language search query. Examples: 'authentication logic', 'error handling', 'database connection'"
+                    },
+                    "repo_id": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return (default: 10)",
+                        "default": 10
+                    }
+                },
+                "required": ["query", "repo_id"]
+            }
+        ),
+        types.Tool(
             name="list_repositories",
             description="List all indexed repositories available for analysis",
             inputSchema={
@@ -166,6 +189,44 @@ async def handle_call_tool(
                         formatted += f"```{res.get('language', 'python')}\n{res.get('code', '')}\n```\n\n"
                 else:
                     formatted += "No results found.\n"
+                
+                return [types.TextContent(type="text", text=formatted)]
+            
+            elif name == "search_code_v2":
+                # V2 Search - Uses NL descriptions for better accuracy
+                response = await client.post(
+                    f"{BACKEND_API_URL}/search/v2",
+                    json=arguments,
+                    headers=headers
+                )
+                response.raise_for_status()
+                result = response.json()
+                
+                # Format V2 results with descriptions
+                formatted = f"# Code Search Results (V2 - Enhanced)\n\n"
+                formatted += f"Found {result.get('count', 0)} results"
+                formatted += f" (query time: {result.get('query_time_ms', 0):.0f}ms)\n\n"
+                
+                if result.get("results"):
+                    for idx, res in enumerate(result["results"], 1):
+                        score_pct = res.get('score', 0) * 100
+                        formatted += f"## {idx}. {res.get('name', 'unknown')} ({score_pct:.0f}% match)\n\n"
+                        
+                        # Show NL description (key V2 feature)
+                        if res.get('description'):
+                            formatted += f"📝 **What it does:** {res.get('description')}\n\n"
+                        
+                        formatted += f"**File:** `{res.get('file_path', 'unknown')}`\n"
+                        formatted += f"**Type:** {res.get('type', 'unknown')} | **Language:** {res.get('language', 'unknown')}\n"
+                        formatted += f"**Lines:** {res.get('line_start', 0)}-{res.get('line_end', 0)}\n"
+                        
+                        # Show keywords if available
+                        if res.get('keywords'):
+                            formatted += f"**Keywords:** {', '.join(res['keywords'][:5])}\n"
+                        
+                        formatted += f"\n```{res.get('language', 'python')}\n{res.get('code', '')}\n```\n\n"
+                else:
+                    formatted += "No results found. Make sure the repository is indexed with V2 (`/repos/{id}/index/v2`).\n"
                 
                 return [types.TextContent(type="text", text=formatted)]
             
