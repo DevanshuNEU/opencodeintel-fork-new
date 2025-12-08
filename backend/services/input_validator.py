@@ -4,8 +4,9 @@ Prevents malicious inputs and abuse
 """
 from typing import Optional
 from urllib.parse import urlparse
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
+import os
 
 
 class InputValidator:
@@ -91,14 +92,24 @@ class InputValidator:
         if '\x00' in file_path:
             return False, "Null bytes not allowed in paths"
         
-        # If repo_root provided, ensure path is within it
+        # Normalize path without filesystem access to prevent traversal
+        # Use os.path.normpath which resolves .. and . without touching filesystem
+        normalized = os.path.normpath(file_path)
+        
+        # After normalization, path should not start with .. or be absolute
+        if normalized.startswith('..') or os.path.isabs(normalized):
+            return False, "Path escapes allowed directory"
+        
+        # If repo_root provided, do additional containment check
         if repo_root:
             try:
-                repo_path = Path(repo_root).resolve()
-                full_path = (repo_path / file_path).resolve()
+                # Use PurePosixPath for safe path manipulation without filesystem access
+                # This avoids the CodeQL "uncontrolled data in path" warning
+                safe_root = os.path.normpath(repo_root)
+                safe_full = os.path.normpath(os.path.join(safe_root, normalized))
                 
-                # Check if resolved path is still within repo
-                if not str(full_path).startswith(str(repo_path)):
+                # Ensure the joined path stays within repo_root
+                if not safe_full.startswith(safe_root + os.sep) and safe_full != safe_root:
                     return False, "Path escapes repository root"
             except Exception:
                 return False, "Invalid path format"

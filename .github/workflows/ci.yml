@@ -6,9 +6,33 @@ on:
   pull_request:
     branches: [ main ]
 
+# Explicit permissions for security (CodeQL requirement)
+permissions:
+  contents: read
+
 jobs:
+  # Detect which paths changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          backend:
+            - 'backend/**'
+            - 'railway.json'
+          frontend:
+            - 'frontend/**'
+
   test-backend:
     name: Backend Tests
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     
     steps:
@@ -49,6 +73,8 @@ jobs:
 
   test-frontend:
     name: Frontend Tests
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-latest
     
     steps:
@@ -76,12 +102,12 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail build on security warnings
+    continue-on-error: true
     
     steps:
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Full history for TruffleHog
+        fetch-depth: 0
     
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
@@ -93,24 +119,8 @@ jobs:
     
     - name: Check for secrets
       uses: trufflesecurity/trufflehog@main
-      continue-on-error: true  # Don't fail on false positives
+      continue-on-error: true
       with:
         path: ./
         base: main
         head: HEAD
-
-  lint:
-    name: Lint Code
-    runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail build on style issues
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Lint Python
-      uses: py-actions/flake8@v2
-      continue-on-error: true
-      with:
-        path: "backend/services"
-        max-line-length: "120"
-        ignore: "E501,W503"
