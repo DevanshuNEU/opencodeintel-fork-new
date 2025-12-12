@@ -11,8 +11,8 @@ Get CodeIntel running locally with Docker in 5 minutes.
 ## Step 1: Clone & Navigate
 
 ```bash
-git clone https://github.com/DevanshuNEU/v1--codeintel.git
-cd v1--codeintel
+git clone https://github.com/OpenCodeIntel/opencodeintel.git
+cd opencodeintel
 ```
 
 ## Step 2: Configure Environment
@@ -192,5 +192,5 @@ Full deployment guide: `DEPLOYMENT.md`
 
 **Need help?** 
 - 📖 Check `DOCKER_TROUBLESHOOTING.md`
-- 🐛 Open an issue: https://github.com/DevanshuNEU/v1--codeintel/issues
+- 🐛 Open an issue: https://github.com/OpenCodeIntel/opencodeintel/issues
 - 📝 See full docs: `README.md`

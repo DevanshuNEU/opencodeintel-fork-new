@@ -276,7 +276,7 @@ docker compose exec backend curl http://backend:8000/health
 
 ## Still Having Issues?
 
-1. Check GitHub Issues: https://github.com/DevanshuNEU/v1--codeintel/issues
+1. Check GitHub Issues: https://github.com/OpenCodeIntel/opencodeintel/issues
 2. Run verification script: `./scripts/verify-setup.sh`
 3. Check DEPLOYMENT.md for step-by-step instructions
 4. Make sure Docker Desktop has enough resources (Settings → Resources)
