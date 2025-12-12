@@ -2,402 +2,366 @@
 Observability Module
 Centralized logging, tracing, and metrics for CodeIntel
 
-Features:
-- Structured JSON logging (prod) / Pretty logging (dev)
-- Sentry integration with context
-- Performance tracking decorators
-- Operation context managers
+Usage:
+    from services.observability import logger, trace_operation, track_time
+
+    logger.info("Starting indexing", repo_id="abc", files=100)
+    
+    @trace_operation("indexing")
+    async def index_repo(repo_id: str):
+        ...
+    
+    with track_time("embedding_batch"):
+        embeddings = await create_embeddings(texts)
 """
 import os
-import json
+import sys
 import time
 import logging
-import functools
-from typing import Optional, Dict, Any, Callable
+import json
+from typing import Optional, Any, Dict
+from functools import wraps
 from contextlib import contextmanager
 from datetime import datetime
 
-
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
-
+# Environment
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-LOG_FORMAT = os.getenv("LOG_FORMAT", "pretty" if ENVIRONMENT == "development" else "json")
+IS_PRODUCTION = ENVIRONMENT == "production"
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO" if IS_PRODUCTION else "DEBUG")
 
 
-# ============================================================================
+# =============================================================================
 # STRUCTURED LOGGER
-# ============================================================================
+# =============================================================================
 
 class StructuredLogger:
     """
-    Structured logger with JSON output for production and pretty output for dev.
+    Structured logger that outputs JSON in production, pretty logs in development.
     
     Usage:
-        logger = get_logger("indexer")
-        logger.info("Starting indexing", repo_id="abc", files=100)
-        logger.error("Failed to index", error=str(e), repo_id="abc")
+        logger.info("User logged in", user_id="abc", ip="1.2.3.4")
+        logger.error("Failed to index", repo_id="xyz", error=str(e))
     """
     
-    def __init__(self, name: str):
+    def __init__(self, name: str = "codeintel"):
         self.name = name
-        self.logger = logging.getLogger(name)
-        
-        # Only configure if not already configured
-        if not self.logger.handlers:
-            self.logger.setLevel(getattr(logging, LOG_LEVEL))
-            handler = logging.StreamHandler()
-            handler.setLevel(getattr(logging, LOG_LEVEL))
-            
-            if LOG_FORMAT == "json":
-                handler.setFormatter(JsonFormatter())
-            else:
-                handler.setFormatter(PrettyFormatter())
-            
-            self.logger.addHandler(handler)
-            self.logger.propagate = False
+        self.level = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
+        self._context: Dict[str, Any] = {}
     
-    def _log(self, level: str, message: str, **context):
-        """Internal log method with context"""
-        extra = {
-            "service": self.name,
+    def _format_message(self, level: str, message: str, **kwargs) -> str:
+        """Format log message based on environment"""
+        data = {
             "timestamp": datetime.utcnow().isoformat(),
-            "environment": ENVIRONMENT,
-            **context
+            "level": level,
+            "service": self.name,
+            "message": message,
+            **self._context,
+            **kwargs
         }
         
-        log_method = getattr(self.logger, level)
-        log_method(message, extra={"structured": extra})
+        if IS_PRODUCTION:
+            # JSON for production (easy to parse in log aggregators)
+            return json.dumps(data)
+        else:
+            # Pretty format for development
+            extras = " | ".join(f"{k}={v}" for k, v in kwargs.items())
+            ctx = " | ".join(f"{k}={v}" for k, v in self._context.items())
+            parts = [f"[{level}] {message}"]
+            if ctx:
+                parts.append(f"[ctx: {ctx}]")
+            if extras:
+                parts.append(extras)
+            return " ".join(parts)
     
-    def debug(self, message: str, **context):
-        self._log("debug", message, **context)
-    
-    def info(self, message: str, **context):
-        self._log("info", message, **context)
-    
-    def warning(self, message: str, **context):
-        self._log("warning", message, **context)
-    
-    def error(self, message: str, **context):
-        self._log("error", message, **context)
+    def _log(self, level: str, level_num: int, message: str, **kwargs):
+        """Internal log method"""
+        if level_num < self.level:
+            return
         
-        # Also send to Sentry if it's a real error
-        if "error" in context or "exception" in context:
-            _capture_to_sentry(message, level="error", **context)
-    
-    def critical(self, message: str, **context):
-        self._log("critical", message, **context)
-        _capture_to_sentry(message, level="fatal", **context)
-
-
-class JsonFormatter(logging.Formatter):
-    """JSON formatter for production logs"""
-    
-    def format(self, record):
-        structured = getattr(record, "structured", {})
-        log_entry = {
-            "level": record.levelname.lower(),
-            "message": record.getMessage(),
-            **structured
-        }
-        return json.dumps(log_entry)
-
-
-class PrettyFormatter(logging.Formatter):
-    """Pretty formatter for development"""
-    
-    COLORS = {
-        "DEBUG": "\033[36m",    # Cyan
-        "INFO": "\033[32m",     # Green
-        "WARNING": "\033[33m",  # Yellow
-        "ERROR": "\033[31m",    # Red
-        "CRITICAL": "\033[35m", # Magenta
-    }
-    RESET = "\033[0m"
-    
-    def format(self, record):
-        structured = getattr(record, "structured", {})
-        color = self.COLORS.get(record.levelname, "")
+        formatted = self._format_message(level, message, **kwargs)
         
-        # Build context string
-        context_parts = []
-        for key, value in structured.items():
-            if key not in ("service", "timestamp", "environment"):
-                context_parts.append(f"{key}={value}")
-        
-        context_str = " | ".join(context_parts) if context_parts else ""
-        service = structured.get("service", "app")
-        
-        return f"{color}[{record.levelname}]{self.RESET} [{service}] {record.getMessage()} {context_str}"
+        # Use stderr for errors, stdout for rest
+        output = sys.stderr if level_num >= logging.ERROR else sys.stdout
+        print(formatted, file=output)
+    
+    def set_context(self, **kwargs):
+        """Set persistent context for all subsequent logs"""
+        self._context.update(kwargs)
+    
+    def clear_context(self):
+        """Clear all context"""
+        self._context = {}
+    
+    def debug(self, message: str, **kwargs):
+        self._log("DEBUG", logging.DEBUG, message, **kwargs)
+    
+    def info(self, message: str, **kwargs):
+        self._log("INFO", logging.INFO, message, **kwargs)
+    
+    def warning(self, message: str, **kwargs):
+        self._log("WARNING", logging.WARNING, message, **kwargs)
+    
+    def error(self, message: str, **kwargs):
+        self._log("ERROR", logging.ERROR, message, **kwargs)
+    
+    def critical(self, message: str, **kwargs):
+        self._log("CRITICAL", logging.CRITICAL, message, **kwargs)
 
 
-# Logger cache
-_loggers: Dict[str, StructuredLogger] = {}
-
-def get_logger(name: str) -> StructuredLogger:
-    """Get or create a structured logger"""
-    if name not in _loggers:
-        _loggers[name] = StructuredLogger(name)
-    return _loggers[name]
+# Global logger instance
+logger = StructuredLogger()
 
 
-# ============================================================================
-# SENTRY INTEGRATION
-# ============================================================================
+# =============================================================================
+# SENTRY INTEGRATION HELPERS
+# =============================================================================
 
-def _capture_to_sentry(message: str, level: str = "error", **context):
-    """Send message/error to Sentry with context"""
+def set_operation_context(operation: str, **kwargs):
+    """
+    Set Sentry context for current operation.
+    
+    Args:
+        operation: Type of operation (indexing, search, analysis, etc.)
+        **kwargs: Additional context (repo_id, user_id, etc.)
+    """
     try:
         import sentry_sdk
-        
-        with sentry_sdk.push_scope() as scope:
-            for key, value in context.items():
-                scope.set_extra(key, value)
-            
-            if level == "fatal":
-                sentry_sdk.capture_message(message, level="fatal")
-            else:
-                sentry_sdk.capture_message(message, level=level)
+        sentry_sdk.set_tag("operation", operation)
+        for key, value in kwargs.items():
+            sentry_sdk.set_tag(key, str(value))
+        sentry_sdk.set_context("operation_details", {
+            "type": operation,
+            **kwargs
+        })
     except ImportError:
-        pass  # Sentry not installed
+        pass
+
+
+def add_breadcrumb(message: str, category: str = "custom", level: str = "info", **data):
+    """
+    Add breadcrumb for Sentry error context.
+    
+    Breadcrumbs show the trail of events leading to an error.
+    """
+    try:
+        import sentry_sdk
+        sentry_sdk.add_breadcrumb(
+            message=message,
+            category=category,
+            level=level,
+            data=data
+        )
+    except ImportError:
+        pass
 
 
 def capture_exception(error: Exception, **context):
     """
-    Capture an exception to Sentry with full context.
+    Capture exception with additional context.
     
-    Usage:
-        try:
-            risky_operation()
-        except Exception as e:
-            capture_exception(e, repo_id="abc", operation="indexing")
+    Args:
+        error: The exception to capture
+        **context: Additional context to attach
     """
     try:
         import sentry_sdk
-        
         with sentry_sdk.push_scope() as scope:
             for key, value in context.items():
                 scope.set_extra(key, value)
             sentry_sdk.capture_exception(error)
+        
+        # Also log it
+        logger.error(
+            f"Exception captured: {type(error).__name__}: {str(error)}",
+            **context
+        )
     except ImportError:
-        # Log to console if Sentry not available
-        logger = get_logger("error")
-        logger.error(f"Exception: {error}", exception=str(error), **context)
+        logger.error(f"Exception: {error}", **context)
 
 
-def set_user_context(user_id: Optional[str] = None, email: Optional[str] = None):
-    """Set user context for error tracking"""
+def capture_message(message: str, level: str = "info", **context):
+    """Capture a message (not exception) to Sentry"""
     try:
         import sentry_sdk
-        sentry_sdk.set_user({"id": user_id, "email": email})
+        with sentry_sdk.push_scope() as scope:
+            for key, value in context.items():
+                scope.set_extra(key, value)
+            sentry_sdk.capture_message(message, level=level)
     except ImportError:
         pass
 
 
-def set_tag(key: str, value: str):
-    """Set a tag that persists across the request"""
-    try:
-        import sentry_sdk
-        sentry_sdk.set_tag(key, value)
-    except ImportError:
-        pass
-
-
-# ============================================================================
+# =============================================================================
 # PERFORMANCE TRACKING
-# ============================================================================
+# =============================================================================
 
 @contextmanager
-def trace_operation(
-    operation: str,
-    description: Optional[str] = None,
-    **tags
-):
+def track_time(operation: str, **tags):
     """
-    Context manager for tracing operations with timing.
+    Context manager to track operation duration.
     
     Usage:
-        with trace_operation("indexing", repo_id="abc") as span:
-            do_indexing()
-            span.set_data("files_processed", 100)
+        with track_time("embedding_batch", batch_size=100):
+            embeddings = await create_embeddings(texts)
+    
+    Logs duration and creates Sentry span if available.
     """
-    logger = get_logger(operation)
-    start_time = time.time()
+    start = time.perf_counter()
     
     # Start Sentry span if available
     span = None
     try:
         import sentry_sdk
-        span = sentry_sdk.start_span(op=operation, description=description)
+        span = sentry_sdk.start_span(op=operation, description=operation)
         for key, value in tags.items():
             span.set_tag(key, str(value))
-        span.__enter__()
     except ImportError:
         pass
     
-    # Create a simple span-like object for data attachment
-    class SpanData:
-        def __init__(self):
-            self.data = {}
-        
-        def set_data(self, key: str, value: Any):
-            self.data[key] = value
-            if span:
-                span.set_data(key, value)
-    
-    span_data = SpanData()
+    add_breadcrumb(f"Started: {operation}", category="performance", **tags)
     
     try:
-        logger.debug(f"Starting {operation}", **tags)
-        yield span_data
-        
-        duration = time.time() - start_time
-        logger.info(
-            f"Completed {operation}",
-            duration_ms=round(duration * 1000, 2),
-            **tags,
-            **span_data.data
-        )
-        
-    except Exception as e:
-        duration = time.time() - start_time
-        logger.error(
-            f"Failed {operation}",
-            error=str(e),
-            duration_ms=round(duration * 1000, 2),
-            **tags,
-            **span_data.data
-        )
-        capture_exception(e, operation=operation, **tags, **span_data.data)
-        raise
-    
+        yield
     finally:
+        duration = time.perf_counter() - start
+        duration_ms = round(duration * 1000, 2)
+        
+        # Log completion
+        logger.debug(f"{operation} completed", duration_ms=duration_ms, **tags)
+        
+        # Finish Sentry span
         if span:
-            try:
-                span.__exit__(None, None, None)
-            except Exception:
-                pass
+            span.finish()
+        
+        add_breadcrumb(
+            f"Completed: {operation}",
+            category="performance",
+            duration_ms=duration_ms,
+            **tags
+        )
 
 
-def track_performance(operation: str = None):
+def trace_operation(operation: str):
     """
-    Decorator for tracking function performance.
+    Decorator to trace an entire function/method.
     
     Usage:
-        @track_performance("search")
-        async def semantic_search(query: str, repo_id: str):
+        @trace_operation("index_repository")
+        async def index_repository(repo_id: str):
             ...
     """
-    def decorator(func: Callable):
-        op_name = operation or func.__name__
-        
-        @functools.wraps(func)
+    def decorator(func):
+        @wraps(func)
         async def async_wrapper(*args, **kwargs):
-            with trace_operation(op_name, description=func.__name__):
-                return await func(*args, **kwargs)
+            # Extract useful context from kwargs
+            context = {k: v for k, v in kwargs.items() 
+                      if k in ('repo_id', 'user_id', 'query', 'file_path')}
+            
+            set_operation_context(operation, **context)
+            add_breadcrumb(f"Starting {operation}", category="function", **context)
+            
+            start = time.perf_counter()
+            try:
+                result = await func(*args, **kwargs)
+                duration = time.perf_counter() - start
+                logger.info(
+                    f"{operation} completed successfully",
+                    duration_s=round(duration, 2),
+                    **context
+                )
+                return result
+            except Exception as e:
+                duration = time.perf_counter() - start
+                capture_exception(e, operation=operation, duration_s=round(duration, 2), **context)
+                raise
         
-        @functools.wraps(func)
+        @wraps(func)
         def sync_wrapper(*args, **kwargs):
-            with trace_operation(op_name, description=func.__name__):
-                return func(*args, **kwargs)
+            context = {k: v for k, v in kwargs.items() 
+                      if k in ('repo_id', 'user_id', 'query', 'file_path')}
+            
+            set_operation_context(operation, **context)
+            add_breadcrumb(f"Starting {operation}", category="function", **context)
+            
+            start = time.perf_counter()
+            try:
+                result = func(*args, **kwargs)
+                duration = time.perf_counter() - start
+                logger.info(
+                    f"{operation} completed successfully",
+                    duration_s=round(duration, 2),
+                    **context
+                )
+                return result
+            except Exception as e:
+                duration = time.perf_counter() - start
+                capture_exception(e, operation=operation, duration_s=round(duration, 2), **context)
+                raise
         
         # Return appropriate wrapper based on function type
-        if asyncio_iscoroutinefunction(func):
+        import asyncio
+        if asyncio.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper
     
     return decorator
 
 
-def asyncio_iscoroutinefunction(func):
-    """Check if function is async"""
-    import asyncio
-    return asyncio.iscoroutinefunction(func)
-
-
-# ============================================================================
-# METRICS (Simple counters - can be extended to Prometheus later)
-# ============================================================================
+# =============================================================================
+# SIMPLE METRICS (in-memory counters)
+# =============================================================================
 
 class Metrics:
     """
-    Simple metrics collection.
+    Simple in-memory metrics counters.
     
     Usage:
-        metrics = get_metrics()
-        metrics.increment("indexing.files_processed", 10)
-        metrics.timing("search.latency_ms", 150)
+        metrics.increment("search_requests", repo_id="abc")
+        metrics.timing("search_latency_ms", 150)
+        metrics.get_stats()  # Returns all metrics
     """
     
     def __init__(self):
         self._counters: Dict[str, int] = {}
         self._timings: Dict[str, list] = {}
     
-    def increment(self, name: str, value: int = 1):
+    def increment(self, name: str, value: int = 1, **tags):
         """Increment a counter"""
-        self._counters[name] = self._counters.get(name, 0) + value
+        key = f"{name}"
+        self._counters[key] = self._counters.get(key, 0) + value
     
     def timing(self, name: str, value_ms: float):
         """Record a timing measurement"""
         if name not in self._timings:
             self._timings[name] = []
         self._timings[name].append(value_ms)
-        
-        # Keep only last 1000 measurements
+        # Keep only last 1000 timings
         if len(self._timings[name]) > 1000:
             self._timings[name] = self._timings[name][-1000:]
     
-    def get_counter(self, name: str) -> int:
-        """Get counter value"""
-        return self._counters.get(name, 0)
-    
-    def get_timing_stats(self, name: str) -> Dict[str, float]:
-        """Get timing statistics"""
-        timings = self._timings.get(name, [])
-        if not timings:
-            return {"count": 0, "avg": 0, "min": 0, "max": 0}
-        
-        return {
-            "count": len(timings),
-            "avg": sum(timings) / len(timings),
-            "min": min(timings),
-            "max": max(timings)
-        }
-    
-    def get_all_stats(self) -> Dict[str, Any]:
-        """Get all metrics"""
-        return {
+    def get_stats(self) -> Dict:
+        """Get all metrics with basic stats"""
+        stats = {
             "counters": self._counters.copy(),
-            "timings": {
-                name: self.get_timing_stats(name)
-                for name in self._timings
-            }
+            "timings": {}
         }
+        
+        for name, values in self._timings.items():
+            if values:
+                stats["timings"][name] = {
+                    "count": len(values),
+                    "avg_ms": round(sum(values) / len(values), 2),
+                    "min_ms": round(min(values), 2),
+                    "max_ms": round(max(values), 2)
+                }
+        
+        return stats
+    
+    def reset(self):
+        """Reset all metrics"""
+        self._counters = {}
+        self._timings = {}
 
 
-# Metrics singleton
-_metrics: Optional[Metrics] = None
-
-def get_metrics() -> Metrics:
-    """Get metrics instance"""
-    global _metrics
-    if _metrics is None:
-        _metrics = Metrics()
-    return _metrics
-
-
-# ============================================================================
-# CONVENIENCE EXPORTS
-# ============================================================================
-
-__all__ = [
-    "get_logger",
-    "capture_exception", 
-    "set_user_context",
-    "set_tag",
-    "trace_operation",
-    "track_performance",
-    "get_metrics",
-]
+# Global metrics instance
+metrics = Metrics()
