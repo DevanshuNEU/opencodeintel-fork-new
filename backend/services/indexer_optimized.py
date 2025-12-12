@@ -471,12 +471,12 @@ class OptimizedCodeIndexer:
     ):
         """Index repository with real-time progress updates"""
         start_time = time.time()
-        print(f"\n🚀 Starting optimized indexing with progress for repo: {repo_id}")
+        logger.info("Starting optimized indexing with progress", repo_id=repo_id)
         
         # Discover code files
         code_files = self._discover_code_files(repo_path)
         total_files = len(code_files)
-        print(f"📄 Found {total_files} code files")
+        logger.info("Found code files", repo_id=repo_id, total_files=total_files)
         
         if not code_files:
             await progress_callback(0, 0, 0)
@@ -486,7 +486,7 @@ class OptimizedCodeIndexer:
         all_functions_data = []
         files_processed = 0
         
-        print(f"\n🔍 Extracting functions from files...")
+        logger.debug("Extracting functions from files")
         for i in range(0, len(code_files), self.FILE_BATCH_SIZE):
             batch = code_files[i:i + self.FILE_BATCH_SIZE]
             
@@ -507,14 +507,16 @@ class OptimizedCodeIndexer:
             # Send progress update
             await progress_callback(files_processed, len(all_functions_data), total_files)
             
-            print(f"   Processed {files_processed}/{total_files} files, "
-                  f"{len(all_functions_data)} functions extracted")
+            logger.debug("Processing files", 
+                        processed=files_processed, 
+                        total=total_files, 
+                        functions_extracted=len(all_functions_data))
         
         if not all_functions_data:
             return 0
         
         # Generate embeddings in BATCHES
-        print(f"\n🧠 Generating embeddings in batches of {self.EMBEDDING_BATCH_SIZE}...")
+        logger.debug("Generating embeddings in batches", batch_size=self.EMBEDDING_BATCH_SIZE)
         
         # Create rich embedding texts using search enhancer
         embedding_texts = [
@@ -528,10 +530,10 @@ class OptimizedCodeIndexer:
             batch_embeddings = await self._create_embeddings_batch(batch_texts)
             all_embeddings.extend(batch_embeddings)
             
-            print(f"   Generated {len(all_embeddings)}/{len(embedding_texts)} embeddings")
+            logger.debug("Embeddings generated", completed=len(all_embeddings), total=len(embedding_texts))
         
         # Prepare vectors for Pinecone
-        print(f"\n💾 Uploading to Pinecone...")
+        logger.debug("Uploading to Pinecone")
         vectors_to_upsert = []
         
         for func_data, embedding in zip(all_functions_data, all_embeddings):
@@ -560,10 +562,11 @@ class OptimizedCodeIndexer:
             self.index.upsert(vectors=batch)
         
         elapsed = time.time() - start_time
-        print(f"\n✅ Indexing complete!")
-        print(f"   • Total functions: {len(all_functions_data)}")
-        print(f"   • Time taken: {elapsed:.2f}s")
-        print(f"   • Speed: {len(all_functions_data)/elapsed:.1f} functions/sec")
+        logger.info("Indexing with progress complete",
+                    repo_id=repo_id,
+                    total_functions=len(all_functions_data),
+                    duration_s=round(elapsed, 2),
+                    speed=round(len(all_functions_data)/elapsed, 1) if elapsed > 0 else 0)
         
         return len(all_functions_data)
 
@@ -578,14 +581,13 @@ class OptimizedCodeIndexer:
         import time
         
         start_time = time.time()
-        print(f"\n🔄 Starting INCREMENTAL indexing for repo: {repo_id}")
-        print(f"📍 Last indexed commit: {last_commit_sha[:8]}")
+        logger.info("Starting INCREMENTAL indexing", repo_id=repo_id, last_commit=last_commit_sha[:8])
         
         try:
             repo = git.Repo(repo_path)
             current_commit = repo.head.commit.hexsha
             
-            print(f"📍 Current commit: {current_commit[:8]}")
+            logger.debug("Current commit", current_commit=current_commit[:8])
             
             # Get changed files
             if last_commit_sha:
@@ -593,7 +595,7 @@ class OptimizedCodeIndexer:
                 changed_files = diff.split('\n') if diff else []
             else:
                 # No previous commit, index everything
-                print("⚠️  No previous commit - doing full index")
+                logger.warning("No previous commit - doing full index")
                 return await self.index_repository(repo_id, repo_path)
             
             # Filter for code files only
@@ -603,10 +605,10 @@ class OptimizedCodeIndexer:
                 if Path(f).suffix in code_extensions
             ]
             
-            print(f"📄 Found {len(changed_files)} total changes, {len(changed_code_files)} code files")
+            logger.info("Found changed files", total_changes=len(changed_files), code_files=len(changed_code_files))
             
             if not changed_code_files:
-                print("✅ No code changes detected - skipping indexing")
+                logger.info("No code changes detected - skipping indexing")
                 return 0
             
             # Extract functions from changed files
@@ -615,19 +617,19 @@ class OptimizedCodeIndexer:
             for file_path in changed_code_files:
                 full_path = Path(repo_path) / file_path
                 if not full_path.exists():
-                    print(f"⚠️  File deleted: {file_path} - skipping")
+                    logger.debug("File deleted - skipping", file_path=file_path)
                     continue
                 
                 functions = await self._extract_functions_from_file(repo_id, str(full_path))
                 all_functions_data.extend(functions)
-                print(f"   Processed {file_path}: {len(functions)} functions")
+                logger.debug("Processed changed file", file_path=file_path, functions=len(functions))
             
             if not all_functions_data:
-                print("✅ No functions to index")
+                logger.info("No functions to index")
                 return 0
             
             # Generate embeddings in batches
-            print(f"\n🧠 Generating embeddings for {len(all_functions_data)} functions...")
+            logger.debug("Generating embeddings", function_count=len(all_functions_data))
             
             # Create rich embedding texts using search enhancer
             embedding_texts = [
@@ -671,16 +673,17 @@ class OptimizedCodeIndexer:
             
             elapsed = time.time() - start_time
             
-            print(f"\n✅ Incremental indexing complete!")
-            print(f"   • Changed files: {len(changed_code_files)}")
-            print(f"   • Functions updated: {len(all_functions_data)}")
-            print(f"   • Time taken: {elapsed:.2f}s")
-            print(f"   • Speed: {len(all_functions_data)/elapsed:.1f} functions/sec")
-            print(f"   • 🚀 INCREMENTAL SPEEDUP: ~{100/elapsed:.0f}x faster than full re-index!")
+            logger.info("Incremental indexing complete",
+                        repo_id=repo_id,
+                        changed_files=len(changed_code_files),
+                        functions_updated=len(all_functions_data),
+                        duration_s=round(elapsed, 2),
+                        speed=round(len(all_functions_data)/elapsed, 1) if elapsed > 0 else 0)
             
             return len(all_functions_data)
             
         except Exception as e:
-            print(f"❌ Incremental indexing error: {e}")
-            print("Falling back to full index...")
+            logger.error("Incremental indexing error - falling back to full index", 
+                        repo_id=repo_id, error=str(e))
+            capture_exception(e, operation="incremental_indexing", repo_id=repo_id)
             return await self.index_repository(repo_id, repo_path)
