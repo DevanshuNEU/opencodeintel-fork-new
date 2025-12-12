@@ -68,8 +68,8 @@ Understand team patterns: naming conventions (camelCase vs snake_case), async ad
 
 ```bash
 # 1. Clone repo
-git clone https://github.com/DevanshuNEU/v1--codeintel.git
-cd v1--codeintel
+git clone https://github.com/OpenCodeIntel/opencodeintel.git
+cd opencodeintel
 
 # 2. Configure environment
 cp .env.example .env
