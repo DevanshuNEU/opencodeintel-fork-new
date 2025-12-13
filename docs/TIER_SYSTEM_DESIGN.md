@@ -2,8 +2,8 @@
 
 > **Issues**: #93, #94, #95, #96, #97
 > **Author**: Devanshu
-> **Status**: Draft
-> **Last Updated**: 2024-12-13
+> **Status**: Implemented
+> **Last Updated**: 2025-12-13
 
 ---
 
@@ -90,12 +90,13 @@ CodeIntel needs a tiered system to:
 **Service Methods**:
 ```python
 class UserLimitsService:
-    async def get_user_tier(user_id) -> UserTier
-    async def get_user_limits(user_id) -> TierLimits
-    async def get_user_repo_count(user_id) -> int
-    async def check_repo_count(user_id) -> LimitCheckResult
-    async def check_repo_size(user_id, file_count, func_count) -> LimitCheckResult
-    async def get_usage_summary(user_id) -> dict
+    def get_user_tier(user_id) -> UserTier
+    def get_user_limits(user_id) -> TierLimits
+    def get_user_repo_count(user_id) -> int
+    def check_repo_count(user_id) -> LimitCheckResult
+    def check_repo_size(user_id, file_count, func_count) -> LimitCheckResult
+    def get_usage_summary(user_id) -> dict
+    def invalidate_tier_cache(user_id) -> None  # Call after tier upgrade
 ```
 
 ### Issue #95: Repo Count Limits
@@ -104,19 +105,13 @@ class UserLimitsService:
 **Changes to `routes/repos.py`**:
 ```python
 @router.post("")
-async def add_repository(request, auth):
+def add_repository(request, auth):
     # NEW: Check repo count limit
-    result = await user_limits.check_repo_count(auth.user_id)
+    result = user_limits.check_repo_count(auth.user_id)
     if not result.allowed:
         raise HTTPException(
             status_code=403,
-            detail={
-                "error": "REPO_LIMIT_REACHED",
-                "message": result.message,
-                "current": result.current,
-                "limit": result.limit,
-                "upgrade_url": "/pricing"  # Frontend can use this
-            }
+            detail=result.to_dict()
         )
     # ... existing code
 ```
@@ -132,7 +127,7 @@ async def add_repository(request, auth):
 **Changes to `routes/repos.py`**:
 ```python
 @router.post("/{repo_id}/index")
-async def index_repository(repo_id, auth):
+def index_repository(repo_id, auth):
     repo = get_repo_or_404(repo_id, auth.user_id)
     
     # Count files and estimate functions BEFORE indexing
@@ -140,19 +135,13 @@ async def index_repository(repo_id, auth):
     estimated_functions = file_count * 25  # Conservative estimate
     
     # NEW: Check size limits
-    result = await user_limits.check_repo_size(
+    result = user_limits.check_repo_size(
         auth.user_id, file_count, estimated_functions
     )
     if not result.allowed:
         raise HTTPException(
             status_code=400,
-            detail={
-                "error": "REPO_TOO_LARGE",
-                "message": result.message,
-                "file_count": file_count,
-                "limit": result.limit,
-                "tier": (await user_limits.get_user_tier(auth.user_id)).value
-            }
+            detail=result.to_dict()
         )
     # ... existing indexing code
 ```
@@ -167,7 +156,7 @@ class PlaygroundRateLimiter:
         self.redis = redis_client
         self.daily_limit = 50
     
-    async def check_and_increment(self, ip: str) -> tuple[bool, dict]:
+    def check_and_increment(self, ip: str) -> tuple[bool, dict]:
         """Returns (allowed, headers_dict)"""
         key = f"playground:rate:{ip}"
         
@@ -197,7 +186,7 @@ class PlaygroundRateLimiter:
 from fastapi import Request, Response
 
 @router.post("/search")
-async def playground_search(request: Request, response: Response, body: SearchRequest):
+def playground_search(request: Request, response: Response, body: SearchRequest):
     # Get client IP
     ip = request.client.host
     forwarded = request.headers.get("X-Forwarded-For")
@@ -205,7 +194,7 @@ async def playground_search(request: Request, response: Response, body: SearchRe
         ip = forwarded.split(",")[0].strip()
     
     # Check rate limit
-    allowed, headers = await playground_rate_limiter.check_and_increment(ip)
+    allowed, headers = playground_rate_limiter.check_and_increment(ip)
     
     # Always add headers
     for key, value in headers.items():
@@ -256,17 +245,18 @@ const usePlaygroundUsage = () => {
 
 ## 5. Error Response Format
 
-All limit-related errors follow this format:
+All limit-related errors use `LimitCheckResult.to_dict()`:
 
 ```json
 {
   "detail": {
-    "error": "ERROR_CODE",
-    "message": "Human readable message",
+    "allowed": false,
     "current": 3,
     "limit": 3,
+    "limit_display": "3",
+    "message": "Repository limit reached (3/3). Upgrade to add more repositories.",
     "tier": "free",
-    "upgrade_url": "/pricing"
+    "error_code": "REPO_LIMIT_REACHED"
   }
 }
 ```
@@ -277,6 +267,8 @@ All limit-related errors follow this format:
 | `REPO_LIMIT_REACHED` | 403 | Max repos for tier |
 | `REPO_TOO_LARGE` | 400 | File/function count exceeds tier |
 | `RATE_LIMIT_EXCEEDED` | 429 | Playground daily limit |
+| `INVALID_USER` | 400 | Invalid or missing user_id |
+| `SYSTEM_ERROR` | 500 | Database/system failure |
 
 ---
 
@@ -293,12 +285,29 @@ CREATE TABLE user_profiles (
 );
 ```
 
+**Security Notes:**
+- RLS enabled with SELECT/INSERT for authenticated users
+- NO UPDATE policy for users (prevents self-upgrade)
+- Tier updates only via service role key (payment webhooks)
+
 ### repositories (existing, no changes needed)
 Already has `user_id` column for ownership.
 
 ---
 
-## 7. Redis Keys
+## 7. Fail-Safe Behavior
+
+| Scenario | Behavior | Reason |
+|----------|----------|--------|
+| DB down during `check_repo_count` | **DENY** (fail-closed) | Prevent unlimited repos |
+| DB down during `get_usage_summary` | Return defaults | Read-only, safe to fail-open |
+| Redis cache miss | Query DB | Graceful degradation |
+| Redis down | Continue without cache | Non-critical |
+| Invalid user_id | Return FREE limits | Safe default |
+
+---
+
+## 8. Redis Keys
 
 | Key Pattern | TTL | Description |
 |-------------|-----|-------------|
@@ -307,7 +316,7 @@ Already has `user_id` column for ownership.
 
 ---
 
-## 8. Frontend Integration Points
+## 9. Frontend Integration Points
 
 ### Dashboard
 - Show usage bar: "2/3 repositories"
@@ -327,7 +336,7 @@ Already has `user_id` column for ownership.
 
 ---
 
-## 9. Migration Path
+## 10. Migration Path
 
 ### Existing Users
 All existing users default to `free` tier. Migration auto-creates profile on first API call.
@@ -337,7 +346,7 @@ No changes needed. Limit checks only apply to NEW repos.
 
 ---
 
-## 10. Implementation Order
+## 11. Implementation Order
 
 | Phase | Issue | Priority | Depends On |
 |-------|-------|----------|------------|
@@ -349,7 +358,7 @@ No changes needed. Limit checks only apply to NEW repos.
 
 ---
 
-## 11. Open Questions
+## 12. Open Questions
 
 1. **Upgrade Flow**: Stripe integration? Manual for now?
 2. **Existing Large Repos**: Grandfather them or enforce limits?
@@ -358,7 +367,7 @@ No changes needed. Limit checks only apply to NEW repos.
 
 ---
 
-## 12. Files to Create/Modify
+## 13. Files to Create/Modify
 
 ### Create
 - [x] `backend/services/user_limits.py`

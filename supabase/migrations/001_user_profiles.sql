@@ -34,13 +34,10 @@ CREATE POLICY "Users can create own profile"
     FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
--- Only service role can update tier (prevents users upgrading themselves)
--- Users update through payment flow which uses service role key
-CREATE POLICY "Service role can update profiles"
-    ON public.user_profiles
-    FOR UPDATE
-    USING (true)
-    WITH CHECK (true);
+-- IMPORTANT: No UPDATE policy for regular users!
+-- Tier updates ONLY happen via service role key (bypasses RLS)
+-- This prevents users from upgrading themselves
+-- Payment webhooks use service role to update tier
 
 -- Auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -51,6 +48,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON public.user_profiles;
 CREATE TRIGGER update_user_profiles_updated_at
     BEFORE UPDATE ON public.user_profiles
     FOR EACH ROW
@@ -74,10 +72,10 @@ CREATE TRIGGER on_auth_user_created
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_new_user();
 
--- Grant permissions
+-- Grant permissions (SELECT and INSERT only, no UPDATE for users)
 GRANT SELECT ON public.user_profiles TO authenticated;
 GRANT INSERT ON public.user_profiles TO authenticated;
 
--- Comment
+-- Comments
 COMMENT ON TABLE public.user_profiles IS 'User profiles with subscription tier information';
-COMMENT ON COLUMN public.user_profiles.tier IS 'Subscription tier: free, pro, or enterprise';
+COMMENT ON COLUMN public.user_profiles.tier IS 'Subscription tier: free, pro, or enterprise. Updated only via service role (payment webhooks).';

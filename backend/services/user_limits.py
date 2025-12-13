@@ -12,11 +12,12 @@ Used by:
 - #94: Repo size limits
 - #95: Repo count limits
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 from enum import Enum
 
 from services.observability import logger, metrics
+from services.sentry import capture_exception
 
 
 class UserTier(str, Enum):
@@ -43,7 +44,7 @@ class TierLimits:
     mcp_access: bool = True
 
 
-# Tier definitions
+# Tier definitions - Single source of truth
 TIER_LIMITS: Dict[UserTier, TierLimits] = {
     UserTier.FREE: TierLimits(
         max_repos=3,
@@ -82,20 +83,31 @@ class LimitCheckResult:
     current: int
     limit: Optional[int]
     message: str
+    tier: str = "free"  # Include tier for frontend upgrade prompts
+    error_code: Optional[str] = None  # e.g., "REPO_LIMIT_REACHED"
     
     @property
     def limit_display(self) -> str:
         """Display limit as string (handles unlimited)"""
-        return str(self.limit) if self.limit is not None else "∞"
+        return str(self.limit) if self.limit is not None else "unlimited"
     
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             "allowed": self.allowed,
             "current": self.current,
             "limit": self.limit,
             "limit_display": self.limit_display,
             "message": self.message,
+            "tier": self.tier,
         }
+        if self.error_code:
+            result["error_code"] = self.error_code
+        return result
+
+
+class LimitCheckError(Exception):
+    """Raised when limit check fails due to system error (not limit exceeded)"""
+    pass
 
 
 class UserLimitsService:
@@ -108,18 +120,24 @@ class UserLimitsService:
         # Check if user can add another repo
         result = limits.check_repo_count(user_id)
         if not result.allowed:
-            raise HTTPException(403, result.message)
+            raise HTTPException(403, result.to_dict())
         
         # Check if repo size is within limits
         result = limits.check_repo_size(user_id, file_count, function_count)
         if not result.allowed:
-            raise HTTPException(400, result.message)
+            raise HTTPException(400, result.to_dict())
     """
     
     def __init__(self, supabase_client, redis_client=None):
         self.supabase = supabase_client
         self.redis = redis_client
         self._tier_cache_ttl = 300  # Cache tier for 5 minutes
+    
+    def _validate_user_id(self, user_id: str) -> bool:
+        """Validate user_id is not empty"""
+        if not user_id or not isinstance(user_id, str) or not user_id.strip():
+            return False
+        return True
     
     # ===== TIER MANAGEMENT =====
     
@@ -130,23 +148,32 @@ class UserLimitsService:
         Checks Redis cache first, then Supabase.
         Defaults to FREE if not found.
         """
+        if not self._validate_user_id(user_id):
+            logger.warning("Invalid user_id provided to get_user_tier", user_id=user_id)
+            return UserTier.FREE
+        
         # Try cache first
         if self.redis:
-            cache_key = f"user:tier:{user_id}"
-            cached = self.redis.get(cache_key)
-            if cached:
-                try:
-                    return UserTier(cached.decode() if isinstance(cached, bytes) else cached)
-                except ValueError:
-                    pass
+            try:
+                cache_key = f"user:tier:{user_id}"
+                cached = self.redis.get(cache_key)
+                if cached:
+                    tier_value = cached.decode() if isinstance(cached, bytes) else cached
+                    return UserTier(tier_value)
+            except Exception as e:
+                logger.warning("Redis cache read failed", error=str(e))
+                # Continue to DB lookup
         
         # Query Supabase
         tier = self._get_tier_from_db(user_id)
         
         # Cache the result
         if self.redis:
-            cache_key = f"user:tier:{user_id}"
-            self.redis.setex(cache_key, self._tier_cache_ttl, tier.value)
+            try:
+                cache_key = f"user:tier:{user_id}"
+                self.redis.setex(cache_key, self._tier_cache_ttl, tier.value)
+            except Exception as e:
+                logger.warning("Redis cache write failed", error=str(e))
         
         return tier
     
@@ -160,7 +187,9 @@ class UserLimitsService:
                 return UserTier(tier_value)
         except Exception as e:
             logger.warning("Failed to get user tier from DB", user_id=user_id, error=str(e))
+            capture_exception(e)
         
+        # Default to FREE - this is safe because FREE has the most restrictive limits
         return UserTier.FREE
     
     def get_limits(self, tier: UserTier) -> TierLimits:
@@ -172,15 +201,38 @@ class UserLimitsService:
         tier = self.get_user_tier(user_id)
         return self.get_limits(tier)
     
+    def invalidate_tier_cache(self, user_id: str) -> None:
+        """Invalidate cached tier (call after tier upgrade)"""
+        if self.redis and self._validate_user_id(user_id):
+            try:
+                cache_key = f"user:tier:{user_id}"
+                self.redis.delete(cache_key)
+                logger.info("Tier cache invalidated", user_id=user_id)
+            except Exception as e:
+                logger.warning("Failed to invalidate tier cache", error=str(e))
+    
     # ===== REPO COUNT LIMITS (#95) =====
     
-    def get_user_repo_count(self, user_id: str) -> int:
-        """Get current repo count for user"""
+    def get_user_repo_count(self, user_id: str, raise_on_error: bool = False) -> int:
+        """
+        Get current repo count for user.
+        
+        Args:
+            user_id: The user ID
+            raise_on_error: If True, raise LimitCheckError on DB failure
+                           If False, return 0 (fail-open for reads, fail-closed for writes)
+        """
+        if not self._validate_user_id(user_id):
+            return 0
+            
         try:
             result = self.supabase.table("repositories").select("id", count="exact").eq("user_id", user_id).execute()
             return result.count or 0
         except Exception as e:
             logger.error("Failed to get repo count", user_id=user_id, error=str(e))
+            capture_exception(e)
+            if raise_on_error:
+                raise LimitCheckError(f"Failed to check repository count: {str(e)}")
             return 0
     
     def check_repo_count(self, user_id: str) -> LimitCheckResult:
@@ -189,10 +241,34 @@ class UserLimitsService:
         
         Returns:
             LimitCheckResult with allowed=True if under limit
+        
+        Note: Fails CLOSED - if we can't check, we don't allow.
         """
+        if not self._validate_user_id(user_id):
+            return LimitCheckResult(
+                allowed=False,
+                current=0,
+                limit=0,
+                message="Invalid user ID",
+                tier="unknown",
+                error_code="INVALID_USER"
+            )
+        
         tier = self.get_user_tier(user_id)
         limits = self.get_limits(tier)
-        current_count = self.get_user_repo_count(user_id)
+        
+        try:
+            current_count = self.get_user_repo_count(user_id, raise_on_error=True)
+        except LimitCheckError as e:
+            # Fail CLOSED - don't allow if we can't verify
+            return LimitCheckResult(
+                allowed=False,
+                current=0,
+                limit=limits.max_repos,
+                message="Unable to verify repository limit. Please try again.",
+                tier=tier.value,
+                error_code="SYSTEM_ERROR"
+            )
         
         # Unlimited repos
         if limits.max_repos is None:
@@ -200,7 +276,8 @@ class UserLimitsService:
                 allowed=True,
                 current=current_count,
                 limit=None,
-                message=f"OK ({current_count}/∞ repos)"
+                message=f"OK ({current_count} repos)",
+                tier=tier.value
             )
         
         # Check limit
@@ -211,14 +288,17 @@ class UserLimitsService:
                 allowed=False,
                 current=current_count,
                 limit=limits.max_repos,
-                message=f"Repository limit reached ({current_count}/{limits.max_repos}). Upgrade for more repos."
+                message=f"Repository limit reached ({current_count}/{limits.max_repos}). Upgrade to add more repositories.",
+                tier=tier.value,
+                error_code="REPO_LIMIT_REACHED"
             )
         
         return LimitCheckResult(
             allowed=True,
             current=current_count,
             limit=limits.max_repos,
-            message=f"OK ({current_count}/{limits.max_repos} repos)"
+            message=f"OK ({current_count}/{limits.max_repos} repos)",
+            tier=tier.value
         )
     
     # ===== REPO SIZE LIMITS (#94) =====
@@ -240,6 +320,16 @@ class UserLimitsService:
         Returns:
             LimitCheckResult with allowed=True if within limits
         """
+        if not self._validate_user_id(user_id):
+            return LimitCheckResult(
+                allowed=False,
+                current=0,
+                limit=0,
+                message="Invalid user ID",
+                tier="unknown",
+                error_code="INVALID_USER"
+            )
+        
         tier = self.get_user_tier(user_id)
         limits = self.get_limits(tier)
         
@@ -256,7 +346,9 @@ class UserLimitsService:
                 allowed=False,
                 current=file_count,
                 limit=limits.max_files_per_repo,
-                message=f"Repository too large ({file_count:,} files). {tier.value.title()} tier allows up to {limits.max_files_per_repo:,} files."
+                message=f"Repository too large ({file_count:,} files). {tier.value.title()} tier allows up to {limits.max_files_per_repo:,} files.",
+                tier=tier.value,
+                error_code="REPO_TOO_LARGE"
             )
         
         # Check function count
@@ -272,14 +364,17 @@ class UserLimitsService:
                 allowed=False,
                 current=function_count,
                 limit=limits.max_functions_per_repo,
-                message=f"Repository has too many functions ({function_count:,}). {tier.value.title()} tier allows up to {limits.max_functions_per_repo:,} functions."
+                message=f"Repository has too many functions ({function_count:,}). {tier.value.title()} tier allows up to {limits.max_functions_per_repo:,} functions.",
+                tier=tier.value,
+                error_code="REPO_TOO_LARGE"
             )
         
         return LimitCheckResult(
             allowed=True,
             current=file_count,
             limit=limits.max_files_per_repo,
-            message=f"OK ({file_count:,} files, {function_count:,} functions)"
+            message=f"OK ({file_count:,} files, {function_count:,} functions)",
+            tier=tier.value
         )
     
     # ===== PLAYGROUND RATE LIMITS (#93) =====
@@ -295,6 +390,27 @@ class UserLimitsService:
         Get complete usage summary for user.
         Useful for dashboard display.
         """
+        if not self._validate_user_id(user_id):
+            # Return free tier defaults for invalid user
+            limits = TIER_LIMITS[UserTier.FREE]
+            return {
+                "tier": "free",
+                "repositories": {
+                    "current": 0,
+                    "limit": limits.max_repos,
+                    "display": f"0/{limits.max_repos}"
+                },
+                "limits": {
+                    "max_files_per_repo": limits.max_files_per_repo,
+                    "max_functions_per_repo": limits.max_functions_per_repo,
+                    "playground_searches_per_day": limits.playground_searches_per_day,
+                },
+                "features": {
+                    "priority_indexing": limits.priority_indexing,
+                    "mcp_access": limits.mcp_access,
+                }
+            }
+        
         tier = self.get_user_tier(user_id)
         limits = self.get_limits(tier)
         repo_count = self.get_user_repo_count(user_id)
@@ -304,7 +420,7 @@ class UserLimitsService:
             "repositories": {
                 "current": repo_count,
                 "limit": limits.max_repos,
-                "display": f"{repo_count}/{limits.max_repos if limits.max_repos else '∞'}"
+                "display": f"{repo_count}/{limits.max_repos if limits.max_repos else 'unlimited'}"
             },
             "limits": {
                 "max_files_per_repo": limits.max_files_per_repo,
