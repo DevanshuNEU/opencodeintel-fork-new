@@ -6,6 +6,7 @@ Rate limiting strategy (see #93):
 - IP fallback: 100 searches/day for shared networks
 - Global circuit breaker: 10k searches/hour (cost protection)
 """
+import os
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
@@ -24,6 +25,7 @@ DEMO_REPO_IDS = {}
 # Session cookie config
 SESSION_COOKIE_NAME = "pg_session"
 SESSION_COOKIE_MAX_AGE = 86400  # 24 hours
+IS_PRODUCTION = os.getenv("ENVIRONMENT", "development").lower() == "production"
 
 
 class PlaygroundSearchRequest(BaseModel):
@@ -72,9 +74,9 @@ def _set_session_cookie(response: Response, token: str):
         key=SESSION_COOKIE_NAME,
         value=token,
         max_age=SESSION_COOKIE_MAX_AGE,
-        httponly=True,      # Can't be accessed by JavaScript
-        samesite="lax",     # CSRF protection
-        secure=False,       # Set True in production with HTTPS
+        httponly=True,           # Can't be accessed by JavaScript
+        samesite="lax",          # CSRF protection
+        secure=IS_PRODUCTION,    # HTTPS only in production
     )
 
 
