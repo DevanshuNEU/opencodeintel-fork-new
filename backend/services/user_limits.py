@@ -12,7 +12,7 @@ Used by:
 - #94: Repo size limits
 - #95: Repo count limits
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Dict, Any
 from enum import Enum
 

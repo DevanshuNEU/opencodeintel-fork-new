@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from dependencies import user_limits
 from middleware.auth import require_auth, AuthContext
 from services.observability import logger
+from services.user_limits import TIER_LIMITS, UserTier
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -24,21 +25,22 @@ def get_user_usage(auth: AuthContext = Depends(require_auth)):
     if not user_id:
         logger.warning("Usage check without user_id", identifier=auth.identifier)
         # Return free tier defaults for API key users
+        free_limits = TIER_LIMITS[UserTier.FREE]
         return {
             "tier": "free",
             "repositories": {
                 "current": 0,
-                "limit": 3,
-                "display": "0/3"
+                "limit": free_limits.max_repos,
+                "display": f"0/{free_limits.max_repos}"
             },
             "limits": {
-                "max_files_per_repo": 500,
-                "max_functions_per_repo": 2000,
-                "playground_searches_per_day": 50,
+                "max_files_per_repo": free_limits.max_files_per_repo,
+                "max_functions_per_repo": free_limits.max_functions_per_repo,
+                "playground_searches_per_day": free_limits.playground_searches_per_day,
             },
             "features": {
-                "priority_indexing": False,
-                "mcp_access": True,
+                "priority_indexing": free_limits.priority_indexing,
+                "mcp_access": free_limits.mcp_access,
             }
         }
     
@@ -59,7 +61,14 @@ def check_can_add_repo(auth: AuthContext = Depends(require_auth)):
     user_id = auth.user_id
     
     if not user_id:
-        return {"allowed": True, "message": "OK"}
+        # API key users - return allowed with free tier info
+        free_limits = TIER_LIMITS[UserTier.FREE]
+        return {
+            "allowed": True, 
+            "message": "OK",
+            "tier": "free",
+            "limit": free_limits.max_repos
+        }
     
     result = user_limits.check_repo_count(user_id)
     return result.to_dict()
