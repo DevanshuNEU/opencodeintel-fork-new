@@ -17,11 +17,13 @@ export function SearchPanel({ repoId, apiUrl, apiKey }: SearchPanelProps) {
   const [loading, setLoading] = useState(false);
   const [searchTime, setSearchTime] = useState<number | null>(null);
   const [cached, setCached] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
 
     setLoading(true);
+    setHasSearched(true);
     const startTime = Date.now();
 
     try {
@@ -165,7 +167,7 @@ export function SearchPanel({ repoId, apiUrl, apiKey }: SearchPanelProps) {
       </div>
 
       {/* Empty State */}
-      {results.length === 0 && query && !loading && (
+      {results.length === 0 && hasSearched && !loading && (
         <div className="card p-16 text-center">
           <div className="w-20 h-20 mx-auto mb-4 rounded-2xl glass flex items-center justify-center">
             <span className="text-4xl">🔍</span>
