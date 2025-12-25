@@ -1,42 +1,47 @@
 """
 Tests for the validate-repo endpoint (Issue #124).
 Tests GitHub URL validation for anonymous indexing.
+
+Note: These tests rely on conftest.py for Pinecone/OpenAI mocking.
 """
 import pytest
-import sys
 from unittest.mock import AsyncMock, patch, MagicMock
 
-# Mock dependencies BEFORE importing routes.playground
-# This prevents Pinecone/OpenAI initialization during import
-sys.modules['dependencies'] = MagicMock()
+# Import directly - conftest.py handles external service mocking
+from routes.playground import (
+    _parse_github_url,
+    GITHUB_URL_PATTERN,
+    ANONYMOUS_FILE_LIMIT,
+    ValidateRepoRequest,
+)
 
+
+# =============================================================================
+# URL PARSING TESTS
+# =============================================================================
 
 class TestParseGitHubUrl:
     """Tests for URL parsing."""
 
     def test_valid_https_url(self):
-        from routes.playground import _parse_github_url
         owner, repo, error = _parse_github_url("https://github.com/facebook/react")
         assert owner == "facebook"
         assert repo == "react"
         assert error is None
 
     def test_valid_http_url(self):
-        from routes.playground import _parse_github_url
         owner, repo, error = _parse_github_url("http://github.com/user/repo")
         assert owner == "user"
         assert repo == "repo"
         assert error is None
 
     def test_url_with_trailing_slash(self):
-        from routes.playground import _parse_github_url
         owner, repo, error = _parse_github_url("https://github.com/owner/repo/")
         assert owner == "owner"
         assert repo == "repo"
         assert error is None
 
     def test_url_with_dots_and_dashes(self):
-        from routes.playground import _parse_github_url
         owner, repo, error = _parse_github_url(
             "https://github.com/my-org/my.repo-name"
         )
@@ -45,20 +50,17 @@ class TestParseGitHubUrl:
         assert error is None
 
     def test_invalid_url_wrong_domain(self):
-        from routes.playground import _parse_github_url
         owner, repo, error = _parse_github_url("https://gitlab.com/user/repo")
         assert owner is None
         assert repo is None
         assert "Invalid GitHub URL format" in error
 
     def test_invalid_url_no_repo(self):
-        from routes.playground import _parse_github_url
         owner, repo, error = _parse_github_url("https://github.com/justowner")
         assert owner is None
         assert error is not None
 
     def test_invalid_url_with_path(self):
-        from routes.playground import _parse_github_url
         owner, repo, error = _parse_github_url(
             "https://github.com/owner/repo/tree/main"
         )
@@ -66,7 +68,6 @@ class TestParseGitHubUrl:
         assert error is not None
 
     def test_invalid_url_blob_path(self):
-        from routes.playground import _parse_github_url
         owner, repo, error = _parse_github_url(
             "https://github.com/owner/repo/blob/main/file.py"
         )
@@ -78,24 +79,25 @@ class TestGitHubUrlPattern:
     """Tests for the regex pattern."""
 
     def test_pattern_matches_standard(self):
-        from routes.playground import GITHUB_URL_PATTERN
         match = GITHUB_URL_PATTERN.match("https://github.com/user/repo")
         assert match is not None
         assert match.group("owner") == "user"
         assert match.group("repo") == "repo"
 
     def test_pattern_rejects_subpath(self):
-        from routes.playground import GITHUB_URL_PATTERN
         match = GITHUB_URL_PATTERN.match("https://github.com/user/repo/issues")
         assert match is None
 
+
+# =============================================================================
+# REQUEST MODEL TESTS
+# =============================================================================
 
 class TestValidateRepoRequest:
     """Tests for the request model validation."""
 
     def test_invalid_url_format(self):
         """Test with malformed URL."""
-        from routes.playground import ValidateRepoRequest
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
@@ -103,7 +105,6 @@ class TestValidateRepoRequest:
 
     def test_non_github_url(self):
         """Test with non-GitHub URL."""
-        from routes.playground import ValidateRepoRequest
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
@@ -111,7 +112,6 @@ class TestValidateRepoRequest:
 
     def test_empty_url(self):
         """Test with empty URL."""
-        from routes.playground import ValidateRepoRequest
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
@@ -119,18 +119,18 @@ class TestValidateRepoRequest:
 
     def test_valid_request_model(self):
         """Test valid request passes validation."""
-        from routes.playground import ValidateRepoRequest
-
         req = ValidateRepoRequest(github_url="https://github.com/user/repo")
         assert req.github_url == "https://github.com/user/repo"
 
     def test_url_with_whitespace_trimmed(self):
         """Test that whitespace is trimmed."""
-        from routes.playground import ValidateRepoRequest
-
         req = ValidateRepoRequest(github_url="  https://github.com/user/repo  ")
         assert req.github_url == "https://github.com/user/repo"
 
+
+# =============================================================================
+# GITHUB API TESTS
+# =============================================================================
 
 class TestFetchRepoMetadata:
     """Tests for GitHub API interaction."""
@@ -216,6 +216,10 @@ class TestFetchRepoMetadata:
             result = await _fetch_repo_metadata("user", "repo")
             assert result["error"] == "timeout"
 
+
+# =============================================================================
+# FILE COUNTING TESTS
+# =============================================================================
 
 class TestCountCodeFiles:
     """Tests for file counting logic."""
@@ -355,10 +359,13 @@ class TestCountCodeFiles:
             assert error is None
 
 
+# =============================================================================
+# CONSTANTS TESTS
+# =============================================================================
+
 class TestAnonymousFileLimit:
     """Tests for file limit constant."""
 
     def test_limit_value(self):
         """Verify anonymous file limit is 200."""
-        from routes.playground import ANONYMOUS_FILE_LIMIT
         assert ANONYMOUS_FILE_LIMIT == 200
