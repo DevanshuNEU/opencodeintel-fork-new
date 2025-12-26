@@ -9,3 +9,4 @@ export { RepoModeSelector, type RepoMode } from './RepoModeSelector';
 export { RepoUrlInput } from './RepoUrlInput';
 export { ValidationStatus } from './ValidationStatus';
 export { IndexingProgress, type ProgressData } from './IndexingProgress';
+export { HeroPlayground } from './HeroPlayground';

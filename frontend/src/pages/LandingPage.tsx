@@ -6,20 +6,11 @@ import { Card } from '@/components/ui/card'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { API_URL } from '../config/api'
+import { HeroPlayground } from '@/components/playground'
+import { playgroundAPI } from '@/services/playground-api'
 import type { SearchResult } from '../types'
 
-// Icons
-const SearchIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-)
-
-const ZapIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-  </svg>
-)
+// Icons (only GitHubIcon and SparklesIcon are used in this file)
 
 const GitHubIcon = () => (
   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -32,31 +23,6 @@ const SparklesIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
   </svg>
 )
-
-const ArrowRightIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-  </svg>
-)
-
-const CheckIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-  </svg>
-)
-
-// Demo repos
-const DEMO_REPOS = [
-  { id: 'flask', name: 'Flask', icon: '🐍', color: 'from-green-500/20 to-green-600/20 border-green-500/30' },
-  { id: 'fastapi', name: 'FastAPI', icon: '⚡', color: 'from-teal-500/20 to-teal-600/20 border-teal-500/30' },
-  { id: 'express', name: 'Express', icon: '🟢', color: 'from-yellow-500/20 to-yellow-600/20 border-yellow-500/30' },
-]
-
-const EXAMPLE_QUERIES = [
-  'authentication middleware',
-  'error handling',
-  'database connection',
-]
 
 // Scroll animation hook
 function useScrollAnimation() {
@@ -101,22 +67,19 @@ function AnimatedSection({ children, className = '' }: { children: React.ReactNo
 
 export function LandingPage() {
   const navigate = useNavigate()
-  const [query, setQuery] = useState('')
-  const [selectedRepo, setSelectedRepo] = useState(DEMO_REPOS[0].id)
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTime, setSearchTime] = useState<number | null>(null)
-  const [remaining, setRemaining] = useState(50)  // Will be updated from backend
-  const [limit, setLimit] = useState(50)          // Total limit from backend
+  const [remaining, setRemaining] = useState(50)
+  const [limit, setLimit] = useState(50)
   const [hasSearched, setHasSearched] = useState(false)
   const [availableRepos, setAvailableRepos] = useState<string[]>([])
   const [rateLimitError, setRateLimitError] = useState<string | null>(null)
+  const [lastQuery, setLastQuery] = useState('')
 
-  // Fetch rate limit status on mount (backend is source of truth)
+  // Fetch rate limit status on mount
   useEffect(() => {
-    fetch(`${API_URL}/playground/limits`, {
-      credentials: 'include',  // Send cookies for session tracking
-    })
+    fetch(`${API_URL}/playground/limits`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setRemaining(data.remaining ?? 50)
@@ -135,37 +98,36 @@ export function LandingPage() {
       .catch(console.error)
   }, [])
 
-  const handleSearch = async (searchQuery?: string) => {
-    const q = searchQuery || query
-    if (!q.trim() || loading || remaining <= 0) return
+  // Unified search handler for both demo and custom repos
+  const handleSearch = async (query: string, repoId: string, isCustom: boolean) => {
+    if (!query.trim() || loading || remaining <= 0) return
 
     setLoading(true)
     setHasSearched(true)
+    setLastQuery(query)
     setRateLimitError(null)
     const startTime = Date.now()
 
     try {
-      const response = await fetch(`${API_URL}/playground/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',  // Send cookies for session tracking
-        body: JSON.stringify({ query: q, demo_repo: selectedRepo, max_results: 10 })
-      })
-      const data = await response.json()
+      const response = isCustom
+        ? await playgroundAPI.search(query)
+        : await fetch(`${API_URL}/playground/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ query, demo_repo: repoId, max_results: 10 })
+          }).then(res => res.json())
+
+      const data = isCustom ? response : response
       
-      if (response.ok) {
+      if (data.results) {
         setResults(data.results || [])
         setSearchTime(data.search_time_ms || (Date.now() - startTime))
-        // Update remaining from backend (source of truth)
         if (typeof data.remaining_searches === 'number') {
           setRemaining(data.remaining_searches)
         }
-        if (typeof data.limit === 'number') {
-          setLimit(data.limit)
-        }
-      } else if (response.status === 429) {
-        // Rate limit exceeded
-        setRateLimitError(data.detail?.message || 'Daily limit reached. Sign up for unlimited searches!')
+      } else if (data.status === 429) {
+        setRateLimitError('Daily limit reached. Sign up for unlimited searches!')
         setRemaining(0)
       }
     } catch (error) {
@@ -222,78 +184,16 @@ export function LandingPage() {
           </h1>
 
           <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
-            Search any codebase by meaning, not keywords.
+            Search any codebase by meaning, not keywords. Index your own repo in seconds.
           </p>
 
-          {/* Repo Selector */}
-          <div className="flex justify-center gap-3 mb-6">
-            {DEMO_REPOS.map(repo => {
-              const isAvailable = availableRepos.includes(repo.id)
-              const isSelected = selectedRepo === repo.id
-              return (
-                <button
-                  key={repo.id}
-                  onClick={() => isAvailable && setSelectedRepo(repo.id)}
-                  disabled={!isAvailable}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border
-                    ${isSelected ? `bg-gradient-to-r ${repo.color} text-white` : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}
-                    ${!isAvailable && 'opacity-40 cursor-not-allowed'}`}
-                >
-                  <span className="mr-2">{repo.icon}</span>
-                  {repo.name}
-                  {!isAvailable && <span className="ml-1 text-[10px]">(soon)</span>}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Search Box */}
-          <div className="relative max-w-2xl mx-auto mb-6">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-2xl blur-xl opacity-50" />
-            <div className="relative bg-[#111113] rounded-2xl border border-white/10 p-3">
-              <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="flex items-center gap-3">
-                <div className="flex-1 flex items-center gap-3">
-                  <div className="text-gray-500 ml-2"><SearchIcon /></div>
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search for authentication, error handling..."
-                    className="flex-1 bg-transparent text-white placeholder:text-gray-500 focus:outline-none text-base py-3"
-                    autoFocus
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={loading || !query.trim() || remaining <= 0}
-                  className="px-6 py-3 h-auto bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl disabled:opacity-50 shrink-0"
-                >
-                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Search'}
-                </Button>
-              </form>
-            </div>
-          </div>
-
-          {/* Trust Indicators */}
-          <div className="flex items-center justify-center gap-6 text-sm text-gray-500 mb-8">
-            <div className="flex items-center gap-2"><ZapIcon /><span>~100ms</span></div>
-            <div className="w-1 h-1 rounded-full bg-gray-700" />
-            <span>No signup required</span>
-            <div className="w-1 h-1 rounded-full bg-gray-700" />
-            <span>{remaining} free searches</span>
-          </div>
-
-          {/* Example Queries */}
-          {!hasSearched && (
-            <div className="flex flex-wrap justify-center gap-2">
-              <span className="text-sm text-gray-600">Try:</span>
-              {EXAMPLE_QUERIES.map(q => (
-                <button key={q} onClick={() => { setQuery(q); handleSearch(q); }} className="text-sm text-gray-400 hover:text-blue-400 transition-colors">
-                  "{q}"
-                </button>
-              ))}
-            </div>
-          )}
+          {/* HeroPlayground - handles demo repos + custom repo indexing */}
+          <HeroPlayground
+            onSearch={handleSearch}
+            availableRepos={availableRepos}
+            remaining={remaining}
+            loading={loading}
+          />
         </div>
       </section>
 
