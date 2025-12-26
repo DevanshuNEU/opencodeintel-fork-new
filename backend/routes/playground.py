@@ -46,7 +46,8 @@ VALIDATION_CACHE_TTL = 300  # 5 minutes
 
 class PlaygroundSearchRequest(BaseModel):
     query: str
-    demo_repo: str = "flask"
+    demo_repo: Optional[str] = None  # Keep for backward compat
+    repo_id: Optional[str] = None    # Direct repo_id (user-indexed repos)
     max_results: int = 10
 
 
@@ -270,18 +271,65 @@ async def playground_search(
     if not valid_query:
         raise HTTPException(status_code=400, detail=f"Invalid query: {query_error}")
 
-    # Get demo repo ID
-    repo_id = DEMO_REPO_IDS.get(request.demo_repo)
-    if not repo_id:
-        repos = repo_manager.list_repos()
-        indexed_repos = [r for r in repos if r.get("status") == "indexed"]
-        if indexed_repos:
-            repo_id = indexed_repos[0]["id"]
-        else:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Demo repo '{request.demo_repo}' not available"
-            )
+    # Resolve repo_id: priority is repo_id > demo_repo > default "flask"
+    repo_id = None
+    
+    if request.repo_id:
+        # Direct repo_id provided
+        repo_id = request.repo_id
+        
+        # Check if it's a demo repo (always allowed)
+        if repo_id not in DEMO_REPO_IDS.values():
+            # User-indexed repo - validate session ownership
+            session_token = limit_result.session_token or _get_session_token(req)
+            if not session_token:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "error": "access_denied",
+                        "message": "You don't have access to this repository"
+                    }
+                )
+            
+            session_data = limiter.get_session_data(session_token)
+            indexed_repo = session_data.indexed_repo
+            
+            if not indexed_repo or indexed_repo.get("repo_id") != repo_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "error": "access_denied",
+                        "message": "You don't have access to this repository"
+                    }
+                )
+            
+            # Check expiry
+            from services.playground_limiter import IndexedRepoData
+            repo_data = IndexedRepoData.from_dict(indexed_repo)
+            if repo_data.is_expired():
+                raise HTTPException(
+                    status_code=410,
+                    detail={
+                        "error": "repo_expired",
+                        "message": "Repository index expired. Re-index to continue searching.",
+                        "can_reindex": True
+                    }
+                )
+    else:
+        # Fall back to demo_repo (default to "flask" for backward compat)
+        demo_name = request.demo_repo or "flask"
+        repo_id = DEMO_REPO_IDS.get(demo_name)
+        
+        if not repo_id:
+            repos = repo_manager.list_repos()
+            indexed_repos = [r for r in repos if r.get("status") == "indexed"]
+            if indexed_repos:
+                repo_id = indexed_repos[0]["id"]
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Demo repo '{demo_name}' not available"
+                )
 
     start_time = time.time()
 
