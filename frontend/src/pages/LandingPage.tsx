@@ -67,6 +67,7 @@ function AnimatedSection({ children, className = '' }: { children: React.ReactNo
 
 export function LandingPage() {
   const navigate = useNavigate()
+  const resultsRef = useRef<HTMLElement>(null)
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTime, setSearchTime] = useState<number | null>(null)
@@ -76,6 +77,22 @@ export function LandingPage() {
   const [availableRepos, setAvailableRepos] = useState<string[]>([])
   const [rateLimitError, setRateLimitError] = useState<string | null>(null)
   const [lastQuery, setLastQuery] = useState('')
+
+  // Scroll to results when they appear
+  const scrollToResults = () => {
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
+  }
+
+  // Reset to search state
+  const handleNewSearch = () => {
+    setHasSearched(false)
+    setResults([])
+    setSearchTime(null)
+    setLastQuery('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   // Fetch rate limit status on mount
   useEffect(() => {
@@ -126,6 +143,8 @@ export function LandingPage() {
         if (typeof data.remaining_searches === 'number') {
           setRemaining(data.remaining_searches)
         }
+        // Scroll to results after they load
+        scrollToResults()
       } else if (data.status === 429) {
         setRateLimitError('Daily limit reached. Sign up for unlimited searches!')
         setRemaining(0)
@@ -199,57 +218,90 @@ export function LandingPage() {
 
       {/* ============ RESULTS SECTION (if searched) ============ */}
       {hasSearched && (
-        <section className="pb-20 px-6">
+        <section ref={resultsRef} className="pb-20 px-6 pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="max-w-4xl mx-auto">
+            {/* Results Header */}
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4 text-sm">
-                <span className="text-gray-400"><span className="text-white font-semibold">{results.length}</span> results</span>
-                {searchTime && <><span className="text-gray-700">•</span><span className="font-mono text-green-400">{searchTime}ms</span></>}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleNewSearch}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700 text-sm text-zinc-300 hover:text-white transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  New Search
+                </button>
+                <span className="text-gray-500">|</span>
+                <span className="text-gray-400 text-sm">
+                  <span className="text-white font-semibold">{results.length}</span> results for "<span className="text-blue-400">{lastQuery}</span>"
+                </span>
+                {searchTime && (
+                  <span className="font-mono text-sm text-green-400">
+                    {searchTime > 1000 ? `${(searchTime/1000).toFixed(1)}s` : `${searchTime}ms`}
+                  </span>
+                )}
               </div>
               {remaining > 0 && remaining < limit && (
                 <div className="text-sm text-gray-500">{remaining} remaining</div>
               )}
             </div>
 
-            {(remaining <= 0 || rateLimitError) && (
-              <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30 p-6 mb-6">
-                <h3 className="text-lg font-semibold mb-2">You've reached today's limit</h3>
-                <p className="text-gray-300 mb-4">
-                  {rateLimitError || 'Sign up to get unlimited searches and index your own repos.'}
-                </p>
-                <Button onClick={() => navigate('/signup')} className="bg-white text-black hover:bg-gray-100">Get started — it's free</Button>
-              </Card>
+            {/* Loading State */}
+            {loading && (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="relative">
+                  <div className="w-12 h-12 border-4 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
+                </div>
+                <p className="mt-4 text-zinc-400 text-sm">Searching codebase...</p>
+                <p className="text-zinc-600 text-xs mt-1">This may take a few seconds for first search</p>
+              </div>
             )}
 
-            <div className="space-y-4">
-              {results.map((result, idx) => (
-                <Card key={idx} className="bg-[#111113] border-white/5 overflow-hidden hover:border-white/10 transition-all">
-                  <div className="px-5 py-4 border-b border-white/5 flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-mono font-semibold">{result.name}</h3>
-                        <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700">{result.type.replace('_', ' ')}</Badge>
-                      </div>
-                      <p className="text-sm text-gray-500 font-mono mt-1">{result.file_path.split('/').slice(-2).join('/')}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-blue-400">{(result.score * 100).toFixed(0)}%</div>
-                      <div className="text-[10px] text-gray-500 uppercase tracking-wider">match</div>
-                    </div>
-                  </div>
-                  <SyntaxHighlighter language={result.language || 'python'} style={oneDark} customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.8rem', background: '#0d0d0f' }} showLineNumbers startingLineNumber={result.line_start || 1}>
-                    {result.code}
-                  </SyntaxHighlighter>
-                </Card>
-              ))}
-            </div>
+            {/* Results Content (only when not loading) */}
+            {!loading && (
+              <>
+                {(remaining <= 0 || rateLimitError) && (
+                  <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30 p-6 mb-6">
+                    <h3 className="text-lg font-semibold mb-2">You've reached today's limit</h3>
+                    <p className="text-gray-300 mb-4">
+                      {rateLimitError || 'Sign up to get unlimited searches and index your own repos.'}
+                    </p>
+                    <Button onClick={() => navigate('/signup')} className="bg-white text-black hover:bg-gray-100">Get started — it's free</Button>
+                  </Card>
+                )}
 
-            {results.length === 0 && !loading && (
-              <div className="text-center py-16">
-                <div className="text-5xl mb-4">🔍</div>
-                <h3 className="text-lg font-semibold mb-2">No results found</h3>
-                <p className="text-gray-500">Try a different query</p>
-              </div>
+                <div className="space-y-4">
+                  {results.map((result, idx) => (
+                    <Card key={idx} className="bg-[#111113] border-white/5 overflow-hidden hover:border-white/10 transition-all hover:scale-[1.01] duration-200">
+                      <div className="px-5 py-4 border-b border-white/5 flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-mono font-semibold">{result.name}</h3>
+                            <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700">{result.type.replace('_', ' ')}</Badge>
+                          </div>
+                          <p className="text-sm text-gray-500 font-mono mt-1">{result.file_path.split('/').slice(-2).join('/')}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-blue-400">{(result.score * 100).toFixed(0)}%</div>
+                          <div className="text-[10px] text-gray-500 uppercase tracking-wider">match</div>
+                        </div>
+                      </div>
+                      <SyntaxHighlighter language={result.language || 'python'} style={oneDark} customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.8rem', background: '#0d0d0f' }} showLineNumbers startingLineNumber={result.line_start || 1}>
+                        {result.code}
+                      </SyntaxHighlighter>
+                    </Card>
+                  ))}
+                </div>
+
+                {results.length === 0 && (
+                  <div className="text-center py-16">
+                    <div className="text-5xl mb-4">🔍</div>
+                    <h3 className="text-lg font-semibold mb-2">No results found</h3>
+                    <p className="text-gray-500">Try a different query</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </section>

@@ -106,7 +106,33 @@ export function HeroPlayground({
   const showUrlInput = mode === 'custom' && !['indexing', 'ready'].includes(state.status);
   const showValidation = mode === 'custom' && ['validating', 'valid', 'invalid'].includes(state.status);
   const showIndexing = mode === 'custom' && state.status === 'indexing';
-  const showSearch = mode === 'demo' || state.status === 'ready';
+  // Always show search - in custom mode it's disabled until repo is indexed
+  const showSearch = true;
+  const isSearchDisabled = mode === 'custom' && state.status !== 'ready';
+
+  // Get contextual placeholder text
+  const getPlaceholder = () => {
+    if (mode === 'demo') {
+      return "Search for authentication, error handling...";
+    }
+    // Custom mode placeholders based on state
+    switch (state.status) {
+      case 'idle':
+        return "Enter a GitHub URL above to start...";
+      case 'validating':
+        return "Validating repository...";
+      case 'valid':
+        return "Click 'Index Repository' to continue...";
+      case 'invalid':
+        return "Fix the URL above to continue...";
+      case 'indexing':
+        return "Indexing in progress...";
+      case 'ready':
+        return `Search in ${state.repoName}...`;
+      default:
+        return "Enter a GitHub URL to search...";
+    }
+  };
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -205,7 +231,10 @@ export function HeroPlayground({
         <>
           <div className="relative mb-4">
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 rounded-2xl blur-xl opacity-50" />
-            <div className="relative bg-zinc-900/80 rounded-2xl border border-zinc-800 p-3">
+            <div className={cn(
+              "relative bg-zinc-900/80 rounded-2xl border border-zinc-800 p-3",
+              isSearchDisabled && "opacity-60"
+            )}>
               <form onSubmit={handleSearch} className="flex items-center gap-3">
                 <div className="flex-1 flex items-center gap-3">
                   <div className="text-zinc-500 ml-2"><SearchIcon /></div>
@@ -213,18 +242,20 @@ export function HeroPlayground({
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder={mode === 'demo' 
-                      ? "Search for authentication, error handling..." 
-                      : `Search in ${state.status === 'ready' ? state.repoName : 'your repo'}...`
-                    }
+                    placeholder={getPlaceholder()}
                     className="flex-1 bg-transparent text-white placeholder:text-zinc-500 focus:outline-none text-base py-3"
-                    disabled={!canSearch && query.length === 0}
+                    disabled={isSearchDisabled}
                   />
                 </div>
                 <Button
                   type="submit"
-                  disabled={!canSearch || loading}
-                  className="px-6 py-3 h-auto bg-indigo-600 hover:bg-indigo-500 rounded-xl disabled:opacity-50"
+                  disabled={!canSearch || loading || isSearchDisabled}
+                  className={cn(
+                    "px-6 py-3 h-auto rounded-xl transition-all",
+                    canSearch && !loading && !isSearchDisabled
+                      ? "bg-indigo-600 hover:bg-indigo-500 text-white"
+                      : "bg-zinc-700 text-zinc-400 cursor-not-allowed"
+                  )}
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
