@@ -133,8 +133,8 @@ class PlaygroundAPI {
    * NOTE: Currently mocked due to Bug #134 (CacheService missing get/set)
    */
   async validateRepo(githubUrl: string): Promise<ValidationResult> {
-    // TODO: Remove mock when #134 is fixed
-    const USE_MOCK = true;
+    // Bug #134 fixed - using real API
+    const USE_MOCK = false;
     
     if (USE_MOCK) {
       return this.mockValidateRepo(githubUrl);

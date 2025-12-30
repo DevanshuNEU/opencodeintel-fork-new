@@ -1,7 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
 import ReactFlow, {
-  Node,
-  Edge,
   Controls,
   Background,
   useNodesState,
@@ -9,6 +7,7 @@ import ReactFlow, {
   MarkerType,
   MiniMap,
 } from 'reactflow'
+import type { Node, Edge } from 'reactflow'
 import dagre from 'dagre'
 import 'reactflow/dist/style.css'
 import { useDependencyGraph } from '../hooks/useCachedQuery'

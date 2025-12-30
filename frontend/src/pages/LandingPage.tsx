@@ -6,20 +6,11 @@ import { Card } from '@/components/ui/card'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { API_URL } from '../config/api'
+import { HeroPlayground } from '@/components/playground'
+import { playgroundAPI } from '@/services/playground-api'
 import type { SearchResult } from '../types'
 
-// Icons
-const SearchIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-)
-
-const ZapIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-  </svg>
-)
+// Icons (only GitHubIcon and SparklesIcon are used in this file)
 
 const GitHubIcon = () => (
   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -32,31 +23,6 @@ const SparklesIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
   </svg>
 )
-
-const ArrowRightIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-  </svg>
-)
-
-const CheckIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-  </svg>
-)
-
-// Demo repos
-const DEMO_REPOS = [
-  { id: 'flask', name: 'Flask', icon: '🐍', color: 'from-green-500/20 to-green-600/20 border-green-500/30' },
-  { id: 'fastapi', name: 'FastAPI', icon: '⚡', color: 'from-teal-500/20 to-teal-600/20 border-teal-500/30' },
-  { id: 'express', name: 'Express', icon: '🟢', color: 'from-yellow-500/20 to-yellow-600/20 border-yellow-500/30' },
-]
-
-const EXAMPLE_QUERIES = [
-  'authentication middleware',
-  'error handling',
-  'database connection',
-]
 
 // Scroll animation hook
 function useScrollAnimation() {
@@ -101,22 +67,36 @@ function AnimatedSection({ children, className = '' }: { children: React.ReactNo
 
 export function LandingPage() {
   const navigate = useNavigate()
-  const [query, setQuery] = useState('')
-  const [selectedRepo, setSelectedRepo] = useState(DEMO_REPOS[0].id)
+  const resultsRef = useRef<HTMLElement>(null)
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTime, setSearchTime] = useState<number | null>(null)
-  const [remaining, setRemaining] = useState(50)  // Will be updated from backend
-  const [limit, setLimit] = useState(50)          // Total limit from backend
+  const [remaining, setRemaining] = useState(50)
+  const [limit, setLimit] = useState(50)
   const [hasSearched, setHasSearched] = useState(false)
   const [availableRepos, setAvailableRepos] = useState<string[]>([])
   const [rateLimitError, setRateLimitError] = useState<string | null>(null)
+  const [lastQuery, setLastQuery] = useState('')
 
-  // Fetch rate limit status on mount (backend is source of truth)
+  // Scroll to results when they appear
+  const scrollToResults = () => {
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
+  }
+
+  // Reset to search state
+  const handleNewSearch = () => {
+    setHasSearched(false)
+    setResults([])
+    setSearchTime(null)
+    setLastQuery('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Fetch rate limit status on mount
   useEffect(() => {
-    fetch(`${API_URL}/playground/limits`, {
-      credentials: 'include',  // Send cookies for session tracking
-    })
+    fetch(`${API_URL}/playground/limits`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setRemaining(data.remaining ?? 50)
@@ -135,37 +115,38 @@ export function LandingPage() {
       .catch(console.error)
   }, [])
 
-  const handleSearch = async (searchQuery?: string) => {
-    const q = searchQuery || query
-    if (!q.trim() || loading || remaining <= 0) return
+  // Unified search handler for both demo and custom repos
+  const handleSearch = async (query: string, repoId: string, isCustom: boolean) => {
+    if (!query.trim() || loading || remaining <= 0) return
 
     setLoading(true)
     setHasSearched(true)
+    setLastQuery(query)
     setRateLimitError(null)
     const startTime = Date.now()
 
     try {
-      const response = await fetch(`${API_URL}/playground/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',  // Send cookies for session tracking
-        body: JSON.stringify({ query: q, demo_repo: selectedRepo, max_results: 10 })
-      })
-      const data = await response.json()
+      const response = isCustom
+        ? await playgroundAPI.search(query)
+        : await fetch(`${API_URL}/playground/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ query, demo_repo: repoId, max_results: 10 })
+          }).then(res => res.json())
+
+      const data = isCustom ? response : response
       
-      if (response.ok) {
+      if (data.results) {
         setResults(data.results || [])
         setSearchTime(data.search_time_ms || (Date.now() - startTime))
-        // Update remaining from backend (source of truth)
         if (typeof data.remaining_searches === 'number') {
           setRemaining(data.remaining_searches)
         }
-        if (typeof data.limit === 'number') {
-          setLimit(data.limit)
-        }
-      } else if (response.status === 429) {
-        // Rate limit exceeded
-        setRateLimitError(data.detail?.message || 'Daily limit reached. Sign up for unlimited searches!')
+        // Scroll to results after they load
+        scrollToResults()
+      } else if (data.status === 429) {
+        setRateLimitError('Daily limit reached. Sign up for unlimited searches!')
         setRemaining(0)
       }
     } catch (error) {
@@ -222,134 +203,105 @@ export function LandingPage() {
           </h1>
 
           <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
-            Search any codebase by meaning, not keywords.
+            Search any codebase by meaning, not keywords. Index your own repo in seconds.
           </p>
 
-          {/* Repo Selector */}
-          <div className="flex justify-center gap-3 mb-6">
-            {DEMO_REPOS.map(repo => {
-              const isAvailable = availableRepos.includes(repo.id)
-              const isSelected = selectedRepo === repo.id
-              return (
-                <button
-                  key={repo.id}
-                  onClick={() => isAvailable && setSelectedRepo(repo.id)}
-                  disabled={!isAvailable}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border
-                    ${isSelected ? `bg-gradient-to-r ${repo.color} text-white` : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}
-                    ${!isAvailable && 'opacity-40 cursor-not-allowed'}`}
-                >
-                  <span className="mr-2">{repo.icon}</span>
-                  {repo.name}
-                  {!isAvailable && <span className="ml-1 text-[10px]">(soon)</span>}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Search Box */}
-          <div className="relative max-w-2xl mx-auto mb-6">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-2xl blur-xl opacity-50" />
-            <div className="relative bg-[#111113] rounded-2xl border border-white/10 p-3">
-              <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="flex items-center gap-3">
-                <div className="flex-1 flex items-center gap-3">
-                  <div className="text-gray-500 ml-2"><SearchIcon /></div>
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search for authentication, error handling..."
-                    className="flex-1 bg-transparent text-white placeholder:text-gray-500 focus:outline-none text-base py-3"
-                    autoFocus
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={loading || !query.trim() || remaining <= 0}
-                  className="px-6 py-3 h-auto bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl disabled:opacity-50 shrink-0"
-                >
-                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Search'}
-                </Button>
-              </form>
-            </div>
-          </div>
-
-          {/* Trust Indicators */}
-          <div className="flex items-center justify-center gap-6 text-sm text-gray-500 mb-8">
-            <div className="flex items-center gap-2"><ZapIcon /><span>~100ms</span></div>
-            <div className="w-1 h-1 rounded-full bg-gray-700" />
-            <span>No signup required</span>
-            <div className="w-1 h-1 rounded-full bg-gray-700" />
-            <span>{remaining} free searches</span>
-          </div>
-
-          {/* Example Queries */}
-          {!hasSearched && (
-            <div className="flex flex-wrap justify-center gap-2">
-              <span className="text-sm text-gray-600">Try:</span>
-              {EXAMPLE_QUERIES.map(q => (
-                <button key={q} onClick={() => { setQuery(q); handleSearch(q); }} className="text-sm text-gray-400 hover:text-blue-400 transition-colors">
-                  "{q}"
-                </button>
-              ))}
-            </div>
-          )}
+          {/* HeroPlayground - handles demo repos + custom repo indexing */}
+          <HeroPlayground
+            onSearch={handleSearch}
+            availableRepos={availableRepos}
+            remaining={remaining}
+            loading={loading}
+          />
         </div>
       </section>
 
       {/* ============ RESULTS SECTION (if searched) ============ */}
       {hasSearched && (
-        <section className="pb-20 px-6">
+        <section ref={resultsRef} className="pb-20 px-6 pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="max-w-4xl mx-auto">
+            {/* Results Header */}
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4 text-sm">
-                <span className="text-gray-400"><span className="text-white font-semibold">{results.length}</span> results</span>
-                {searchTime && <><span className="text-gray-700">•</span><span className="font-mono text-green-400">{searchTime}ms</span></>}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleNewSearch}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700 text-sm text-zinc-300 hover:text-white transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  New Search
+                </button>
+                <span className="text-gray-500">|</span>
+                <span className="text-gray-400 text-sm">
+                  <span className="text-white font-semibold">{results.length}</span> results for "<span className="text-blue-400">{lastQuery}</span>"
+                </span>
+                {searchTime && (
+                  <span className="font-mono text-sm text-green-400">
+                    {searchTime > 1000 ? `${(searchTime/1000).toFixed(1)}s` : `${searchTime}ms`}
+                  </span>
+                )}
               </div>
               {remaining > 0 && remaining < limit && (
                 <div className="text-sm text-gray-500">{remaining} remaining</div>
               )}
             </div>
 
-            {(remaining <= 0 || rateLimitError) && (
-              <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30 p-6 mb-6">
-                <h3 className="text-lg font-semibold mb-2">You've reached today's limit</h3>
-                <p className="text-gray-300 mb-4">
-                  {rateLimitError || 'Sign up to get unlimited searches and index your own repos.'}
-                </p>
-                <Button onClick={() => navigate('/signup')} className="bg-white text-black hover:bg-gray-100">Get started — it's free</Button>
-              </Card>
+            {/* Loading State */}
+            {loading && (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="relative">
+                  <div className="w-12 h-12 border-4 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
+                </div>
+                <p className="mt-4 text-zinc-400 text-sm">Searching codebase...</p>
+                <p className="text-zinc-600 text-xs mt-1">This may take a few seconds for first search</p>
+              </div>
             )}
 
-            <div className="space-y-4">
-              {results.map((result, idx) => (
-                <Card key={idx} className="bg-[#111113] border-white/5 overflow-hidden hover:border-white/10 transition-all">
-                  <div className="px-5 py-4 border-b border-white/5 flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-mono font-semibold">{result.name}</h3>
-                        <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700">{result.type.replace('_', ' ')}</Badge>
-                      </div>
-                      <p className="text-sm text-gray-500 font-mono mt-1">{result.file_path.split('/').slice(-2).join('/')}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-blue-400">{(result.score * 100).toFixed(0)}%</div>
-                      <div className="text-[10px] text-gray-500 uppercase tracking-wider">match</div>
-                    </div>
-                  </div>
-                  <SyntaxHighlighter language={result.language || 'python'} style={oneDark} customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.8rem', background: '#0d0d0f' }} showLineNumbers startingLineNumber={result.line_start || 1}>
-                    {result.code}
-                  </SyntaxHighlighter>
-                </Card>
-              ))}
-            </div>
+            {/* Results Content (only when not loading) */}
+            {!loading && (
+              <>
+                {(remaining <= 0 || rateLimitError) && (
+                  <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30 p-6 mb-6">
+                    <h3 className="text-lg font-semibold mb-2">You've reached today's limit</h3>
+                    <p className="text-gray-300 mb-4">
+                      {rateLimitError || 'Sign up to get unlimited searches and index your own repos.'}
+                    </p>
+                    <Button onClick={() => navigate('/signup')} className="bg-white text-black hover:bg-gray-100">Get started — it's free</Button>
+                  </Card>
+                )}
 
-            {results.length === 0 && !loading && (
-              <div className="text-center py-16">
-                <div className="text-5xl mb-4">🔍</div>
-                <h3 className="text-lg font-semibold mb-2">No results found</h3>
-                <p className="text-gray-500">Try a different query</p>
-              </div>
+                <div className="space-y-4">
+                  {results.map((result, idx) => (
+                    <Card key={idx} className="bg-[#111113] border-white/5 overflow-hidden hover:border-white/10 transition-all hover:scale-[1.01] duration-200">
+                      <div className="px-5 py-4 border-b border-white/5 flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-mono font-semibold">{result.name}</h3>
+                            <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700">{result.type.replace('_', ' ')}</Badge>
+                          </div>
+                          <p className="text-sm text-gray-500 font-mono mt-1">{result.file_path.split('/').slice(-2).join('/')}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-blue-400">{(result.score * 100).toFixed(0)}%</div>
+                          <div className="text-[10px] text-gray-500 uppercase tracking-wider">match</div>
+                        </div>
+                      </div>
+                      <SyntaxHighlighter language={result.language || 'python'} style={oneDark} customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.8rem', background: '#0d0d0f' }} showLineNumbers startingLineNumber={result.line_start || 1}>
+                        {result.code}
+                      </SyntaxHighlighter>
+                    </Card>
+                  ))}
+                </div>
+
+                {results.length === 0 && (
+                  <div className="text-center py-16">
+                    <div className="text-5xl mb-4">🔍</div>
+                    <h3 className="text-lg font-semibold mb-2">No results found</h3>
+                    <p className="text-gray-500">Try a different query</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </section>
