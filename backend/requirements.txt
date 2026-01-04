@@ -39,3 +39,7 @@ pytest-cov>=6.0.0
 
 # Observability
 sentry-sdk[fastapi]>=2.0.0
+
+# Search V2 - Hybrid search
+rank-bm25>=0.2.2
+cohere>=5.0.0
