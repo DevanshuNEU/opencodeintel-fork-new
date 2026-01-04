@@ -523,7 +523,52 @@ class OptimizedCodeIndexer:
             logger.error("Search failed", repo_id=repo_id, error=str(e))
             metrics.increment("search_errors")
             return []
-    
+
+    async def search_v2(
+        self,
+        query: str,
+        repo_id: str,
+        top_k: int = 10,
+        use_reranking: bool = True,
+    ) -> List[Dict]:
+        """Hybrid search with BM25 fusion and Cohere reranking."""
+        from services.search_v2 import HybridSearcher
+
+        start_time = time.time()
+        metrics.increment("search_v2_requests")
+
+        try:
+            searcher = HybridSearcher(
+                pinecone_index=self.index,
+                embedding_fn=lambda q: self._create_embeddings_batch([q]).then(lambda x: x[0]),
+            )
+
+            # wrapper for async embed
+            async def embed(q):
+                embs = await self._create_embeddings_batch([q])
+                return embs[0]
+
+            searcher.embed = embed
+
+            results = await searcher.search(
+                query=query,
+                repo_id=repo_id,
+                top_k=top_k,
+                use_reranking=use_reranking,
+            )
+
+            elapsed = time.time() - start_time
+            logger.info("Search V2 complete", repo_id=repo_id, results=len(results), duration_ms=round(elapsed*1000))
+            metrics.timing("search_v2_latency_ms", elapsed * 1000)
+
+            return [r.to_dict() for r in results]
+
+        except Exception as e:
+            capture_exception(e, operation="search_v2", repo_id=repo_id, query=query[:100])
+            logger.error("Search V2 failed", error=str(e))
+            metrics.increment("search_v2_errors")
+            return []
+
     async def explain_code(
         self,
         repo_id: str,
