@@ -3,6 +3,7 @@ from services.search_v2.types import ExtractedFunction, SearchResult, Language
 from services.search_v2.tree_sitter_extractor import TreeSitterExtractor
 from services.search_v2.function_filter import FunctionFilter, filter_functions
 from services.search_v2.summary_generator import SummaryGenerator, generate_summaries
+from services.search_v2.hybrid_searcher import HybridSearcher
 
 __all__ = [
     "ExtractedFunction",
@@ -13,4 +14,5 @@ __all__ = [
     "filter_functions",
     "SummaryGenerator",
     "generate_summaries",
+    "HybridSearcher",
 ]
