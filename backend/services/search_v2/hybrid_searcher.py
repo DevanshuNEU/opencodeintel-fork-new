@@ -28,7 +28,7 @@ class HybridSearcher:
         pinecone_index,
         embedding_fn,
         cohere_api_key: Optional[str] = None,
-        rerank_model: str = "rerank-v3.5",
+        rerank_model: str = "rerank-v4.0-fast",
     ):
         self.index = pinecone_index
         self.embed = embedding_fn
