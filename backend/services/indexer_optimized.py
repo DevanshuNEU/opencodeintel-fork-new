@@ -361,19 +361,21 @@ class OptimizedCodeIndexer:
         logger.info("V2 extraction", total=len(raw), kept=len(filtered))
         return filtered
 
-    def _build_embedding_text(self, func: ExtractedFunction) -> str:
+    def _build_embedding_text(self, func: ExtractedFunction, summary: str = "") -> str:
         """Build rich text for embedding."""
         parts = [
             f"Function: {func.qualified_name}",
             f"Signature: {func.signature}",
         ]
+        if summary:
+            parts.append(f"Summary: {summary}")
         if func.docstring:
             parts.append(f"Description: {func.docstring[:500]}")
         parts.append(f"Language: {func.language}")
         parts.append(f"Code:\n{func.code[:2000]}")
         return "\n".join(parts)
 
-    def _build_metadata(self, func: ExtractedFunction, repo_id: str) -> Dict:
+    def _build_metadata(self, func: ExtractedFunction, repo_id: str, summary: str = "") -> Dict:
         """Build Pinecone metadata from function."""
         return {
             "repo_id": repo_id,
@@ -389,12 +391,21 @@ class OptimizedCodeIndexer:
             "class_name": func.class_name or "",
             "docstring": (func.docstring or "")[:500],
             "is_async": func.is_async,
+            "summary": summary,
         }
 
-    async def index_repository_v2(self, repo_id: str, repo_path: str, progress_callback=None) -> int:
+    async def index_repository_v2(
+        self,
+        repo_id: str,
+        repo_path: str,
+        progress_callback=None,
+        generate_summaries: bool = False
+    ) -> int:
         """Index repository using V2 function-level extraction."""
+        from services.search_v2 import generate_summaries as gen_summaries
+
         start_time = time.time()
-        logger.info("V2 indexing started", repo_id=repo_id)
+        logger.info("V2 indexing started", repo_id=repo_id, with_summaries=generate_summaries)
 
         functions = self.extract_functions_v2(repo_path)
         if not functions:
@@ -402,8 +413,14 @@ class OptimizedCodeIndexer:
                 await progress_callback(0, 0, 0)
             return 0
 
+        # generate summaries if requested
+        summaries = [""] * len(functions)
+        if generate_summaries:
+            logger.info("Generating summaries", count=len(functions))
+            summaries = await gen_summaries(functions, batch_size=10)
+
         # generate embeddings
-        texts = [self._build_embedding_text(f) for f in functions]
+        texts = [self._build_embedding_text(f, s) for f, s in zip(functions, summaries)]
         embeddings = []
 
         for i in range(0, len(texts), self.EMBEDDING_BATCH_SIZE):
@@ -418,9 +435,9 @@ class OptimizedCodeIndexer:
             {
                 "id": hashlib.md5(func.id_string.encode()).hexdigest(),
                 "values": emb,
-                "metadata": self._build_metadata(func, repo_id)
+                "metadata": self._build_metadata(func, repo_id, summary)
             }
-            for func, emb in zip(functions, embeddings)
+            for func, emb, summary in zip(functions, embeddings, summaries)
         ]
 
         # upsert to pinecone
