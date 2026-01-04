@@ -31,6 +31,9 @@ import time
 # Search enhancement
 from services.search_enhancer import SearchEnhancer
 
+# Search V2 - Function-level extraction (Issue #68)
+from services.search_v2 import TreeSitterExtractor, FunctionFilter, ExtractedFunction
+
 # Observability
 from services.observability import logger, trace_operation, track_time, capture_exception, add_breadcrumb, metrics
 
@@ -88,6 +91,14 @@ class OptimizedCodeIndexer:
             'javascript': self._create_parser(Language(tsjavascript.language())),
             'typescript': self._create_parser(Language(tsjavascript.language())),
         }
+        
+        # Search V2: Initialize advanced tree-sitter extractor and filter (Issue #68)
+        self.tree_sitter_extractor = TreeSitterExtractor()
+        self.function_filter = FunctionFilter(
+            include_private=False,
+            include_dunders=True,
+            max_name_length=50
+        )
         
         logger.info("OptimizedCodeIndexer initialized", model=EMBEDDING_MODEL)
     
@@ -339,7 +350,89 @@ class OptimizedCodeIndexer:
         except Exception as e:
             logger.error("Error processing file", file_path=file_path, error=str(e))
             return []
-    
+
+    def extract_functions_v2(self, repo_path: str, max_functions: int = 5000) -> List[ExtractedFunction]:
+        """Extract and filter functions using tree-sitter."""
+        from pathlib import Path
+
+        raw = self.tree_sitter_extractor.extract_from_repo(Path(repo_path), max_functions=max_functions)
+        filtered = self.function_filter.filter_functions(raw)
+
+        logger.info("V2 extraction", total=len(raw), kept=len(filtered))
+        return filtered
+
+    def _build_embedding_text(self, func: ExtractedFunction) -> str:
+        """Build rich text for embedding."""
+        parts = [
+            f"Function: {func.qualified_name}",
+            f"Signature: {func.signature}",
+        ]
+        if func.docstring:
+            parts.append(f"Description: {func.docstring[:500]}")
+        parts.append(f"Language: {func.language}")
+        parts.append(f"Code:\n{func.code[:2000]}")
+        return "\n".join(parts)
+
+    def _build_metadata(self, func: ExtractedFunction, repo_id: str) -> Dict:
+        """Build Pinecone metadata from function."""
+        return {
+            "repo_id": repo_id,
+            "file_path": func.file_path,
+            "name": func.name,
+            "qualified_name": func.qualified_name,
+            "type": "method" if func.is_method else "function",
+            "code": func.code[:1000],
+            "signature": func.signature,
+            "start_line": func.start_line,
+            "end_line": func.end_line,
+            "language": func.language,
+            "class_name": func.class_name or "",
+            "docstring": (func.docstring or "")[:500],
+            "is_async": func.is_async,
+        }
+
+    async def index_repository_v2(self, repo_id: str, repo_path: str, progress_callback=None) -> int:
+        """Index repository using V2 function-level extraction."""
+        start_time = time.time()
+        logger.info("V2 indexing started", repo_id=repo_id)
+
+        functions = self.extract_functions_v2(repo_path)
+        if not functions:
+            if progress_callback:
+                await progress_callback(0, 0, 0)
+            return 0
+
+        # generate embeddings
+        texts = [self._build_embedding_text(f) for f in functions]
+        embeddings = []
+
+        for i in range(0, len(texts), self.EMBEDDING_BATCH_SIZE):
+            batch = texts[i:i + self.EMBEDDING_BATCH_SIZE]
+            embeddings.extend(await self._create_embeddings_batch(batch))
+
+            if progress_callback:
+                await progress_callback(len(embeddings), len(functions), len(functions))
+
+        # build vectors
+        vectors = [
+            {
+                "id": hashlib.md5(func.id_string.encode()).hexdigest(),
+                "values": emb,
+                "metadata": self._build_metadata(func, repo_id)
+            }
+            for func, emb in zip(functions, embeddings)
+        ]
+
+        # upsert to pinecone
+        for i in range(0, len(vectors), self.PINECONE_UPSERT_BATCH):
+            self.index.upsert(vectors=vectors[i:i + self.PINECONE_UPSERT_BATCH])
+
+        elapsed = time.time() - start_time
+        logger.info("V2 indexing complete", repo_id=repo_id, functions=len(functions), duration_s=round(elapsed, 2))
+        metrics.increment("indexing_v2_completed")
+
+        return len(functions)
+
     async def semantic_search(
         self,
         query: str,
