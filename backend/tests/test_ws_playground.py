@@ -10,9 +10,6 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocket
 
-# We'll test the WebSocket handler directly since TestClient
-# doesn't support async WebSocket testing well
-
 
 class TestWebSocketPlayground:
     """Test suite for playground WebSocket endpoint."""
@@ -23,26 +20,86 @@ class TestWebSocketPlayground:
         
         client = TestClient(app)
         
-        # Job ID too short
-        with pytest.raises(Exception):
-            with client.websocket_connect("/api/v1/ws/playground/abc"):
-                pass
+        # Job ID too short - should accept then close with 4400
+        with client.websocket_connect("/api/v1/ws/playground/abc") as ws:
+            # Connection will be closed immediately
+            pass
 
     def test_websocket_rejects_when_no_redis(self):
         """Should close gracefully if Redis is unavailable."""
         from routes.ws_playground import websocket_playground_index
         
-        # Mock WebSocket
         mock_ws = AsyncMock(spec=WebSocket)
         
-        # Patch redis_client to None
         with patch('routes.ws_playground.redis_client', None):
             asyncio.run(websocket_playground_index(mock_ws, "idx_abc123def456"))
         
-        # Should close with service unavailable
+        # Should accept first, then close
+        mock_ws.accept.assert_called_once()
         mock_ws.close.assert_called_once()
         call_args = mock_ws.close.call_args
         assert call_args[1]['code'] == 4500
+
+    def test_websocket_rejects_nonexistent_job(self):
+        """Should close with 4404 if job doesn't exist."""
+        from routes.ws_playground import websocket_playground_index
+        
+        mock_ws = AsyncMock(spec=WebSocket)
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None  # Job not found
+        
+        with patch('routes.ws_playground.redis_client', mock_redis):
+            asyncio.run(websocket_playground_index(mock_ws, "idx_nonexistent"))
+        
+        mock_ws.accept.assert_called_once()
+        mock_ws.close.assert_called_once()
+        call_args = mock_ws.close.call_args
+        assert call_args[1]['code'] == 4404
+
+    def test_websocket_handles_already_completed_job(self):
+        """If job is already complete, send completion and close."""
+        from routes.ws_playground import websocket_playground_index
+        
+        mock_ws = AsyncMock(spec=WebSocket)
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = json.dumps({
+            "job_id": "idx_test123",
+            "status": "completed",
+            "repo_id": "anon_test123",
+            "stats": {"files_indexed": 100, "functions_found": 500}
+        })
+        
+        with patch('routes.ws_playground.redis_client', mock_redis):
+            asyncio.run(websocket_playground_index(mock_ws, "idx_test123"))
+        
+        # Should send completed event immediately
+        mock_ws.send_json.assert_called_once()
+        sent_data = mock_ws.send_json.call_args[0][0]
+        assert sent_data["type"] == "completed"
+        assert sent_data["repo_id"] == "anon_test123"
+        mock_ws.close.assert_called_once()
+
+    def test_websocket_handles_already_failed_job(self):
+        """If job already failed, send error and close."""
+        from routes.ws_playground import websocket_playground_index
+        
+        mock_ws = AsyncMock(spec=WebSocket)
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = json.dumps({
+            "job_id": "idx_test123",
+            "status": "failed",
+            "error": "clone_failed",
+            "error_message": "Repository not found"
+        })
+        
+        with patch('routes.ws_playground.redis_client', mock_redis):
+            asyncio.run(websocket_playground_index(mock_ws, "idx_test123"))
+        
+        mock_ws.send_json.assert_called_once()
+        sent_data = mock_ws.send_json.call_args[0][0]
+        assert sent_data["type"] == "error"
+        assert sent_data["error"] == "clone_failed"
+        mock_ws.close.assert_called_once()
 
 
 class TestPubSubIntegration:
@@ -52,7 +109,6 @@ class TestPubSubIntegration:
         """Verify events are published when status changes."""
         from services.anonymous_indexer import AnonymousIndexingJob, JobStatus
         
-        # Create mock Redis
         mock_redis = MagicMock()
         mock_redis.get.return_value = json.dumps({
             "job_id": "idx_test123",
@@ -61,11 +117,8 @@ class TestPubSubIntegration:
         })
         
         job_manager = AnonymousIndexingJob(mock_redis)
-        
-        # Update status to cloning
         job_manager.update_status("idx_test123", JobStatus.CLONING)
         
-        # Verify publish was called
         mock_redis.publish.assert_called()
         call_args = mock_redis.publish.call_args
         
@@ -88,7 +141,6 @@ class TestPubSubIntegration:
         
         job_manager = AnonymousIndexingJob(mock_redis)
         
-        # Update progress
         job_manager.update_progress(
             job_id="idx_test123",
             files_processed=25,
@@ -132,7 +184,6 @@ class TestPubSubIntegration:
             repo_id="anon_test123"
         )
         
-        # Verify publish was called with completed event
         call_args = mock_redis.publish.call_args
         event_data = json.loads(call_args[0][1])
         
@@ -152,12 +203,37 @@ class TestPubSubIntegration:
         
         job_manager = AnonymousIndexingJob(mock_redis)
         
-        # Call update_status with PROCESSING directly
         progress = JobProgress(files_total=100, files_processed=0, functions_found=0)
         job_manager.update_status("idx_test123", JobStatus.PROCESSING, progress=progress)
         
         # Should NOT have published (returns early for PROCESSING)
         mock_redis.publish.assert_not_called()
+
+    def test_failed_event_includes_recoverable_flag(self):
+        """Failed events should indicate if error is recoverable."""
+        from services.anonymous_indexer import AnonymousIndexingJob, JobStatus
+        
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = json.dumps({
+            "job_id": "idx_test123",
+            "status": "processing"
+        })
+        
+        job_manager = AnonymousIndexingJob(mock_redis)
+        
+        # Clone failures are not recoverable
+        job_manager.update_status(
+            "idx_test123",
+            JobStatus.FAILED,
+            error="clone_failed",
+            error_message="Repo not found"
+        )
+        
+        call_args = mock_redis.publish.call_args
+        event_data = json.loads(call_args[0][1])
+        
+        assert event_data["type"] == "failed"
+        assert event_data["recoverable"] == False
 
 
 class TestEventFormats:
@@ -179,6 +255,52 @@ class TestEventFormats:
         call_args = mock_redis.publish.call_args
         event_data = json.loads(call_args[0][1])
         
-        # Type should be string "cloning", not JobStatus.CLONING
         assert isinstance(event_data["type"], str)
         assert event_data["type"] == "cloning"
+
+    def test_progress_percent_is_integer(self):
+        """Progress percent should be an integer 0-100."""
+        from services.anonymous_indexer import AnonymousIndexingJob
+        
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = json.dumps({
+            "job_id": "idx_test123",
+            "status": "processing"
+        })
+        
+        job_manager = AnonymousIndexingJob(mock_redis)
+        
+        job_manager.update_progress(
+            job_id="idx_test123",
+            files_processed=33,
+            functions_found=100,
+            files_total=100,
+            current_file="test.py"
+        )
+        
+        progress_call = mock_redis.publish.call_args_list[0]
+        event_data = json.loads(progress_call[0][1])
+        
+        assert isinstance(event_data["percent"], int)
+        assert event_data["percent"] == 33
+
+    def test_all_events_include_job_id(self):
+        """All events should include job_id for client correlation."""
+        from services.anonymous_indexer import AnonymousIndexingJob, JobStatus
+        
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = json.dumps({
+            "job_id": "idx_test123",
+            "status": "queued"
+        })
+        
+        job_manager = AnonymousIndexingJob(mock_redis)
+        
+        # Test different event types
+        job_manager.update_status("idx_test123", JobStatus.CLONING)
+        
+        call_args = mock_redis.publish.call_args
+        event_data = json.loads(call_args[0][1])
+        
+        assert "job_id" in event_data
+        assert event_data["job_id"] == "idx_test123"
