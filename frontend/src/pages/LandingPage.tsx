@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -10,6 +11,7 @@ import { HeroPlayground } from '@/components/playground'
 import { playgroundAPI } from '@/services/playground-api'
 import type { SearchResult } from '../types'
 import { cn } from '@/lib/utils'
+import { useViewTransition } from '@/hooks/useViewTransition'
 
 // Icons
 const GitHubIcon = () => (
@@ -143,40 +145,74 @@ function CompactSearchBar({
   )
 }
 
-// ============ RESULT CARD with staggered animation ============
+// ============ RESULT CARD with staggered blur-to-focus animation ============
+const resultCardVariants = {
+  hidden: { 
+    opacity: 0, 
+    y: 20,
+    filter: 'blur(10px)',
+    scale: 0.98
+  },
+  visible: (index: number) => ({ 
+    opacity: 1, 
+    y: 0,
+    filter: 'blur(0px)',
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      delay: index * 0.075,
+      ease: [0.16, 1, 0.3, 1], // ease-out-expo
+    }
+  }),
+  exit: {
+    opacity: 0,
+    y: -10,
+    filter: 'blur(5px)',
+    transition: { duration: 0.2 }
+  }
+}
+
 function ResultCard({ result, index }: { result: SearchResult; index: number }) {
   return (
-    <Card 
-      className="bg-[#111113] border-white/5 overflow-hidden hover:border-white/10 transition-all hover:scale-[1.005] duration-200 animate-in fade-in slide-in-from-bottom-4"
-      style={{ animationDelay: `${index * 75}ms`, animationFillMode: 'backwards' }}
+    <motion.div
+      variants={resultCardVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      custom={index}
+      layout
     >
-      <div className="px-5 py-4 border-b border-white/5 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h3 className="font-mono font-semibold">{result.name}</h3>
-            <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700">
-              {result.type.replace('_', ' ')}
-            </Badge>
-          </div>
-          <p className="text-sm text-gray-500 font-mono mt-1">
-            {result.file_path.split('/').slice(-2).join('/')}
-          </p>
-        </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold text-blue-400">{(result.score * 100).toFixed(0)}%</div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider">match</div>
-        </div>
-      </div>
-      <SyntaxHighlighter 
-        language={result.language || 'python'} 
-        style={oneDark} 
-        customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.8rem', background: '#0d0d0f' }} 
-        showLineNumbers 
-        startingLineNumber={result.line_start || 1}
+      <Card 
+        className="bg-[#111113] border-white/5 overflow-hidden hover:border-white/10 transition-colors duration-200 hover:shadow-lg hover:shadow-black/20"
       >
-        {result.code}
-      </SyntaxHighlighter>
-    </Card>
+        <div className="px-5 py-4 border-b border-white/5 flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <h3 className="font-mono font-semibold">{result.name}</h3>
+              <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700">
+                {result.type.replace('_', ' ')}
+              </Badge>
+            </div>
+            <p className="text-sm text-gray-500 font-mono mt-1">
+              {result.file_path.split('/').slice(-2).join('/')}
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-blue-400">{(result.score * 100).toFixed(0)}%</div>
+            <div className="text-[10px] text-gray-500 uppercase tracking-wider">match</div>
+          </div>
+        </div>
+        <SyntaxHighlighter 
+          language={result.language || 'python'} 
+          style={oneDark} 
+          customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.8rem', background: '#0d0d0f' }} 
+          showLineNumbers 
+          startingLineNumber={result.line_start || 1}
+        >
+          {result.code}
+        </SyntaxHighlighter>
+      </Card>
+    </motion.div>
   )
 }
 
@@ -366,11 +402,19 @@ export function LandingPage() {
                     </Card>
                   )}
 
-                  <div className="space-y-4">
-                    {results.map((result, idx) => (
-                      <ResultCard key={idx} result={result} index={idx} />
-                    ))}
-                  </div>
+                  <AnimatePresence mode="wait">
+                    <motion.div 
+                      key={lastQuery}
+                      className="space-y-4"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      {results.map((result, idx) => (
+                        <ResultCard key={`${result.file_path}-${result.name}-${idx}`} result={result} index={idx} />
+                      ))}
+                    </motion.div>
+                  </AnimatePresence>
 
                   {results.length === 0 && (
                     <div className="text-center py-16 animate-in fade-in duration-500">

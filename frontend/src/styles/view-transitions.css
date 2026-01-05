@@ -1,0 +1,139 @@
+/* ============================================
+   View Transitions API Styles
+   For native browser-powered DOM transitions
+   Supported: Chrome 111+, Safari 18+, Edge 111+
+   ============================================ */
+
+/* View Transition groups for search results */
+::view-transition-old(search-results),
+::view-transition-new(search-results) {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); /* ease-out-expo */
+}
+
+::view-transition-old(search-results) {
+  animation-name: results-fade-out;
+}
+
+::view-transition-new(search-results) {
+  animation-name: results-fade-in;
+}
+
+/* Individual result card transitions */
+::view-transition-old(result-card),
+::view-transition-new(result-card) {
+  animation-duration: 350ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+::view-transition-new(result-card) {
+  animation-name: card-blur-in;
+}
+
+/* ============================================
+   Keyframe Animations
+   ============================================ */
+
+/* Results container fade */
+@keyframes results-fade-out {
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes results-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Card blur-to-focus effect */
+@keyframes card-blur-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Staggered card entrance - used as fallback */
+@keyframes stagger-fade-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+/* ============================================
+   Animation Utility Classes
+   ============================================ */
+
+/* Apply to results container */
+.view-transition-results {
+  view-transition-name: search-results;
+}
+
+/* Apply to individual result cards */
+.view-transition-card {
+  view-transition-name: result-card;
+}
+
+/* Staggered animation class for fallback */
+.animate-stagger-in {
+  animation: stagger-fade-in 400ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Blur-in animation for cards */
+.animate-blur-in {
+  animation: card-blur-in 400ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* ============================================
+   Reduced Motion Support
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  
+  .animate-stagger-in,
+  .animate-blur-in {
+    animation: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
+/* ============================================
+   Performance Optimizations
+   ============================================ */
+
+/* Promote animated elements to GPU layer */
+.will-animate {
+  will-change: transform, opacity, filter;
+}
+
+/* Remove will-change after animation completes */
+.animation-complete {
+  will-change: auto;
+}
