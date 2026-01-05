@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """
-End-to-end WebSocket test for playground indexing.
+MANUAL WebSocket E2E test for playground indexing.
+
+NOT run in CI - requires:
+  - Running backend server (uvicorn main:app)
+  - Redis running
+  - aiohttp installed (pip install aiohttp)
 
 This script:
 1. Creates an indexing job via the REST API
@@ -8,7 +13,10 @@ This script:
 3. Listens for all events until completion/error
 4. Reports what we received
 
-Usage: python3 test_ws_e2e.py
+Usage: 
+  cd backend
+  pip install aiohttp  # if not installed
+  python3 scripts/manual_ws_test.py
 """
 import asyncio
 import aiohttp
