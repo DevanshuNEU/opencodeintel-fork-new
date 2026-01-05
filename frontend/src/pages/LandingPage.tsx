@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -10,6 +11,7 @@ import { HeroPlayground } from '@/components/playground'
 import { playgroundAPI } from '@/services/playground-api'
 import type { SearchResult } from '../types'
 import { cn } from '@/lib/utils'
+import { useViewTransition } from '@/hooks/useViewTransition'
 
 // Icons
 const GitHubIcon = () => (
@@ -94,7 +96,17 @@ function CompactSearchBar({
   remaining: number
 }) {
   return (
-    <div className="bg-[#09090b]/95 backdrop-blur-xl border-b border-white/5 sticky top-16 z-40">
+    <motion.div 
+      className="bg-[#09090b]/95 backdrop-blur-xl border-b border-white/5 sticky top-16 z-40"
+      animate={loading ? {
+        boxShadow: [
+          '0 0 0 rgba(99, 102, 241, 0)',
+          '0 0 30px rgba(99, 102, 241, 0.3)',
+          '0 0 0 rgba(99, 102, 241, 0)',
+        ]
+      } : {}}
+      transition={{ duration: 1.5, repeat: Infinity }}
+    >
       <div className="max-w-4xl mx-auto px-6 py-4">
         <div className="flex items-center gap-4">
           {/* Back button */}
@@ -108,18 +120,38 @@ function CompactSearchBar({
 
           {/* Search input */}
           <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="flex-1 flex items-center gap-3">
-            <div className="flex-1 relative">
+            <motion.div 
+              className="flex-1 relative"
+              animate={loading ? {
+                scale: [1, 1.01, 1],
+              } : {}}
+              transition={{ duration: 0.8, repeat: Infinity }}
+            >
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                <SearchIcon />
+                {loading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <SearchIcon />
+                  </motion.div>
+                ) : (
+                  <SearchIcon />
+                )}
               </div>
               <input
                 type="text"
                 value={query}
                 onChange={(e) => onQueryChange(e.target.value)}
                 placeholder="Search again..."
-                className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl pl-12 pr-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors"
+                className={cn(
+                  "w-full bg-zinc-900/80 border rounded-xl pl-12 pr-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none transition-all duration-300",
+                  loading 
+                    ? "border-indigo-500/50 shadow-lg shadow-indigo-500/20" 
+                    : "border-zinc-800 focus:border-zinc-700"
+                )}
               />
-            </div>
+            </motion.div>
             <Button
               type="submit"
               disabled={!query.trim() || loading || remaining <= 0}
@@ -139,44 +171,203 @@ function CompactSearchBar({
           </form>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
-// ============ RESULT CARD with staggered animation ============
-function ResultCard({ result, index }: { result: SearchResult; index: number }) {
+// ============ SKELETON LOADING CARD ============
+function SkeletonCard({ index }: { index: number }) {
   return (
-    <Card 
-      className="bg-[#111113] border-white/5 overflow-hidden hover:border-white/10 transition-all hover:scale-[1.005] duration-200 animate-in fade-in slide-in-from-bottom-4"
-      style={{ animationDelay: `${index * 75}ms`, animationFillMode: 'backwards' }}
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.1 }}
     >
-      <div className="px-5 py-4 border-b border-white/5 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h3 className="font-mono font-semibold">{result.name}</h3>
-            <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700">
-              {result.type.replace('_', ' ')}
-            </Badge>
+      <Card className="bg-[#111113] border-white/5 overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/5">
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <div className="h-5 w-48 bg-zinc-800 rounded animate-pulse" />
+              <div className="h-4 w-32 bg-zinc-800/60 rounded animate-pulse" />
+            </div>
+            <div className="text-right space-y-1">
+              <div className="h-8 w-16 bg-zinc-800 rounded animate-pulse" />
+              <div className="h-3 w-12 bg-zinc-800/60 rounded animate-pulse" />
+            </div>
           </div>
-          <p className="text-sm text-gray-500 font-mono mt-1">
-            {result.file_path.split('/').slice(-2).join('/')}
-          </p>
         </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold text-blue-400">{(result.score * 100).toFixed(0)}%</div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider">match</div>
+        <div className="p-4 space-y-2 bg-[#0d0d0f]">
+          <div className="h-4 w-full bg-zinc-800/40 rounded animate-pulse" />
+          <div className="h-4 w-5/6 bg-zinc-800/40 rounded animate-pulse" />
+          <div className="h-4 w-4/6 bg-zinc-800/40 rounded animate-pulse" />
+          <div className="h-4 w-full bg-zinc-800/40 rounded animate-pulse" />
+          <div className="h-4 w-3/4 bg-zinc-800/40 rounded animate-pulse" />
         </div>
-      </div>
-      <SyntaxHighlighter 
-        language={result.language || 'python'} 
-        style={oneDark} 
-        customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.8rem', background: '#0d0d0f' }} 
-        showLineNumbers 
-        startingLineNumber={result.line_start || 1}
+      </Card>
+    </motion.div>
+  )
+}
+
+// ============ RESULT CARD with DRAMATIC staggered animation ============
+const resultCardVariants = {
+  hidden: { 
+    opacity: 0, 
+    y: 60,
+    scale: 0.9,
+    filter: 'blur(20px)',
+    rotateX: 15,
+  },
+  visible: (index: number) => ({ 
+    opacity: 1, 
+    y: 0,
+    scale: 1,
+    filter: 'blur(0px)',
+    rotateX: 0,
+    transition: {
+      type: 'spring',
+      damping: 25,
+      stiffness: 200,
+      delay: index * 0.12,
+    }
+  }),
+  exit: {
+    opacity: 0,
+    y: -30,
+    scale: 0.95,
+    filter: 'blur(10px)',
+    transition: { duration: 0.25 }
+  }
+}
+
+// Hover animation for cards
+const cardHoverVariants = {
+  rest: { 
+    scale: 1, 
+    y: 0,
+    boxShadow: '0 0 0 rgba(59, 130, 246, 0)',
+  },
+  hover: { 
+    scale: 1.02, 
+    y: -4,
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(59, 130, 246, 0.1)',
+    transition: {
+      type: 'spring',
+      damping: 20,
+      stiffness: 300,
+    }
+  }
+}
+
+function ResultCard({ result, index }: { result: SearchResult; index: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const codeLines = result.code.split('\n')
+  const isLongCode = codeLines.length > 8
+  const displayCode = expanded ? result.code : codeLines.slice(0, 8).join('\n')
+  
+  // Color based on match score
+  const scoreColor = result.score >= 0.7 
+    ? 'from-emerald-400 to-green-500' 
+    : result.score >= 0.5 
+      ? 'from-blue-400 to-indigo-500' 
+      : 'from-amber-400 to-orange-500'
+  
+  const scoreBg = result.score >= 0.7 
+    ? 'bg-emerald-500/10 border-emerald-500/20' 
+    : result.score >= 0.5 
+      ? 'bg-blue-500/10 border-blue-500/20' 
+      : 'bg-amber-500/10 border-amber-500/20'
+
+  return (
+    <motion.div
+      variants={resultCardVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      custom={index}
+      layout
+      style={{ perspective: 1000 }}
+    >
+      <motion.div
+        variants={cardHoverVariants}
+        initial="rest"
+        whileHover="hover"
       >
-        {result.code}
-      </SyntaxHighlighter>
-    </Card>
+        <Card className="bg-[#0c0c0e] border-white/[0.06] overflow-hidden hover:border-white/10 transition-all duration-300 cursor-pointer group">
+          {/* Header - Clean and Spacious */}
+          <div className="px-6 py-5 flex items-start justify-between gap-6">
+            {/* Left: Function info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-2">
+                <h3 className="font-mono text-lg font-semibold text-white truncate group-hover:text-blue-400 transition-colors">
+                  {result.name}
+                </h3>
+                <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-500 bg-white/5 rounded">
+                  {result.type.replace('_', ' ')}
+                </span>
+              </div>
+              <p className="text-sm text-gray-500 font-mono truncate">
+                {result.file_path}
+              </p>
+            </div>
+            
+            {/* Right: Match Score - THE HERO */}
+            <div className={cn("flex flex-col items-center px-4 py-3 rounded-xl border", scoreBg)}>
+              <div className={cn("text-3xl font-bold bg-gradient-to-r bg-clip-text text-transparent", scoreColor)}>
+                {(result.score * 100).toFixed(0)}%
+              </div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">match</div>
+            </div>
+          </div>
+          
+          {/* Code Block - Contained with gradient fade */}
+          <div className="relative">
+            <div className={cn(
+              "transition-all duration-300",
+              !expanded && isLongCode && "max-h-[200px] overflow-hidden"
+            )}>
+              <SyntaxHighlighter 
+                language={result.language || 'python'} 
+                style={oneDark} 
+                customStyle={{ 
+                  margin: 0, 
+                  borderRadius: 0, 
+                  fontSize: '0.8rem', 
+                  background: '#08080a',
+                  padding: '1rem 1.5rem',
+                }} 
+                showLineNumbers 
+                startingLineNumber={result.line_start || 1}
+              >
+                {displayCode}
+              </SyntaxHighlighter>
+            </div>
+            
+            {/* Gradient fade + expand button */}
+            {isLongCode && !expanded && (
+              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#08080a] to-transparent flex items-end justify-center pb-3">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+                  className="px-4 py-1.5 text-xs font-medium text-gray-400 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 hover:border-white/20 transition-all"
+                >
+                  Show {codeLines.length - 8} more lines
+                </button>
+              </div>
+            )}
+            
+            {isLongCode && expanded && (
+              <div className="flex justify-center py-3 bg-[#08080a] border-t border-white/5">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
+                  className="px-4 py-1.5 text-xs font-medium text-gray-400 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 hover:border-white/20 transition-all"
+                >
+                  Show less
+                </button>
+              </div>
+            )}
+          </div>
+        </Card>
+      </motion.div>
+    </motion.div>
   )
 }
 
@@ -190,16 +381,21 @@ export function LandingPage() {
   const [hasSearched, setHasSearched] = useState(false)
   const [availableRepos, setAvailableRepos] = useState<string[]>([])
   const [rateLimitError, setRateLimitError] = useState<string | null>(null)
-  const [lastQuery, setLastQuery] = useState('')
+  const [searchedQuery, setSearchedQuery] = useState('') // What was actually searched
+  const [inputQuery, setInputQuery] = useState('') // What user is typing
   const [currentRepoId, setCurrentRepoId] = useState('')
   const [isCustomRepo, setIsCustomRepo] = useState(false)
+
+  // Check if results are stale (user typed something different)
+  const isStale = hasSearched && !loading && inputQuery.trim() !== searchedQuery.trim() && inputQuery.trim() !== ''
 
   // Reset to hero state
   const handleNewSearch = () => {
     setHasSearched(false)
     setResults([])
     setSearchTime(null)
-    setLastQuery('')
+    setSearchedQuery('')
+    setInputQuery('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -230,7 +426,8 @@ export function LandingPage() {
 
     setLoading(true)
     setHasSearched(true)
-    setLastQuery(query)
+    setSearchedQuery(query) // Track what was actually searched
+    setInputQuery(query) // Sync input with searched
     setCurrentRepoId(repoId)
     setIsCustomRepo(isCustom)
     setRateLimitError(null)
@@ -267,8 +464,8 @@ export function LandingPage() {
 
   // Re-search with updated query (from compact search bar)
   const handleReSearch = () => {
-    if (lastQuery.trim() && currentRepoId) {
-      handleSearch(lastQuery, currentRepoId, isCustomRepo)
+    if (inputQuery.trim() && currentRepoId) {
+      handleSearch(inputQuery, currentRepoId, isCustomRepo)
     }
   }
 
@@ -306,8 +503,8 @@ export function LandingPage() {
         <div className="min-h-screen pt-16">
           {/* Compact Search Bar - sticky below nav */}
           <CompactSearchBar
-            query={lastQuery}
-            onQueryChange={setLastQuery}
+            query={inputQuery}
+            onQueryChange={setInputQuery}
             onSearch={handleReSearch}
             onNewSearch={handleNewSearch}
             loading={loading}
@@ -321,12 +518,26 @@ export function LandingPage() {
               <div className="flex items-center justify-between mb-6 animate-in fade-in duration-300">
                 {loading ? (
                   <span className="text-gray-400 text-sm">
-                    Searching for "<span className="text-blue-400">{lastQuery}</span>"...
+                    Searching for "<span className="text-blue-400">{inputQuery}</span>"...
                   </span>
+                ) : isStale ? (
+                  <motion.div 
+                    className="flex items-center gap-3"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <span className="text-amber-400 text-sm flex items-center gap-2">
+                      <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                      Press Enter to search for "<span className="text-white">{inputQuery}</span>"
+                    </span>
+                    <span className="text-gray-600 text-xs">
+                      (showing results for "{searchedQuery}")
+                    </span>
+                  </motion.div>
                 ) : (
                   <div className="flex items-center gap-4">
                     <span className="text-gray-400 text-sm">
-                      <span className="text-white font-semibold">{results.length}</span> results for "<span className="text-blue-400">{lastQuery}</span>"
+                      <span className="text-white font-semibold">{results.length}</span> results for "<span className="text-blue-400">{searchedQuery}</span>"
                     </span>
                     {searchTime && (
                       <span className="font-mono text-sm text-green-400">
@@ -340,14 +551,12 @@ export function LandingPage() {
                 )}
               </div>
 
-              {/* Loading State */}
+              {/* Loading State - Skeleton Cards */}
               {loading && (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <div className="relative">
-                    <div className="w-12 h-12 border-4 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
-                  </div>
-                  <p className="mt-4 text-zinc-400 text-sm">Searching codebase...</p>
-                  <p className="text-zinc-600 text-xs mt-1">This may take a few seconds for first search</p>
+                <div className="space-y-4">
+                  {[0, 1, 2, 3].map((i) => (
+                    <SkeletonCard key={i} index={i} />
+                  ))}
                 </div>
               )}
 
@@ -366,11 +575,24 @@ export function LandingPage() {
                     </Card>
                   )}
 
-                  <div className="space-y-4">
-                    {results.map((result, idx) => (
-                      <ResultCard key={idx} result={result} index={idx} />
-                    ))}
-                  </div>
+                  <AnimatePresence mode="wait">
+                    <motion.div 
+                      key={searchedQuery}
+                      className="space-y-6"
+                      initial={{ opacity: 0 }}
+                      animate={{ 
+                        opacity: isStale ? 0.4 : 1,
+                        filter: isStale ? 'blur(2px)' : 'blur(0px)',
+                        scale: isStale ? 0.98 : 1,
+                      }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {results.map((result, idx) => (
+                        <ResultCard key={`${result.file_path}-${result.name}-${idx}`} result={result} index={idx} />
+                      ))}
+                    </motion.div>
+                  </AnimatePresence>
 
                   {results.length === 0 && (
                     <div className="text-center py-16 animate-in fade-in duration-500">
