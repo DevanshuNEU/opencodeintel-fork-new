@@ -259,6 +259,24 @@ const cardHoverVariants = {
 }
 
 function ResultCard({ result, index }: { result: SearchResult; index: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const codeLines = result.code.split('\n')
+  const isLongCode = codeLines.length > 8
+  const displayCode = expanded ? result.code : codeLines.slice(0, 8).join('\n')
+  
+  // Color based on match score
+  const scoreColor = result.score >= 0.7 
+    ? 'from-emerald-400 to-green-500' 
+    : result.score >= 0.5 
+      ? 'from-blue-400 to-indigo-500' 
+      : 'from-amber-400 to-orange-500'
+  
+  const scoreBg = result.score >= 0.7 
+    ? 'bg-emerald-500/10 border-emerald-500/20' 
+    : result.score >= 0.5 
+      ? 'bg-blue-500/10 border-blue-500/20' 
+      : 'bg-amber-500/10 border-amber-500/20'
+
   return (
     <motion.div
       variants={resultCardVariants}
@@ -274,35 +292,79 @@ function ResultCard({ result, index }: { result: SearchResult; index: number }) 
         initial="rest"
         whileHover="hover"
       >
-        <Card 
-          className="bg-[#111113] border-white/5 overflow-hidden hover:border-blue-500/30 transition-colors duration-300 cursor-pointer"
-        >
-        <div className="px-5 py-4 border-b border-white/5 flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <h3 className="font-mono font-semibold">{result.name}</h3>
-              <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700">
-                {result.type.replace('_', ' ')}
-              </Badge>
+        <Card className="bg-[#0c0c0e] border-white/[0.06] overflow-hidden hover:border-white/10 transition-all duration-300 cursor-pointer group">
+          {/* Header - Clean and Spacious */}
+          <div className="px-6 py-5 flex items-start justify-between gap-6">
+            {/* Left: Function info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-2">
+                <h3 className="font-mono text-lg font-semibold text-white truncate group-hover:text-blue-400 transition-colors">
+                  {result.name}
+                </h3>
+                <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-500 bg-white/5 rounded">
+                  {result.type.replace('_', ' ')}
+                </span>
+              </div>
+              <p className="text-sm text-gray-500 font-mono truncate">
+                {result.file_path}
+              </p>
             </div>
-            <p className="text-sm text-gray-500 font-mono mt-1">
-              {result.file_path.split('/').slice(-2).join('/')}
-            </p>
+            
+            {/* Right: Match Score - THE HERO */}
+            <div className={cn("flex flex-col items-center px-4 py-3 rounded-xl border", scoreBg)}>
+              <div className={cn("text-3xl font-bold bg-gradient-to-r bg-clip-text text-transparent", scoreColor)}>
+                {(result.score * 100).toFixed(0)}%
+              </div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">match</div>
+            </div>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-blue-400">{(result.score * 100).toFixed(0)}%</div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-wider">match</div>
+          
+          {/* Code Block - Contained with gradient fade */}
+          <div className="relative">
+            <div className={cn(
+              "transition-all duration-300",
+              !expanded && isLongCode && "max-h-[200px] overflow-hidden"
+            )}>
+              <SyntaxHighlighter 
+                language={result.language || 'python'} 
+                style={oneDark} 
+                customStyle={{ 
+                  margin: 0, 
+                  borderRadius: 0, 
+                  fontSize: '0.8rem', 
+                  background: '#08080a',
+                  padding: '1rem 1.5rem',
+                }} 
+                showLineNumbers 
+                startingLineNumber={result.line_start || 1}
+              >
+                {displayCode}
+              </SyntaxHighlighter>
+            </div>
+            
+            {/* Gradient fade + expand button */}
+            {isLongCode && !expanded && (
+              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#08080a] to-transparent flex items-end justify-center pb-3">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+                  className="px-4 py-1.5 text-xs font-medium text-gray-400 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 hover:border-white/20 transition-all"
+                >
+                  Show {codeLines.length - 8} more lines
+                </button>
+              </div>
+            )}
+            
+            {isLongCode && expanded && (
+              <div className="flex justify-center py-3 bg-[#08080a] border-t border-white/5">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
+                  className="px-4 py-1.5 text-xs font-medium text-gray-400 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 hover:border-white/20 transition-all"
+                >
+                  Show less
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-        <SyntaxHighlighter 
-          language={result.language || 'python'} 
-          style={oneDark} 
-          customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.8rem', background: '#0d0d0f' }} 
-          showLineNumbers 
-          startingLineNumber={result.line_start || 1}
-        >
-          {result.code}
-        </SyntaxHighlighter>
         </Card>
       </motion.div>
     </motion.div>
@@ -319,16 +381,21 @@ export function LandingPage() {
   const [hasSearched, setHasSearched] = useState(false)
   const [availableRepos, setAvailableRepos] = useState<string[]>([])
   const [rateLimitError, setRateLimitError] = useState<string | null>(null)
-  const [lastQuery, setLastQuery] = useState('')
+  const [searchedQuery, setSearchedQuery] = useState('') // What was actually searched
+  const [inputQuery, setInputQuery] = useState('') // What user is typing
   const [currentRepoId, setCurrentRepoId] = useState('')
   const [isCustomRepo, setIsCustomRepo] = useState(false)
+
+  // Check if results are stale (user typed something different)
+  const isStale = hasSearched && !loading && inputQuery.trim() !== searchedQuery.trim() && inputQuery.trim() !== ''
 
   // Reset to hero state
   const handleNewSearch = () => {
     setHasSearched(false)
     setResults([])
     setSearchTime(null)
-    setLastQuery('')
+    setSearchedQuery('')
+    setInputQuery('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -359,7 +426,8 @@ export function LandingPage() {
 
     setLoading(true)
     setHasSearched(true)
-    setLastQuery(query)
+    setSearchedQuery(query) // Track what was actually searched
+    setInputQuery(query) // Sync input with searched
     setCurrentRepoId(repoId)
     setIsCustomRepo(isCustom)
     setRateLimitError(null)
@@ -396,8 +464,8 @@ export function LandingPage() {
 
   // Re-search with updated query (from compact search bar)
   const handleReSearch = () => {
-    if (lastQuery.trim() && currentRepoId) {
-      handleSearch(lastQuery, currentRepoId, isCustomRepo)
+    if (inputQuery.trim() && currentRepoId) {
+      handleSearch(inputQuery, currentRepoId, isCustomRepo)
     }
   }
 
@@ -435,8 +503,8 @@ export function LandingPage() {
         <div className="min-h-screen pt-16">
           {/* Compact Search Bar - sticky below nav */}
           <CompactSearchBar
-            query={lastQuery}
-            onQueryChange={setLastQuery}
+            query={inputQuery}
+            onQueryChange={setInputQuery}
             onSearch={handleReSearch}
             onNewSearch={handleNewSearch}
             loading={loading}
@@ -450,12 +518,26 @@ export function LandingPage() {
               <div className="flex items-center justify-between mb-6 animate-in fade-in duration-300">
                 {loading ? (
                   <span className="text-gray-400 text-sm">
-                    Searching for "<span className="text-blue-400">{lastQuery}</span>"...
+                    Searching for "<span className="text-blue-400">{inputQuery}</span>"...
                   </span>
+                ) : isStale ? (
+                  <motion.div 
+                    className="flex items-center gap-3"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <span className="text-amber-400 text-sm flex items-center gap-2">
+                      <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                      Press Enter to search for "<span className="text-white">{inputQuery}</span>"
+                    </span>
+                    <span className="text-gray-600 text-xs">
+                      (showing results for "{searchedQuery}")
+                    </span>
+                  </motion.div>
                 ) : (
                   <div className="flex items-center gap-4">
                     <span className="text-gray-400 text-sm">
-                      <span className="text-white font-semibold">{results.length}</span> results for "<span className="text-blue-400">{lastQuery}</span>"
+                      <span className="text-white font-semibold">{results.length}</span> results for "<span className="text-blue-400">{searchedQuery}</span>"
                     </span>
                     {searchTime && (
                       <span className="font-mono text-sm text-green-400">
@@ -495,11 +577,16 @@ export function LandingPage() {
 
                   <AnimatePresence mode="wait">
                     <motion.div 
-                      key={lastQuery}
-                      className="space-y-4"
+                      key={searchedQuery}
+                      className="space-y-6"
                       initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
+                      animate={{ 
+                        opacity: isStale ? 0.4 : 1,
+                        filter: isStale ? 'blur(2px)' : 'blur(0px)',
+                        scale: isStale ? 0.98 : 1,
+                      }}
                       exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
                     >
                       {results.map((result, idx) => (
                         <ResultCard key={`${result.file_path}-${result.name}-${idx}`} result={result} index={idx} />
