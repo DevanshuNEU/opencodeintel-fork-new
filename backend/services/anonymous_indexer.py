@@ -60,6 +60,7 @@ class AnonymousIndexingJob:
     """
 
     REDIS_PREFIX = "anon_job:"
+    PUBSUB_PREFIX = "job:"  # Channel: job:{job_id}:events
     JOB_TTL_SECONDS = 3600  # 1 hour for job metadata
     REPO_TTL_HOURS = 24  # 24 hours for indexed data
     TEMP_DIR = "/tmp/anon_repos"
@@ -70,6 +71,27 @@ class AnonymousIndexingJob:
         self.redis = redis_client
         # Ensure temp directory exists
         Path(self.TEMP_DIR).mkdir(parents=True, exist_ok=True)
+
+    def _get_channel(self, job_id: str) -> str:
+        """Get Redis pub/sub channel for job events."""
+        return f"{self.PUBSUB_PREFIX}{job_id}:events"
+
+    def _publish_event(self, job_id: str, event: dict) -> None:
+        """
+        Publish event to Redis pub/sub for real-time WebSocket updates.
+        
+        Events are fire-and-forget - if no one is listening, that's fine.
+        The job state in Redis is the source of truth for polling fallback.
+        """
+        if not self.redis:
+            return
+        
+        try:
+            channel = self._get_channel(job_id)
+            self.redis.publish(channel, json.dumps(event))
+        except Exception as e:
+            # Don't fail the job if pub/sub fails - it's nice-to-have
+            logger.warning("Failed to publish event", job_id=job_id, error=str(e))
 
     @staticmethod
     def generate_job_id() -> str:
@@ -160,7 +182,7 @@ class AnonymousIndexingJob:
         error: Optional[str] = None,
         error_message: Optional[str] = None
     ) -> bool:
-        """Update job status in Redis."""
+        """Update job status in Redis and publish event to WebSocket clients."""
         if not self.redis:
             return False
 
@@ -185,6 +207,30 @@ class AnonymousIndexingJob:
         key = self._get_key(job_id)
         self.redis.setex(key, self.JOB_TTL_SECONDS, json.dumps(job))
 
+        # Publish status change event for WebSocket clients
+        # Note: PROCESSING events are handled by update_progress() to avoid duplicates
+        event = {"type": status.value, "job_id": job_id}
+        
+        if status == JobStatus.QUEUED:
+            event["message"] = "Job queued for processing"
+        elif status == JobStatus.CLONING:
+            event["message"] = "Cloning repository..."
+            event["repo_name"] = job.get("repo_name")
+        elif status == JobStatus.PROCESSING:
+            # Skip publishing here - update_progress() sends granular progress events
+            return True
+        elif status == JobStatus.COMPLETED:
+            event["message"] = "Indexing complete!"
+            event["repo_id"] = repo_id
+            if stats:
+                event["stats"] = stats.to_dict()
+        elif status == JobStatus.FAILED:
+            event["message"] = error_message or "Indexing failed"
+            event["error"] = error
+            event["recoverable"] = error not in ("timeout", "clone_failed")
+        
+        self._publish_event(job_id, event)
+
         return True
 
     def update_progress(
@@ -195,7 +241,26 @@ class AnonymousIndexingJob:
         files_total: int,
         current_file: Optional[str] = None
     ) -> bool:
-        """Update job progress (called during indexing)."""
+        """
+        Update job progress during indexing.
+        
+        Publishes real-time progress event for WebSocket clients,
+        then updates the job state in Redis.
+        """
+        # Publish progress event for real-time streaming
+        # This is separate from status events - more granular
+        percent = int((files_processed / files_total) * 100) if files_total > 0 else 0
+        
+        self._publish_event(job_id, {
+            "type": "progress",
+            "files_processed": files_processed,
+            "files_total": files_total,
+            "functions_found": functions_found,
+            "current_file": current_file,
+            "percent": percent
+        })
+        
+        # Update job state in Redis (for polling fallback)
         progress = JobProgress(
             files_total=files_total,
             files_processed=files_processed,
