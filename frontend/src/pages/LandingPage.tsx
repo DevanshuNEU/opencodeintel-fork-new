@@ -9,9 +9,9 @@ import { API_URL } from '../config/api'
 import { HeroPlayground } from '@/components/playground'
 import { playgroundAPI } from '@/services/playground-api'
 import type { SearchResult } from '../types'
+import { cn } from '@/lib/utils'
 
-// Icons (only GitHubIcon and SparklesIcon are used in this file)
-
+// Icons
 const GitHubIcon = () => (
   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
     <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
@@ -21,6 +21,18 @@ const GitHubIcon = () => (
 const SparklesIcon = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+  </svg>
+)
+
+const SearchIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+)
+
+const ArrowLeftIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
   </svg>
 )
 
@@ -65,9 +77,111 @@ function AnimatedSection({ children, className = '' }: { children: React.ReactNo
   )
 }
 
+// ============ COMPACT SEARCH BAR (for results view) ============
+function CompactSearchBar({ 
+  query, 
+  onQueryChange, 
+  onSearch, 
+  onNewSearch,
+  loading,
+  remaining
+}: {
+  query: string
+  onQueryChange: (q: string) => void
+  onSearch: () => void
+  onNewSearch: () => void
+  loading: boolean
+  remaining: number
+}) {
+  return (
+    <div className="bg-[#09090b]/95 backdrop-blur-xl border-b border-white/5 sticky top-16 z-40">
+      <div className="max-w-4xl mx-auto px-6 py-4">
+        <div className="flex items-center gap-4">
+          {/* Back button */}
+          <button
+            onClick={onNewSearch}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700 text-sm text-zinc-300 hover:text-white transition-all shrink-0"
+          >
+            <ArrowLeftIcon />
+            <span className="hidden sm:inline">New Search</span>
+          </button>
+
+          {/* Search input */}
+          <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="flex-1 flex items-center gap-3">
+            <div className="flex-1 relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">
+                <SearchIcon />
+              </div>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder="Search again..."
+                className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl pl-12 pr-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors"
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={!query.trim() || loading || remaining <= 0}
+              className={cn(
+                "px-6 py-3 h-auto rounded-xl transition-all shrink-0",
+                query.trim() && !loading && remaining > 0
+                  ? "bg-indigo-600 hover:bg-indigo-500 text-white"
+                  : "bg-zinc-700 text-zinc-400 cursor-not-allowed"
+              )}
+            >
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                'Search'
+              )}
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============ RESULT CARD with staggered animation ============
+function ResultCard({ result, index }: { result: SearchResult; index: number }) {
+  return (
+    <Card 
+      className="bg-[#111113] border-white/5 overflow-hidden hover:border-white/10 transition-all hover:scale-[1.005] duration-200 animate-in fade-in slide-in-from-bottom-4"
+      style={{ animationDelay: `${index * 75}ms`, animationFillMode: 'backwards' }}
+    >
+      <div className="px-5 py-4 border-b border-white/5 flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <h3 className="font-mono font-semibold">{result.name}</h3>
+            <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700">
+              {result.type.replace('_', ' ')}
+            </Badge>
+          </div>
+          <p className="text-sm text-gray-500 font-mono mt-1">
+            {result.file_path.split('/').slice(-2).join('/')}
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold text-blue-400">{(result.score * 100).toFixed(0)}%</div>
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider">match</div>
+        </div>
+      </div>
+      <SyntaxHighlighter 
+        language={result.language || 'python'} 
+        style={oneDark} 
+        customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.8rem', background: '#0d0d0f' }} 
+        showLineNumbers 
+        startingLineNumber={result.line_start || 1}
+      >
+        {result.code}
+      </SyntaxHighlighter>
+    </Card>
+  )
+}
+
 export function LandingPage() {
   const navigate = useNavigate()
-  const resultsRef = useRef<HTMLElement>(null)
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTime, setSearchTime] = useState<number | null>(null)
@@ -77,15 +191,10 @@ export function LandingPage() {
   const [availableRepos, setAvailableRepos] = useState<string[]>([])
   const [rateLimitError, setRateLimitError] = useState<string | null>(null)
   const [lastQuery, setLastQuery] = useState('')
+  const [currentRepoId, setCurrentRepoId] = useState('')
+  const [isCustomRepo, setIsCustomRepo] = useState(false)
 
-  // Scroll to results when they appear
-  const scrollToResults = () => {
-    setTimeout(() => {
-      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 100)
-  }
-
-  // Reset to search state
+  // Reset to hero state
   const handleNewSearch = () => {
     setHasSearched(false)
     setResults([])
@@ -122,6 +231,8 @@ export function LandingPage() {
     setLoading(true)
     setHasSearched(true)
     setLastQuery(query)
+    setCurrentRepoId(repoId)
+    setIsCustomRepo(isCustom)
     setRateLimitError(null)
     const startTime = Date.now()
 
@@ -143,8 +254,6 @@ export function LandingPage() {
         if (typeof data.remaining_searches === 'number') {
           setRemaining(data.remaining_searches)
         }
-        // Scroll to results after they load
-        scrollToResults()
       } else if (data.status === 429) {
         setRateLimitError('Daily limit reached. Sign up for unlimited searches!')
         setRemaining(0)
@@ -153,6 +262,13 @@ export function LandingPage() {
       console.error('Search error:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Re-search with updated query (from compact search bar)
+  const handleReSearch = () => {
+    if (lastQuery.trim() && currentRepoId) {
+      handleSearch(lastQuery, currentRepoId, isCustomRepo)
     }
   }
 
@@ -185,131 +301,130 @@ export function LandingPage() {
         </div>
       </nav>
 
-      {/* ============ HERO SECTION ============ */}
-      <section className="min-h-screen flex flex-col justify-center pt-16 pb-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 mb-8">
-            <SparklesIcon />
-            <span className="text-sm text-blue-400">AI-powered code search</span>
-          </div>
-
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6">
-            <span className="text-gray-400">grep returned </span>
-            <span className="text-white">847 results.</span>
-            <br />
-            <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              Find the one that matters.
-            </span>
-          </h1>
-
-          <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
-            Search any codebase by meaning, not keywords. Index your own repo in seconds.
-          </p>
-
-          {/* HeroPlayground - handles demo repos + custom repo indexing */}
-          <HeroPlayground
-            onSearch={handleSearch}
-            availableRepos={availableRepos}
-            remaining={remaining}
+      {/* ============ RESULTS VIEW (compact header + results in viewport) ============ */}
+      {hasSearched ? (
+        <div className="min-h-screen pt-16">
+          {/* Compact Search Bar - sticky below nav */}
+          <CompactSearchBar
+            query={lastQuery}
+            onQueryChange={setLastQuery}
+            onSearch={handleReSearch}
+            onNewSearch={handleNewSearch}
             loading={loading}
+            remaining={remaining}
           />
-        </div>
-      </section>
 
-      {/* ============ RESULTS SECTION (if searched) ============ */}
-      {hasSearched && (
-        <section ref={resultsRef} className="pb-20 px-6 pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="max-w-4xl mx-auto">
-            {/* Results Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleNewSearch}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700 text-sm text-zinc-300 hover:text-white transition-all"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  New Search
-                </button>
-                <span className="text-gray-500">|</span>
-                <span className="text-gray-400 text-sm">
-                  <span className="text-white font-semibold">{results.length}</span> results for "<span className="text-blue-400">{lastQuery}</span>"
-                </span>
-                {searchTime && (
-                  <span className="font-mono text-sm text-green-400">
-                    {searchTime > 1000 ? `${(searchTime/1000).toFixed(1)}s` : `${searchTime}ms`}
+          {/* Results Content - immediately visible */}
+          <section className="px-6 py-8">
+            <div className="max-w-4xl mx-auto">
+              {/* Results Header - contextual based on loading state */}
+              <div className="flex items-center justify-between mb-6 animate-in fade-in duration-300">
+                {loading ? (
+                  <span className="text-gray-400 text-sm">
+                    Searching for "<span className="text-blue-400">{lastQuery}</span>"...
                   </span>
-                )}
-              </div>
-              {remaining > 0 && remaining < limit && (
-                <div className="text-sm text-gray-500">{remaining} remaining</div>
-              )}
-            </div>
-
-            {/* Loading State */}
-            {loading && (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="relative">
-                  <div className="w-12 h-12 border-4 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
-                </div>
-                <p className="mt-4 text-zinc-400 text-sm">Searching codebase...</p>
-                <p className="text-zinc-600 text-xs mt-1">This may take a few seconds for first search</p>
-              </div>
-            )}
-
-            {/* Results Content (only when not loading) */}
-            {!loading && (
-              <>
-                {(remaining <= 0 || rateLimitError) && (
-                  <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30 p-6 mb-6">
-                    <h3 className="text-lg font-semibold mb-2">You've reached today's limit</h3>
-                    <p className="text-gray-300 mb-4">
-                      {rateLimitError || 'Sign up to get unlimited searches and index your own repos.'}
-                    </p>
-                    <Button onClick={() => navigate('/signup')} className="bg-white text-black hover:bg-gray-100">Get started — it's free</Button>
-                  </Card>
-                )}
-
-                <div className="space-y-4">
-                  {results.map((result, idx) => (
-                    <Card key={idx} className="bg-[#111113] border-white/5 overflow-hidden hover:border-white/10 transition-all hover:scale-[1.01] duration-200">
-                      <div className="px-5 py-4 border-b border-white/5 flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <h3 className="font-mono font-semibold">{result.name}</h3>
-                            <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-700">{result.type.replace('_', ' ')}</Badge>
-                          </div>
-                          <p className="text-sm text-gray-500 font-mono mt-1">{result.file_path.split('/').slice(-2).join('/')}</p>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-blue-400">{(result.score * 100).toFixed(0)}%</div>
-                          <div className="text-[10px] text-gray-500 uppercase tracking-wider">match</div>
-                        </div>
-                      </div>
-                      <SyntaxHighlighter language={result.language || 'python'} style={oneDark} customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.8rem', background: '#0d0d0f' }} showLineNumbers startingLineNumber={result.line_start || 1}>
-                        {result.code}
-                      </SyntaxHighlighter>
-                    </Card>
-                  ))}
-                </div>
-
-                {results.length === 0 && (
-                  <div className="text-center py-16">
-                    <div className="text-5xl mb-4">🔍</div>
-                    <h3 className="text-lg font-semibold mb-2">No results found</h3>
-                    <p className="text-gray-500">Try a different query</p>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <span className="text-gray-400 text-sm">
+                      <span className="text-white font-semibold">{results.length}</span> results for "<span className="text-blue-400">{lastQuery}</span>"
+                    </span>
+                    {searchTime && (
+                      <span className="font-mono text-sm text-green-400">
+                        {searchTime > 1000 ? `${(searchTime/1000).toFixed(1)}s` : `${searchTime}ms`}
+                      </span>
+                    )}
                   </div>
                 )}
-              </>
-            )}
-          </div>
-        </section>
-      )}
+                {!loading && remaining > 0 && remaining < limit && (
+                  <div className="text-sm text-gray-500">{remaining} remaining</div>
+                )}
+              </div>
 
-      {/* ============ STORY SECTIONS (only before search) ============ */}
-      {!hasSearched && (
+              {/* Loading State */}
+              {loading && (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <div className="relative">
+                    <div className="w-12 h-12 border-4 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
+                  </div>
+                  <p className="mt-4 text-zinc-400 text-sm">Searching codebase...</p>
+                  <p className="text-zinc-600 text-xs mt-1">This may take a few seconds for first search</p>
+                </div>
+              )}
+
+              {/* Results List */}
+              {!loading && (
+                <>
+                  {(remaining <= 0 || rateLimitError) && (
+                    <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30 p-6 mb-6">
+                      <h3 className="text-lg font-semibold mb-2">You've reached today's limit</h3>
+                      <p className="text-gray-300 mb-4">
+                        {rateLimitError || 'Sign up to get unlimited searches and index your own repos.'}
+                      </p>
+                      <Button onClick={() => navigate('/signup')} className="bg-white text-black hover:bg-gray-100">
+                        Get started — it's free
+                      </Button>
+                    </Card>
+                  )}
+
+                  <div className="space-y-4">
+                    {results.map((result, idx) => (
+                      <ResultCard key={idx} result={result} index={idx} />
+                    ))}
+                  </div>
+
+                  {results.length === 0 && (
+                    <div className="text-center py-16 animate-in fade-in duration-500">
+                      <div className="text-5xl mb-4">🔍</div>
+                      <h3 className="text-lg font-semibold mb-2">No results found</h3>
+                      <p className="text-gray-500 mb-6">Try a different query</p>
+                      <Button 
+                        variant="outline" 
+                        onClick={handleNewSearch}
+                        className="border-zinc-700 hover:bg-zinc-800"
+                      >
+                        Try another search
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
+        </div>
+      ) : (
+        /* ============ HERO VIEW (full landing page experience) ============ */
         <>
+          {/* Hero Section */}
+          <section className="min-h-screen flex flex-col justify-center pt-16 pb-20 px-6">
+            <div className="max-w-4xl mx-auto text-center">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 mb-8">
+                <SparklesIcon />
+                <span className="text-sm text-blue-400">AI-powered code search</span>
+              </div>
+
+              <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6">
+                <span className="text-gray-400">grep returned </span>
+                <span className="text-white">847 results.</span>
+                <br />
+                <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                  Find the one that matters.
+                </span>
+              </h1>
+
+              <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
+                Search any codebase by meaning, not keywords. Index your own repo in seconds.
+              </p>
+
+              {/* HeroPlayground - handles demo repos + custom repo indexing */}
+              <HeroPlayground
+                onSearch={handleSearch}
+                availableRepos={availableRepos}
+                remaining={remaining}
+                loading={loading}
+              />
+            </div>
+          </section>
+
           {/* THE PROBLEM */}
           <section className="py-32 px-6 border-t border-white/5">
             <AnimatedSection>
