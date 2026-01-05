@@ -96,7 +96,17 @@ function CompactSearchBar({
   remaining: number
 }) {
   return (
-    <div className="bg-[#09090b]/95 backdrop-blur-xl border-b border-white/5 sticky top-16 z-40">
+    <motion.div 
+      className="bg-[#09090b]/95 backdrop-blur-xl border-b border-white/5 sticky top-16 z-40"
+      animate={loading ? {
+        boxShadow: [
+          '0 0 0 rgba(99, 102, 241, 0)',
+          '0 0 30px rgba(99, 102, 241, 0.3)',
+          '0 0 0 rgba(99, 102, 241, 0)',
+        ]
+      } : {}}
+      transition={{ duration: 1.5, repeat: Infinity }}
+    >
       <div className="max-w-4xl mx-auto px-6 py-4">
         <div className="flex items-center gap-4">
           {/* Back button */}
@@ -110,18 +120,38 @@ function CompactSearchBar({
 
           {/* Search input */}
           <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="flex-1 flex items-center gap-3">
-            <div className="flex-1 relative">
+            <motion.div 
+              className="flex-1 relative"
+              animate={loading ? {
+                scale: [1, 1.01, 1],
+              } : {}}
+              transition={{ duration: 0.8, repeat: Infinity }}
+            >
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                <SearchIcon />
+                {loading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <SearchIcon />
+                  </motion.div>
+                ) : (
+                  <SearchIcon />
+                )}
               </div>
               <input
                 type="text"
                 value={query}
                 onChange={(e) => onQueryChange(e.target.value)}
                 placeholder="Search again..."
-                className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl pl-12 pr-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors"
+                className={cn(
+                  "w-full bg-zinc-900/80 border rounded-xl pl-12 pr-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none transition-all duration-300",
+                  loading 
+                    ? "border-indigo-500/50 shadow-lg shadow-indigo-500/20" 
+                    : "border-zinc-800 focus:border-zinc-700"
+                )}
               />
-            </div>
+            </motion.div>
             <Button
               type="submit"
               disabled={!query.trim() || loading || remaining <= 0}
@@ -141,34 +171,90 @@ function CompactSearchBar({
           </form>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
-// ============ RESULT CARD with staggered blur-to-focus animation ============
+// ============ SKELETON LOADING CARD ============
+function SkeletonCard({ index }: { index: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.1 }}
+    >
+      <Card className="bg-[#111113] border-white/5 overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/5">
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <div className="h-5 w-48 bg-zinc-800 rounded animate-pulse" />
+              <div className="h-4 w-32 bg-zinc-800/60 rounded animate-pulse" />
+            </div>
+            <div className="text-right space-y-1">
+              <div className="h-8 w-16 bg-zinc-800 rounded animate-pulse" />
+              <div className="h-3 w-12 bg-zinc-800/60 rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
+        <div className="p-4 space-y-2 bg-[#0d0d0f]">
+          <div className="h-4 w-full bg-zinc-800/40 rounded animate-pulse" />
+          <div className="h-4 w-5/6 bg-zinc-800/40 rounded animate-pulse" />
+          <div className="h-4 w-4/6 bg-zinc-800/40 rounded animate-pulse" />
+          <div className="h-4 w-full bg-zinc-800/40 rounded animate-pulse" />
+          <div className="h-4 w-3/4 bg-zinc-800/40 rounded animate-pulse" />
+        </div>
+      </Card>
+    </motion.div>
+  )
+}
+
+// ============ RESULT CARD with DRAMATIC staggered animation ============
 const resultCardVariants = {
   hidden: { 
     opacity: 0, 
-    y: 20,
-    filter: 'blur(10px)',
-    scale: 0.98
+    y: 60,
+    scale: 0.9,
+    filter: 'blur(20px)',
+    rotateX: 15,
   },
   visible: (index: number) => ({ 
     opacity: 1, 
     y: 0,
-    filter: 'blur(0px)',
     scale: 1,
+    filter: 'blur(0px)',
+    rotateX: 0,
     transition: {
-      duration: 0.4,
-      delay: index * 0.075,
-      ease: [0.16, 1, 0.3, 1], // ease-out-expo
+      type: 'spring',
+      damping: 25,
+      stiffness: 200,
+      delay: index * 0.12,
     }
   }),
   exit: {
     opacity: 0,
-    y: -10,
-    filter: 'blur(5px)',
-    transition: { duration: 0.2 }
+    y: -30,
+    scale: 0.95,
+    filter: 'blur(10px)',
+    transition: { duration: 0.25 }
+  }
+}
+
+// Hover animation for cards
+const cardHoverVariants = {
+  rest: { 
+    scale: 1, 
+    y: 0,
+    boxShadow: '0 0 0 rgba(59, 130, 246, 0)',
+  },
+  hover: { 
+    scale: 1.02, 
+    y: -4,
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(59, 130, 246, 0.1)',
+    transition: {
+      type: 'spring',
+      damping: 20,
+      stiffness: 300,
+    }
   }
 }
 
@@ -181,10 +267,16 @@ function ResultCard({ result, index }: { result: SearchResult; index: number }) 
       exit="exit"
       custom={index}
       layout
+      style={{ perspective: 1000 }}
     >
-      <Card 
-        className="bg-[#111113] border-white/5 overflow-hidden hover:border-white/10 transition-colors duration-200 hover:shadow-lg hover:shadow-black/20"
+      <motion.div
+        variants={cardHoverVariants}
+        initial="rest"
+        whileHover="hover"
       >
+        <Card 
+          className="bg-[#111113] border-white/5 overflow-hidden hover:border-blue-500/30 transition-colors duration-300 cursor-pointer"
+        >
         <div className="px-5 py-4 border-b border-white/5 flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
@@ -211,7 +303,8 @@ function ResultCard({ result, index }: { result: SearchResult; index: number }) 
         >
           {result.code}
         </SyntaxHighlighter>
-      </Card>
+        </Card>
+      </motion.div>
     </motion.div>
   )
 }
@@ -376,14 +469,12 @@ export function LandingPage() {
                 )}
               </div>
 
-              {/* Loading State */}
+              {/* Loading State - Skeleton Cards */}
               {loading && (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <div className="relative">
-                    <div className="w-12 h-12 border-4 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
-                  </div>
-                  <p className="mt-4 text-zinc-400 text-sm">Searching codebase...</p>
-                  <p className="text-zinc-600 text-xs mt-1">This may take a few seconds for first search</p>
+                <div className="space-y-4">
+                  {[0, 1, 2, 3].map((i) => (
+                    <SkeletonCard key={i} index={i} />
+                  ))}
                 </div>
               )}
 
