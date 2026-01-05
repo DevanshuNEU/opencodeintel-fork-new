@@ -12,7 +12,7 @@
  * - Celebration screen on completion
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -82,37 +82,54 @@ export function HeroPlayground({
   const jobId = state.status === 'indexing' ? state.jobId : null;
   const repoName = customUrl.split('/').pop()?.replace('.git', '') || 'repository';
 
-  // WebSocket hook for real-time progress
-  const wsState = useIndexingWebSocket(jobId, {
+  // Stable callbacks for WebSocket hook (MUST be memoized to prevent infinite loops!)
+  const handleWsCompleted = useCallback(() => {
+    setShowCelebration(true);
+  }, []);
+
+  const handleWsError = useCallback((error: string, recoverable: boolean) => {
+    console.error('[HeroPlayground] Indexing error:', error, recoverable);
+  }, []);
+
+  // Memoize options to prevent recreation every render
+  const wsOptions = useMemo(() => ({
     maxRecentFiles: 12,
-    onCompleted: (repoId, stats) => {
-      console.log('[HeroPlayground] Indexing completed:', repoId, stats);
-      setShowCelebration(true);
-    },
-    onError: (error, recoverable) => {
-      console.error('[HeroPlayground] Indexing error:', error, recoverable);
-    },
-  });
+    onCompleted: handleWsCompleted,
+    onError: handleWsError,
+  }), [handleWsCompleted, handleWsError]);
+
+  // WebSocket hook for real-time progress
+  const {
+    phase: wsPhase,
+    progress: wsProgress,
+    recentFiles,
+    completedStats,
+    repoId: wsRepoId,
+    error: wsError,
+    isCompleted: wsIsCompleted,
+    hasError: wsHasError,
+    reset: wsReset,
+  } = useIndexingWebSocket(jobId, wsOptions);
 
   // Map WebSocket phase to IndexingProgress phase
-  const getIndexingPhase = (): IndexingPhase => {
-    if (wsState.phase === 'cloning') return 'cloning';
-    if (wsState.phase === 'indexing') return 'indexing';
-    if (wsState.phase === 'completed') return 'completed';
-    if (wsState.phase === 'error') return 'error';
+  const getIndexingPhase = useCallback((): IndexingPhase => {
+    if (wsPhase === 'cloning') return 'cloning';
+    if (wsPhase === 'indexing') return 'indexing';
+    if (wsPhase === 'completed') return 'completed';
+    if (wsPhase === 'error') return 'error';
     return 'connecting';
-  };
+  }, [wsPhase]);
 
   // Handle mode change
   const handleModeChange = useCallback((newMode: RepoMode) => {
     setMode(newMode);
     if (newMode === 'demo') {
       resetSession();
-      wsState.reset();
+      wsReset();
       setCustomUrl('');
       setShowCelebration(false);
     }
-  }, [resetSession, wsState]);
+  }, [resetSession, wsReset]);
 
   // Handle search submit
   const handleSearch = useCallback((e?: React.FormEvent) => {
@@ -123,11 +140,11 @@ export function HeroPlayground({
       onSearch(query, selectedDemo, false);
     } else if (state.status === 'ready') {
       onSearch(query, state.repoId, true);
-    } else if (wsState.isCompleted && wsState.repoId) {
+    } else if (wsIsCompleted && wsRepoId) {
       // Search using repo from completed WebSocket state
-      onSearch(query, wsState.repoId, true);
+      onSearch(query, wsRepoId, true);
     }
-  }, [query, mode, selectedDemo, state, wsState, loading, onSearch]);
+  }, [query, mode, selectedDemo, state, wsIsCompleted, wsRepoId, loading, onSearch]);
 
   // Start searching after celebration
   const handleStartSearching = useCallback(() => {
@@ -137,35 +154,35 @@ export function HeroPlayground({
   // Index another repo
   const handleIndexAnother = useCallback(() => {
     resetSession();
-    wsState.reset();
+    wsReset();
     setCustomUrl('');
     setShowCelebration(false);
-  }, [resetSession, wsState]);
+  }, [resetSession, wsReset]);
 
   // Get validation state for ValidationStatus component
-  const getValidationState = () => {
+  const getValidationState = useCallback(() => {
     if (state.status === 'idle') return { type: 'idle' as const };
     if (state.status === 'validating') return { type: 'validating' as const };
     if (state.status === 'valid') return { type: 'valid' as const, validation: state.validation };
     if (state.status === 'invalid') return { type: 'invalid' as const, error: state.error, reason: state.reason };
     return { type: 'idle' as const };
-  };
+  }, [state]);
 
   // Determine visibility states
   const showDemoSelector = mode === 'demo';
-  const showUrlInput = mode === 'custom' && !['indexing', 'ready'].includes(state.status) && !showCelebration && !wsState.isCompleted;
+  const showUrlInput = mode === 'custom' && !['indexing', 'ready'].includes(state.status) && !showCelebration && !wsIsCompleted;
   const showValidation = mode === 'custom' && ['validating', 'valid', 'invalid'].includes(state.status) && !showCelebration;
-  const showIndexing = mode === 'custom' && state.status === 'indexing' && !showCelebration && !wsState.isCompleted;
-  const showReady = (mode === 'custom' && state.status === 'ready') || (wsState.isCompleted && !showCelebration);
-  const isSearchDisabled = mode === 'custom' && state.status !== 'ready' && !wsState.isCompleted;
+  const showIndexing = mode === 'custom' && state.status === 'indexing' && !showCelebration && !wsIsCompleted;
+  const showReady = (mode === 'custom' && state.status === 'ready') || (wsIsCompleted && !showCelebration);
+  const isSearchDisabled = mode === 'custom' && state.status !== 'ready' && !wsIsCompleted;
 
   // Can search?
   const canSearch = mode === 'demo' 
     ? remaining > 0 && query.trim().length > 0
-    : (state.status === 'ready' || wsState.isCompleted) && remaining > 0 && query.trim().length > 0;
+    : (state.status === 'ready' || wsIsCompleted) && remaining > 0 && query.trim().length > 0;
 
   // Get contextual placeholder text
-  const getPlaceholder = () => {
+  const getPlaceholder = useCallback(() => {
     if (mode === 'demo') {
       return "Search for authentication, error handling...";
     }
@@ -174,20 +191,28 @@ export function HeroPlayground({
     if (state.status === 'valid') return "Click 'Index Repository' to continue...";
     if (state.status === 'invalid') return "Fix the URL above to continue...";
     if (state.status === 'indexing') return "Indexing in progress...";
-    if (state.status === 'ready' || wsState.isCompleted) return `Search in ${repoName}...`;
+    if (state.status === 'ready' || wsIsCompleted) return `Search in ${repoName}...`;
     return "Enter a GitHub URL to search...";
-  };
+  }, [mode, state.status, wsIsCompleted, repoName]);
 
   // Compute ready state info
-  const readyInfo = wsState.isCompleted && wsState.completedStats ? {
-    repoName,
-    fileCount: wsState.completedStats.files_processed,
-    functionsFound: wsState.completedStats.functions_indexed,
-  } : state.status === 'ready' ? {
-    repoName: state.repoName,
-    fileCount: state.fileCount,
-    functionsFound: state.functionsFound,
-  } : null;
+  const readyInfo = useMemo(() => {
+    if (wsIsCompleted && completedStats) {
+      return {
+        repoName,
+        fileCount: completedStats.files_processed,
+        functionsFound: completedStats.functions_indexed,
+      };
+    }
+    if (state.status === 'ready') {
+      return {
+        repoName: state.repoName,
+        fileCount: state.fileCount,
+        functionsFound: state.functionsFound,
+      };
+    }
+    return null;
+  }, [wsIsCompleted, completedStats, state, repoName]);
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -274,20 +299,17 @@ export function HeroPlayground({
             className="mb-4"
           >
             <IndexingProgress
-              progress={wsState.progress}
+              progress={wsProgress}
               phase={getIndexingPhase()}
               repoName={repoName}
-              recentFiles={wsState.recentFiles}
-              onCancel={() => {
-                resetSession();
-                wsState.reset();
-              }}
+              recentFiles={recentFiles}
+              onCancel={handleIndexAnother}
             />
           </motion.div>
         )}
 
         {/* Celebration Screen */}
-        {showCelebration && wsState.completedStats && (
+        {showCelebration && completedStats && (
           <motion.div
             key="celebration"
             initial={{ opacity: 0, scale: 0.9 }}
@@ -297,7 +319,7 @@ export function HeroPlayground({
           >
             <IndexingComplete
               repoName={repoName}
-              stats={wsState.completedStats}
+              stats={completedStats}
               onStartSearching={handleStartSearching}
               onIndexAnother={handleIndexAnother}
             />
@@ -386,14 +408,14 @@ export function HeroPlayground({
       )}
 
       {/* Error State */}
-      {(state.status === 'error' || wsState.hasError) && (
+      {(state.status === 'error' || wsHasError) && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="mt-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20"
         >
           <p className="text-red-300 text-sm">
-            {state.status === 'error' ? state.message : wsState.error}
+            {state.status === 'error' ? state.message : wsError}
           </p>
           <button 
             type="button"

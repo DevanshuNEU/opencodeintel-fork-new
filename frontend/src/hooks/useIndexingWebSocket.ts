@@ -2,23 +2,13 @@
  * useIndexingWebSocket
  * 
  * WebSocket hook for real-time indexing progress updates.
- * Connects to the playground WebSocket endpoint and streams
- * progress events as files are processed.
- * 
- * Features:
- * - Auto-reconnect with exponential backoff
- * - Fallback to polling if WS unavailable
- * - Type-safe event handling
- * - Connection state management
+ * Uses refs for callbacks to prevent infinite render loops.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { buildWsUrl, API_URL } from '@/config/api';
 
-// =============================================================================
-// TYPES
-// =============================================================================
-
+// Types
 export type WSConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 export interface WSProgressEvent {
@@ -50,31 +40,13 @@ export interface WSErrorEvent {
   recoverable: boolean;
 }
 
-export interface WSCloningEvent {
-  type: 'cloning';
-  job_id: string;
-  repo_name: string;
-  message: string;
-}
-
-export interface WSConnectedEvent {
-  type: 'connected';
-  job_id: string;
-  message: string;
-}
-
-export interface WSPingEvent {
-  type: 'ping';
-  job_id: string;
-}
-
 export type WSEvent = 
   | WSProgressEvent 
   | WSCompletedEvent 
   | WSErrorEvent 
-  | WSCloningEvent 
-  | WSConnectedEvent
-  | WSPingEvent;
+  | { type: 'cloning'; job_id: string; repo_name: string; message: string }
+  | { type: 'connected'; job_id: string; message: string }
+  | { type: 'ping'; job_id: string };
 
 export interface IndexingState {
   connectionState: WSConnectionState;
@@ -86,7 +58,7 @@ export interface IndexingState {
     currentFile: string;
     functionsFound: number;
   };
-  recentFiles: string[];  // Last N files processed (for streaming effect)
+  recentFiles: string[];
   completedStats: WSCompletedEvent['stats'] | null;
   repoId: string | null;
   error: string | null;
@@ -94,107 +66,76 @@ export interface IndexingState {
 }
 
 interface UseIndexingWebSocketOptions {
-  maxRecentFiles?: number;  // How many recent files to keep in list
+  maxRecentFiles?: number;
   onCompleted?: (repoId: string, stats: WSCompletedEvent['stats']) => void;
   onError?: (error: string, recoverable: boolean) => void;
 }
 
-// =============================================================================
-// HOOK
-// =============================================================================
+const INITIAL_STATE: IndexingState = {
+  connectionState: 'disconnected',
+  phase: 'idle',
+  progress: { percent: 0, filesProcessed: 0, filesTotal: 0, currentFile: '', functionsFound: 0 },
+  recentFiles: [],
+  completedStats: null,
+  repoId: null,
+  error: null,
+  isRecoverable: false,
+};
 
 export function useIndexingWebSocket(
   jobId: string | null,
   options: UseIndexingWebSocketOptions = {}
 ) {
-  const { 
-    maxRecentFiles = 15, 
-    onCompleted, 
-    onError 
-  } = options;
+  const { maxRecentFiles = 15 } = options;
 
-  // State
-  const [state, setState] = useState<IndexingState>({
-    connectionState: 'disconnected',
-    phase: 'idle',
-    progress: {
-      percent: 0,
-      filesProcessed: 0,
-      filesTotal: 0,
-      currentFile: '',
-      functionsFound: 0,
-    },
-    recentFiles: [],
-    completedStats: null,
-    repoId: null,
-    error: null,
-    isRecoverable: false,
-  });
+  // CRITICAL: Use refs for callbacks to avoid dependency loops
+  const onCompletedRef = useRef(options.onCompleted);
+  const onErrorRef = useRef(options.onError);
+  onCompletedRef.current = options.onCompleted;
+  onErrorRef.current = options.onError;
 
-  // Refs
+  const [state, setState] = useState<IndexingState>(INITIAL_STATE);
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
-  const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
-  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Cleanup function
   const cleanup = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    if (reconnectTimeout.current) {
-      clearTimeout(reconnectTimeout.current);
-      reconnectTimeout.current = null;
-    }
-    if (pollingInterval.current) {
-      clearInterval(pollingInterval.current);
-      pollingInterval.current = null;
-    }
+    wsRef.current?.close();
+    wsRef.current = null;
+    if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
+    if (pollingInterval.current) clearInterval(pollingInterval.current);
+    reconnectTimeout.current = null;
+    pollingInterval.current = null;
   }, []);
 
-  // Fallback polling (if WebSocket fails)
   const startPolling = useCallback((jid: string) => {
     if (pollingInterval.current) return;
-
-    console.log('[WS] Falling back to polling for job:', jid);
+    console.log('[WS] Falling back to polling');
     
     pollingInterval.current = setInterval(async () => {
       try {
         const res = await fetch(`${API_URL}/playground/job/${jid}/status`);
         if (!res.ok) return;
-        
         const data = await res.json();
         
         if (data.status === 'completed') {
           clearInterval(pollingInterval.current!);
           pollingInterval.current = null;
-          setState(prev => ({
-            ...prev,
-            phase: 'completed',
-            repoId: data.repo_id,
-            completedStats: {
-              files_processed: data.files_processed || 0,
-              functions_indexed: data.functions_indexed || 0,
-              indexing_time_seconds: data.indexing_time || 0,
-            },
-          }));
-          onCompleted?.(data.repo_id, {
+          const stats = {
             files_processed: data.files_processed || 0,
             functions_indexed: data.functions_indexed || 0,
             indexing_time_seconds: data.indexing_time || 0,
-          });
+          };
+          setState(prev => ({ ...prev, phase: 'completed', repoId: data.repo_id, completedStats: stats }));
+          onCompletedRef.current?.(data.repo_id, stats);
         } else if (data.status === 'failed') {
           clearInterval(pollingInterval.current!);
           pollingInterval.current = null;
-          setState(prev => ({
-            ...prev,
-            phase: 'error',
-            error: data.error || 'Indexing failed',
-            isRecoverable: false,
-          }));
-          onError?.(data.error || 'Indexing failed', false);
-        } else if (data.status === 'indexing') {
+          setState(prev => ({ ...prev, phase: 'error', error: data.error || 'Failed', isRecoverable: false }));
+          onErrorRef.current?.(data.error || 'Failed', false);
+        } else {
           setState(prev => ({
             ...prev,
             phase: 'indexing',
@@ -211,94 +152,57 @@ export function useIndexingWebSocket(
         console.error('[Polling] Error:', err);
       }
     }, 2000);
-  }, [onCompleted, onError]);
+  }, []);
 
-  // Handle WebSocket message
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
       const data: WSEvent = JSON.parse(event.data);
       
-      switch (data.type) {
-        case 'connected':
-          setState(prev => ({
+      if (data.type === 'connected') {
+        setState(prev => ({ ...prev, connectionState: 'connected', phase: 'connecting' }));
+      } else if (data.type === 'ping') {
+        // Keepalive
+      } else if (data.type === 'cloning') {
+        setState(prev => ({ ...prev, phase: 'cloning' }));
+      } else if (data.type === 'progress') {
+        setState(prev => {
+          const newFiles = data.current_file 
+            ? [data.current_file, ...prev.recentFiles.filter(f => f !== data.current_file)].slice(0, maxRecentFiles)
+            : prev.recentFiles;
+          return {
             ...prev,
-            connectionState: 'connected',
-            phase: 'connecting',
-          }));
-          break;
-
-        case 'ping':
-          // Keepalive, ignore
-          break;
-
-        case 'cloning':
-          setState(prev => ({
-            ...prev,
-            phase: 'cloning',
-          }));
-          break;
-
-        case 'progress':
-          setState(prev => {
-            // Add current file to recent files list (for streaming effect)
-            const newRecentFiles = data.current_file 
-              ? [data.current_file, ...prev.recentFiles.filter(f => f !== data.current_file)].slice(0, maxRecentFiles)
-              : prev.recentFiles;
-
-            return {
-              ...prev,
-              phase: 'indexing',
-              progress: {
-                percent: data.percent,
-                filesProcessed: data.files_processed,
-                filesTotal: data.files_total,
-                currentFile: data.current_file,
-                functionsFound: data.functions_found,
-              },
-              recentFiles: newRecentFiles,
-            };
-          });
-          break;
-
-        case 'completed':
-          setState(prev => ({
-            ...prev,
-            phase: 'completed',
-            repoId: data.repo_id,
-            completedStats: data.stats,
+            phase: 'indexing',
             progress: {
-              ...prev.progress,
-              percent: 100,
+              percent: data.percent,
+              filesProcessed: data.files_processed,
+              filesTotal: data.files_total,
+              currentFile: data.current_file,
+              functionsFound: data.functions_found,
             },
-          }));
-          onCompleted?.(data.repo_id, data.stats);
-          break;
-
-        case 'error':
-          setState(prev => ({
-            ...prev,
-            phase: 'error',
-            error: data.message,
-            isRecoverable: data.recoverable,
-          }));
-          onError?.(data.message, data.recoverable);
-          break;
+            recentFiles: newFiles,
+          };
+        });
+      } else if (data.type === 'completed') {
+        setState(prev => ({
+          ...prev,
+          phase: 'completed',
+          repoId: data.repo_id,
+          completedStats: data.stats,
+          progress: { ...prev.progress, percent: 100 },
+        }));
+        onCompletedRef.current?.(data.repo_id, data.stats);
+      } else if (data.type === 'error') {
+        setState(prev => ({ ...prev, phase: 'error', error: data.message, isRecoverable: data.recoverable }));
+        onErrorRef.current?.(data.message, data.recoverable);
       }
     } catch (err) {
-      console.error('[WS] Failed to parse message:', err);
+      console.error('[WS] Parse error:', err);
     }
-  }, [maxRecentFiles, onCompleted, onError]);
+  }, [maxRecentFiles]);
 
-  // Connect to WebSocket
   const connect = useCallback((jid: string) => {
     cleanup();
-    
-    setState(prev => ({
-      ...prev,
-      connectionState: 'connecting',
-      phase: 'connecting',
-      error: null,
-    }));
+    setState(prev => ({ ...prev, connectionState: 'connecting', phase: 'connecting', error: null }));
 
     const wsUrl = buildWsUrl(`/ws/playground/${jid}`);
     console.log('[WS] Connecting to:', wsUrl);
@@ -310,101 +214,49 @@ export function useIndexingWebSocket(
       ws.onopen = () => {
         console.log('[WS] Connected');
         reconnectAttempts.current = 0;
-        setState(prev => ({
-          ...prev,
-          connectionState: 'connected',
-        }));
+        setState(prev => ({ ...prev, connectionState: 'connected' }));
       };
 
       ws.onmessage = handleMessage;
 
-      ws.onerror = (error) => {
-        console.error('[WS] Error:', error);
-        setState(prev => ({
-          ...prev,
-          connectionState: 'error',
-        }));
+      ws.onerror = () => {
+        setState(prev => ({ ...prev, connectionState: 'error' }));
       };
 
       ws.onclose = (event) => {
-        console.log('[WS] Closed:', event.code, event.reason);
-        
-        // If closed cleanly (1000) or job doesn't exist (4404), don't reconnect
+        console.log('[WS] Closed:', event.code);
         if (event.code === 1000 || event.code === 4404) {
-          setState(prev => ({
-            ...prev,
-            connectionState: 'disconnected',
-          }));
+          setState(prev => ({ ...prev, connectionState: 'disconnected' }));
           return;
         }
-
-        // Try to reconnect with exponential backoff
         if (reconnectAttempts.current < 3) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 5000);
-          console.log(`[WS] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current + 1})`);
-          
           reconnectTimeout.current = setTimeout(() => {
             reconnectAttempts.current++;
             connect(jid);
           }, delay);
         } else {
-          // Fallback to polling after 3 failed attempts
-          console.log('[WS] Max reconnect attempts reached, falling back to polling');
           startPolling(jid);
         }
       };
-    } catch (err) {
-      console.error('[WS] Failed to create WebSocket:', err);
+    } catch {
       startPolling(jid);
     }
   }, [cleanup, handleMessage, startPolling]);
 
-  // Connect when jobId changes
   useEffect(() => {
     if (jobId) {
       connect(jobId);
     } else {
       cleanup();
-      setState({
-        connectionState: 'disconnected',
-        phase: 'idle',
-        progress: {
-          percent: 0,
-          filesProcessed: 0,
-          filesTotal: 0,
-          currentFile: '',
-          functionsFound: 0,
-        },
-        recentFiles: [],
-        completedStats: null,
-        repoId: null,
-        error: null,
-        isRecoverable: false,
-      });
+      setState(INITIAL_STATE);
     }
-
     return cleanup;
   }, [jobId, connect, cleanup]);
 
-  // Reset function
   const reset = useCallback(() => {
     cleanup();
-    setState({
-      connectionState: 'disconnected',
-      phase: 'idle',
-      progress: {
-        percent: 0,
-        filesProcessed: 0,
-        filesTotal: 0,
-        currentFile: '',
-        functionsFound: 0,
-      },
-      recentFiles: [],
-      completedStats: null,
-      repoId: null,
-      error: null,
-      isRecoverable: false,
-    });
+    setState(INITIAL_STATE);
   }, [cleanup]);
 
   return {
