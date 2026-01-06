@@ -19,52 +19,18 @@ const glowStyles: Record<GlowColor, string> = {
   none: '',
 };
 
-/**
- * GlassCard - Premium glassmorphism card component
- * 
- * Features:
- * - Backdrop blur effect
- * - Subtle border that brightens on hover
- * - Optional glow effect (Python blue or yellow)
- * - Smooth hover animations via Framer Motion
- * 
- * @example
- * <GlassCard glow="blue">
- *   <h3>Search Result</h3>
- *   <p>Code snippet here...</p>
- * </GlassCard>
- */
+// Glassmorphism card with optional Python-colored glow
 export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
-  (
-    {
-      children,
-      glow = 'none',
-      hover = true,
-      className,
-      as = 'div',
-      ...props
-    },
-    ref
-  ) => {
+  ({ children, glow = 'none', hover = true, className, as = 'div', ...props }, ref) => {
     const Component = motion[as] as typeof motion.div;
 
     return (
       <Component
         ref={ref}
         className={cn(
-          // Base glass styles
-          'rounded-xl',
-          'bg-white/[0.03]',
-          'backdrop-blur-xl',
-          'border border-white/[0.08]',
-          // Transitions
+          'rounded-xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.08]',
           'transition-all duration-normal ease-out-expo',
-          // Hover effects
-          hover && [
-            'hover:bg-white/[0.05]',
-            'hover:border-white/[0.12]',
-          ],
-          // Glow effect
+          hover && 'hover:bg-white/[0.05] hover:border-white/[0.12]',
           glow !== 'none' && glowStyles[glow],
           className
         )}
@@ -81,17 +47,14 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
 
 GlassCard.displayName = 'GlassCard';
 
-// Convenience wrapper for content padding
+// Compound components
+
 interface GlassCardContentProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   padding?: 'sm' | 'md' | 'lg';
 }
 
-const paddingSizes = {
-  sm: 'p-3',
-  md: 'p-4',
-  lg: 'p-6',
-};
+const paddingSizes = { sm: 'p-3', md: 'p-4', lg: 'p-6' };
 
 export const GlassCardContent = ({
   children,
@@ -104,7 +67,6 @@ export const GlassCardContent = ({
   </div>
 );
 
-// Header with border
 export const GlassCardHeader = ({
   children,
   className,
@@ -112,9 +74,7 @@ export const GlassCardHeader = ({
 }: HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'px-4 py-3',
-      'border-b border-white/[0.08]',
-      'flex items-center justify-between',
+      'px-4 py-3 border-b border-white/[0.08] flex items-center justify-between',
       className
     )}
     {...props}
@@ -123,7 +83,6 @@ export const GlassCardHeader = ({
   </div>
 );
 
-// Footer with border
 export const GlassCardFooter = ({
   children,
   className,
@@ -131,9 +90,7 @@ export const GlassCardFooter = ({
 }: HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'px-4 py-3',
-      'border-t border-white/[0.08]',
-      'flex items-center gap-2',
+      'px-4 py-3 border-t border-white/[0.08] flex items-center gap-2',
       className
     )}
     {...props}

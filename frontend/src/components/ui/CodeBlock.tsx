@@ -17,11 +17,14 @@ interface CodeBlockProps extends HTMLAttributes<HTMLDivElement> {
   githubUrl?: string;
 }
 
-// Simple Python tokenizer for syntax highlighting
-function tokenizePython(code: string): Array<{ type: string; value: string }> {
-  const tokens: Array<{ type: string; value: string }> = [];
+type Token = { type: string; value: string };
+
+// Dead simple tokenizer - not trying to be a full parser, just good enough for display
+function tokenizePython(code: string): Token[] {
+  const tokens: Token[] = [];
   
-  const patterns: Array<[string, RegExp]> = [
+  // Order matters here - more specific patterns first
+  const patterns: [string, RegExp][] = [
     ['comment', /^#.*/],
     ['docstring', /^("""[\s\S]*?"""|'''[\s\S]*?''')/],
     ['fstring', /^f(['"])((?:\\.|(?!\1)[^\\])*)\1/],
@@ -40,10 +43,8 @@ function tokenizePython(code: string): Array<{ type: string; value: string }> {
   ];
   
   let remaining = code;
-  
   while (remaining.length > 0) {
     let matched = false;
-    
     for (const [type, pattern] of patterns) {
       const match = remaining.match(pattern);
       if (match) {
@@ -53,7 +54,6 @@ function tokenizePython(code: string): Array<{ type: string; value: string }> {
         break;
       }
     }
-    
     if (!matched) {
       tokens.push({ type: 'text', value: remaining[0] });
       remaining = remaining.slice(1);
@@ -63,38 +63,24 @@ function tokenizePython(code: string): Array<{ type: string; value: string }> {
   return tokens;
 }
 
-function getTokenColor(type: string): string {
-  const colorMap: Record<string, string> = {
-    keyword: syntax.keyword,
-    builtin: syntax.builtin,
-    function: syntax.function,
-    className: syntax.className,
-    decorator: syntax.decorator,
-    string: syntax.string,
-    fstring: syntax.string,
-    docstring: syntax.docstring,
-    comment: syntax.comment,
-    number: syntax.number,
-    parameter: syntax.parameter,
-    operator: syntax.operator,
-    punctuation: syntax.punctuation,
-    variable: syntax.variable,
-  };
-  
-  return colorMap[type] || syntax.variable;
-}
+const tokenColors: Record<string, string> = {
+  keyword: syntax.keyword,
+  builtin: syntax.builtin,
+  function: syntax.function,
+  className: syntax.className,
+  decorator: syntax.decorator,
+  string: syntax.string,
+  fstring: syntax.string,
+  docstring: syntax.docstring,
+  comment: syntax.comment,
+  number: syntax.number,
+  parameter: syntax.parameter,
+  operator: syntax.operator,
+  punctuation: syntax.punctuation,
+  variable: syntax.variable,
+};
 
-/**
- * CodeBlock - Python code display with syntax highlighting
- * 
- * Features:
- * - Python syntax highlighting
- * - Line numbers
- * - Line highlighting for matches
- * - Copy to clipboard
- * - GitHub link
- * - Hover effects on lines
- */
+// Python code block with syntax highlighting and copy button
 export function CodeBlock({
   code,
   language = 'python',
@@ -120,24 +106,17 @@ export function CodeBlock({
   
   return (
     <div
-      className={cn(
-        'rounded-lg overflow-hidden',
-        'border border-white/[0.08]',
-        className
-      )}
+      className={cn('rounded-lg overflow-hidden border border-white/[0.08]', className)}
       style={{ backgroundColor: codeBg.elevated }}
       {...props}
     >
-      {/* Header */}
       {(filename || githubUrl) && (
         <div
           className="px-4 py-2 flex items-center justify-between border-b border-white/[0.08]"
           style={{ backgroundColor: codeBg.primary }}
         >
           {filename && (
-            <span className="text-sm text-text-secondary font-mono">
-              {filename}
-            </span>
+            <span className="text-sm text-text-secondary font-mono">{filename}</span>
           )}
           <div className="flex items-center gap-2">
             <button
@@ -146,25 +125,18 @@ export function CodeBlock({
               title="Copy code"
             >
               <AnimatePresence mode="wait">
-                {copied ? (
-                  <motion.div
-                    key="check"
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.5, opacity: 0 }}
-                  >
+                <motion.div
+                  key={copied ? 'check' : 'copy'}
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.5, opacity: 0 }}
+                >
+                  {copied ? (
                     <Check size={16} className="text-green-500" />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="copy"
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.5, opacity: 0 }}
-                  >
+                  ) : (
                     <Copy size={16} />
-                  </motion.div>
-                )}
+                  )}
+                </motion.div>
               </AnimatePresence>
             </button>
             {githubUrl && (
@@ -182,52 +154,40 @@ export function CodeBlock({
         </div>
       )}
       
-      {/* Code */}
-      <div
-        className="overflow-auto scrollbar-thin"
-        style={{ maxHeight }}
-      >
+      <div className="overflow-auto scrollbar-thin" style={{ maxHeight }}>
         <pre className="p-4 text-sm font-mono leading-relaxed">
           <code>
             {lines.map((line, index) => {
               const lineNumber = lineStart + index;
               const isHighlighted = highlightLines.includes(lineNumber);
-              const tokens = language === 'python' ? tokenizePython(line) : [{ type: 'text', value: line }];
+              const tokens = language === 'python' 
+                ? tokenizePython(line) 
+                : [{ type: 'text', value: line }];
               
               return (
                 <motion.div
                   key={index}
-                  className={cn(
-                    'flex',
-                    isHighlighted && 'rounded'
-                  )}
+                  className={cn('flex', isHighlighted && 'rounded')}
                   variants={lineHighlightVariants}
                   initial="idle"
                   whileHover="hover"
                   style={{
-                    backgroundColor: isHighlighted
-                      ? syntax.matchHighlight
-                      : undefined,
+                    backgroundColor: isHighlighted ? syntax.matchHighlight : undefined,
                   }}
                 >
                   {showLineNumbers && (
                     <span
                       className="select-none pr-4 text-right min-w-[3rem]"
                       style={{
-                        color: isHighlighted
-                          ? syntax.lineNumberActive
-                          : syntax.lineNumber,
+                        color: isHighlighted ? syntax.lineNumberActive : syntax.lineNumber,
                       }}
                     >
                       {lineNumber}
                     </span>
                   )}
                   <span className="flex-1">
-                    {tokens.map((token, tokenIndex) => (
-                      <span
-                        key={tokenIndex}
-                        style={{ color: getTokenColor(token.type) }}
-                      >
+                    {tokens.map((token, i) => (
+                      <span key={i} style={{ color: tokenColors[token.type] || syntax.variable }}>
                         {token.value}
                       </span>
                     ))}

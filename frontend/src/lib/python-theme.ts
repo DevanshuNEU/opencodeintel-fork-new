@@ -1,9 +1,6 @@
-/**
- * Python-Native Theme Extension
- * Colors that feel like home to Python developers
- */
+// Python brand colors + syntax highlighting for the landing page
 
-// Python Brand Colors
+// Pulled from python.org branding guidelines
 export const python = {
   blue: {
     dark: '#306998',
@@ -21,7 +18,7 @@ export const python = {
   },
 } as const;
 
-// Syntax Highlighting - Familiar to PyCharm/VS Code users
+// Dracula-ish syntax colors (what devs expect from VS Code / PyCharm)
 export const syntax = {
   keyword: '#FF79C6',      // def, class, import, from, return, if, else
   function: '#50FA7B',     // Function names, method calls
@@ -45,7 +42,7 @@ export const syntax = {
   matchBorder: '#FFD43B',
 } as const;
 
-// Background layers optimized for dark mode code reading
+// Background layers (GitHub dark palette)
 export const codeBg = {
   deep: '#0D1117',       // Deepest layer (GitHub dark)
   primary: '#161B22',    // Main code background
@@ -54,7 +51,7 @@ export const codeBg = {
   selection: 'rgba(75, 139, 190, 0.3)',
 } as const;
 
-// Featured Python Repositories
+// Repos we'll show in the demo - popular ones people recognize
 export const featuredRepos = [
   {
     id: 'flask',
@@ -110,7 +107,7 @@ export const featuredRepos = [
 
 export type FeaturedRepo = typeof featuredRepos[number];
 
-// CSS custom properties for Python theme
+// CSS vars export (for use in vanilla CSS if needed)
 export const pythonCSSVars = {
   '--python-blue': python.blue.DEFAULT,
   '--python-blue-dark': python.blue.dark,
@@ -134,7 +131,7 @@ export const pythonCSSVars = {
   '--code-bg-elevated': codeBg.elevated,
 } as const;
 
-// Helper to inject Python theme CSS vars
+// Inject vars into :root (call once on app init)
 export function injectPythonTheme(): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
