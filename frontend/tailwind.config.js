@@ -40,6 +40,40 @@ export default {
           'border-hover': 'var(--glass-border-hover)',
         },
         
+        // Python brand colors
+        python: {
+          blue: {
+            dark: '#306998',
+            DEFAULT: '#4B8BBE',
+            light: '#6BA3D6',
+          },
+          yellow: {
+            dark: '#E5C33B',
+            DEFAULT: '#FFD43B',
+            light: '#FFE873',
+          },
+        },
+        
+        // Code background layers
+        code: {
+          deep: '#0D1117',
+          primary: '#161B22',
+          elevated: '#21262D',
+          hover: '#30363D',
+        },
+        
+        // Syntax highlighting
+        syntax: {
+          keyword: '#FF79C6',
+          function: '#50FA7B',
+          string: '#F1FA8C',
+          comment: '#6272A4',
+          variable: '#F8F8F2',
+          number: '#BD93F9',
+          decorator: '#8BE9FD',
+          parameter: '#FFB86C',
+        },
+        
         // Shadcn compatibility
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
