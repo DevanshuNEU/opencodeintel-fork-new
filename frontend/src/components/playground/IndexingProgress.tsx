@@ -267,10 +267,19 @@ export function IndexingProgress({
 }: IndexingProgressProps) {
   const { percent, filesProcessed, filesTotal, currentFile, functionsFound } = progress;
   
-  // Estimate remaining time
+  // Safe values to prevent NaN/division by zero
+  const safePercent = Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0;
+  const safeFilesProcessed = Number.isFinite(filesProcessed) ? Math.max(0, filesProcessed) : 0;
+  const safeFilesTotal = Number.isFinite(filesTotal) ? Math.max(0, filesTotal) : 0;
+  const safeFunctionsFound = Number.isFinite(functionsFound) ? Math.max(0, functionsFound) : 0;
+  
+  // Is this the initial "starting" state?
+  const isStarting = safeFilesTotal === 0 || (safePercent === 0 && safeFilesProcessed === 0);
+  
+  // Estimate remaining time (only when we have real data)
   const estimatedRemaining = (() => {
-    if (percent <= 0 || filesProcessed <= 0) return null;
-    const remainingFiles = Math.ceil((filesProcessed / percent) * (100 - percent));
+    if (isStarting || safePercent <= 0 || safeFilesProcessed <= 0) return null;
+    const remainingFiles = Math.ceil((safeFilesProcessed / safePercent) * (100 - safePercent));
     return Math.max(1, Math.ceil(remainingFiles * 0.15));
   })();
 
@@ -287,7 +296,7 @@ export function IndexingProgress({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       role="status"
-      aria-label={`Indexing ${repoName || 'repository'}: ${percent}% complete`}
+      aria-label={`Indexing ${repoName || 'repository'}: ${safePercent}% complete`}
     >
       {/* Header */}
       <div className="px-5 py-4 border-b border-zinc-800/50 bg-gradient-to-r from-zinc-900 to-zinc-900/50">
@@ -308,12 +317,12 @@ export function IndexingProgress({
           </div>
           <motion.span 
             className="text-3xl font-bold text-indigo-400"
-            key={percent}
+            key={safePercent}
             initial={{ scale: 1.3 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 300 }}
           >
-            {percent}%
+            {safePercent}%
           </motion.span>
         </div>
         
@@ -323,16 +332,29 @@ export function IndexingProgress({
 
       {/* Progress bar */}
       <div className="px-5 py-4">
-        <GlowingProgress value={percent} />
+        <GlowingProgress value={safePercent} />
       </div>
 
       {/* Stats grid */}
       <div className="px-5 py-4 bg-zinc-900/50 border-t border-b border-zinc-800/50">
         <div className="grid grid-cols-4 gap-4">
-          <StatCard label="Files" value={`${filesProcessed}/${filesTotal}`} />
-          <StatCard label="Functions" value={functionsFound} highlight />
-          <StatCard label="Remaining" value={estimatedRemaining ? `~${estimatedRemaining}s` : '—'} />
-          <StatCard label="Speed" value={filesProcessed > 0 ? `${Math.round(functionsFound / filesProcessed)}/file` : '—'} />
+          <StatCard 
+            label="Files" 
+            value={isStarting ? 'Starting...' : `${safeFilesProcessed}/${safeFilesTotal}`} 
+          />
+          <StatCard 
+            label="Functions" 
+            value={isStarting ? '—' : safeFunctionsFound} 
+            highlight={!isStarting && safeFunctionsFound > 0} 
+          />
+          <StatCard 
+            label="Remaining" 
+            value={estimatedRemaining ? `~${estimatedRemaining}s` : '—'} 
+          />
+          <StatCard 
+            label="Speed" 
+            value={safeFilesProcessed > 0 ? `${Math.round(safeFunctionsFound / safeFilesProcessed)}/file` : '—'} 
+          />
         </div>
       </div>
 
