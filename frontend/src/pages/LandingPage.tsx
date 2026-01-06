@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Github } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { AnimatedSection } from '@/components/ui/AnimatedSection'
-import { Hero, ResultsView } from '@/components/landing'
+import { Navbar, Hero, ResultsView } from '@/components/landing'
 import { API_URL } from '@/config/api'
 import { playgroundAPI } from '@/services/playground-api'
 import type { SearchResult } from '@/types'
@@ -98,25 +96,7 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#09090b] text-white">
-      {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#09090b]/80 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">CI</span>
-            </div>
-            <span className="font-semibold">CodeIntel</span>
-            <Badge variant="glow" className="text-[10px]">BETA</Badge>
-          </div>
-          <div className="flex items-center gap-4">
-            <a href="https://github.com/opencodeintel/opencodeintel" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white">
-              <Github className="w-5 h-5" />
-            </a>
-            <Button variant="ghost" className="text-gray-400 hover:text-white" onClick={() => navigate('/login')}>Sign in</Button>
-            <Button className="bg-white text-black hover:bg-gray-100" onClick={() => navigate('/signup')}>Get started</Button>
-          </div>
-        </div>
-      </nav>
+      <Navbar minimal={hasSearched} />
 
       {hasSearched ? (
         <ResultsView
