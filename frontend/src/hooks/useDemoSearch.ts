@@ -1,146 +1,92 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { API_URL } from '@/config/api'
+import { DEMO_REPOS, DEFAULT_DEMO_QUERY, type DemoRepo } from '@/config/demo-repos'
 import type { SearchResult } from '@/types'
 
-export interface DemoRepo {
-  id: string
-  name: string
-  icon: string
-}
-
-export const DEMO_REPOS: DemoRepo[] = [
-  { id: 'flask', name: 'Flask', icon: '🐍' },
-  { id: 'fastapi', name: 'FastAPI', icon: '⚡' },
-  { id: 'express', name: 'Express', icon: '🟢' },
-]
-
-const DEFAULT_QUERY = 'authentication middleware patterns'
-const DEFAULT_REPO = 'flask'
-
-interface DemoSearchState {
+interface SearchState {
   query: string
   repo: DemoRepo
   results: SearchResult[]
   loading: boolean
   searchTime: number | null
   error: string | null
-  hasSearched: boolean
 }
 
-interface UseDemoSearchReturn extends DemoSearchState {
-  setQuery: (query: string) => void
-  setRepo: (repo: DemoRepo) => void
-  search: (query?: string, repoId?: string) => Promise<void>
-  reset: () => void
+const initialState: SearchState = {
+  query: DEFAULT_DEMO_QUERY,
+  repo: DEMO_REPOS[0],
+  results: [],
+  loading: false,
+  searchTime: null,
+  error: null,
 }
 
-export function useDemoSearch(autoStart = true): UseDemoSearchReturn {
-  const [state, setState] = useState<DemoSearchState>({
-    query: DEFAULT_QUERY,
-    repo: DEMO_REPOS[0],
-    results: [],
-    loading: false,
-    searchTime: null,
-    error: null,
-    hasSearched: false,
-  })
-
+export function useDemoSearch(autoStart = true) {
+  const [state, setState] = useState<SearchState>(initialState)
   const abortRef = useRef<AbortController | null>(null)
-  const hasAutoStarted = useRef(false)
+  const didAutoStart = useRef(false)
 
-  const search = useCallback(async (queryOverride?: string, repoOverride?: string) => {
-    const q = queryOverride ?? state.query
-    const repoId = repoOverride ?? state.repo.id
+  const search = useCallback(async (q?: string, repoId?: string) => {
+    const query = q ?? state.query
+    const repo = repoId ?? state.repo.id
+    if (!query.trim()) return
 
-    if (!q.trim()) return
-
-    // cancel any in-flight request
-    if (abortRef.current) {
-      abortRef.current.abort()
-    }
+    // kill any pending request - user might be typing fast
+    abortRef.current?.abort()
     abortRef.current = new AbortController()
 
-    setState(prev => ({ ...prev, loading: true, error: null }))
-    const startTime = Date.now()
+    setState(s => ({ ...s, loading: true, error: null }))
+    const t0 = Date.now()
 
     try {
-      const response = await fetch(`${API_URL}/playground/search`, {
+      const res = await fetch(`${API_URL}/playground/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         signal: abortRef.current.signal,
-        body: JSON.stringify({
-          query: q,
-          demo_repo: repoId,
-          max_results: 10,
-        }),
+        body: JSON.stringify({ query, demo_repo: repo, max_results: 10 }),
       })
 
-      const data = await response.json()
+      const data = await res.json()
 
       if (data.results) {
-        setState(prev => ({
-          ...prev,
+        setState(s => ({
+          ...s,
           results: data.results,
-          searchTime: data.search_time_ms || (Date.now() - startTime),
+          searchTime: data.search_time_ms || Date.now() - t0,
           loading: false,
-          hasSearched: true,
         }))
       } else if (data.status === 429) {
-        setState(prev => ({
-          ...prev,
-          error: 'Rate limited. Sign up for unlimited searches.',
-          loading: false,
-          hasSearched: true,
-        }))
+        setState(s => ({ ...s, error: 'Rate limited', loading: false }))
       }
     } catch (err) {
+      // user navigated away or started new search - don't show error
       if (err instanceof Error && err.name === 'AbortError') return
-      setState(prev => ({
-        ...prev,
-        error: 'Search failed. Try again.',
-        loading: false,
-      }))
+      setState(s => ({ ...s, error: 'Search failed', loading: false }))
     }
   }, [state.query, state.repo.id])
 
   const setQuery = useCallback((query: string) => {
-    setState(prev => ({ ...prev, query }))
+    setState(s => ({ ...s, query }))
   }, [])
 
   const setRepo = useCallback((repo: DemoRepo) => {
-    setState(prev => ({ ...prev, repo }))
+    setState(s => ({ ...s, repo }))
   }, [])
 
-  const reset = useCallback(() => {
-    setState({
-      query: DEFAULT_QUERY,
-      repo: DEMO_REPOS[0],
-      results: [],
-      loading: false,
-      searchTime: null,
-      error: null,
-      hasSearched: false,
-    })
-  }, [])
+  const reset = useCallback(() => setState(initialState), [])
 
-  // auto-start search on mount
+  // fire search on mount with slight delay so user sees it "start"
+  // without this, results appear instantly which feels less impressive
   useEffect(() => {
-    if (autoStart && !hasAutoStarted.current) {
-      hasAutoStarted.current = true
-      // small delay so user sees the search "start"
-      const timer = setTimeout(() => {
-        search(DEFAULT_QUERY, DEFAULT_REPO)
-      }, 600)
-      return () => clearTimeout(timer)
-    }
+    if (!autoStart || didAutoStart.current) return
+    didAutoStart.current = true
+
+    const delay = setTimeout(() => search(), 600)
+    return () => clearTimeout(delay)
   }, [autoStart, search])
 
-  return {
-    ...state,
-    setQuery,
-    setRepo,
-    search,
-    reset,
-  }
+  return { ...state, setQuery, setRepo, search, reset }
 }
+
+export { DEMO_REPOS, type DemoRepo }
