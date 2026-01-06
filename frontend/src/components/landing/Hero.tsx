@@ -48,8 +48,26 @@ export function Hero({ onResultsReady }: Props) {
   }
 
   return (
-    <section className="min-h-[70vh] flex flex-col justify-center pt-20 pb-12 px-6">
-      <div className="max-w-3xl mx-auto w-full">
+    <section className="relative min-h-[70vh] flex flex-col justify-center pt-20 pb-12 px-6 overflow-hidden">
+      {/* background elements for glassmorphism to blur against */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* top gradient orb */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-500/20 via-purple-500/10 to-transparent rounded-full blur-3xl" />
+        {/* left accent */}
+        <div className="absolute top-1/3 -left-32 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
+        {/* right accent */}
+        <div className="absolute top-1/2 -right-32 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl" />
+        {/* subtle grid */}
+        <div 
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+            backgroundSize: '64px 64px'
+          }}
+        />
+      </div>
+      
+      <div className="relative max-w-3xl mx-auto w-full">
         <motion.div
           className="text-center mb-10"
           initial={{ opacity: 0, y: 20 }}
