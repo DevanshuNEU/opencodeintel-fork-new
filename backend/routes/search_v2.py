@@ -8,6 +8,13 @@ from typing import List, Optional
 from dependencies import indexer, cache, metrics, verify_repo_access
 from services.input_validator import InputValidator
 from middleware.auth import require_auth, AuthContext
+from services.observability import (
+    logger,
+    capture_exception,
+    track_time,
+    add_breadcrumb,
+    set_operation_context
+)
 
 router = APIRouter(prefix="/search", tags=["Search V2"])
 
@@ -50,13 +57,29 @@ async def search_v2(
     auth: AuthContext = Depends(require_auth)
 ):
     """Function-level semantic search with hybrid BM25 + vector ranking."""
+    set_operation_context(
+        "search_v2",
+        user_id=auth.user_id,
+        repo_id=request.repo_id,
+        query_length=len(request.query),
+        top_k=request.top_k
+    )
+    add_breadcrumb("Search V2 request received", category="search_v2", repo_id=request.repo_id)
+    
     if not SEARCH_V2_ENABLED:
+        logger.warning("Search V2 disabled but request received", user_id=auth.user_id)
         raise HTTPException(status_code=503, detail="Search V2 is not enabled")
 
     verify_repo_access(request.repo_id, auth.user_id)
 
     valid_query, query_error = InputValidator.validate_search_query(request.query)
     if not valid_query:
+        logger.warning(
+            "Invalid search query rejected",
+            user_id=auth.user_id,
+            repo_id=request.repo_id,
+            error=query_error
+        )
         raise HTTPException(status_code=400, detail=f"Invalid query: {query_error}")
 
     sanitized_query = InputValidator.sanitize_string(request.query, max_length=500)
@@ -64,9 +87,20 @@ async def search_v2(
 
     try:
         cache_key = f"v2:{sanitized_query}:{request.repo_id}:{request.top_k}"
-        cached = cache.get_search_results(cache_key, request.repo_id)
+        
+        with track_time("search_v2_cache_check", repo_id=request.repo_id):
+            cached = cache.get_search_results(cache_key, request.repo_id)
+        
         if cached:
-            metrics.record_search(time.time() - start_time, cached=True)
+            duration = time.time() - start_time
+            metrics.record_search(duration, cached=True)
+            logger.info(
+                "Search V2 completed (cache hit)",
+                user_id=auth.user_id,
+                repo_id=request.repo_id,
+                result_count=len(cached),
+                duration_ms=round(duration * 1000, 2)
+            )
             return SearchV2Response(
                 results=cached,
                 query=sanitized_query,
@@ -74,15 +108,29 @@ async def search_v2(
                 cached=True,
             )
 
-        results = await indexer.search_v2(
-            query=sanitized_query,
-            repo_id=request.repo_id,
-            top_k=request.top_k,
-            use_reranking=request.use_reranking,
-        )
+        with track_time("search_v2_execution", repo_id=request.repo_id, use_reranking=request.use_reranking):
+            results = await indexer.search_v2(
+                query=sanitized_query,
+                repo_id=request.repo_id,
+                top_k=request.top_k,
+                use_reranking=request.use_reranking,
+            )
 
-        cache.set_search_results(cache_key, request.repo_id, results, ttl=3600)
-        metrics.record_search(time.time() - start_time, cached=False)
+        with track_time("search_v2_cache_set", repo_id=request.repo_id):
+            cache.set_search_results(cache_key, request.repo_id, results, ttl=3600)
+        
+        duration = time.time() - start_time
+        metrics.record_search(duration, cached=False)
+        
+        logger.info(
+            "Search V2 completed",
+            user_id=auth.user_id,
+            repo_id=request.repo_id,
+            result_count=len(results),
+            duration_ms=round(duration * 1000, 2),
+            cached=False,
+            use_reranking=request.use_reranking
+        )
 
         return SearchV2Response(
             results=results,
@@ -91,5 +139,19 @@ async def search_v2(
             cached=False,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(
+            "Search V2 failed",
+            user_id=auth.user_id,
+            repo_id=request.repo_id,
+            error=str(e)
+        )
+        capture_exception(
+            e,
+            operation="search_v2",
+            repo_id=request.repo_id,
+            user_id=auth.user_id
+        )
         raise HTTPException(status_code=500, detail=str(e))
