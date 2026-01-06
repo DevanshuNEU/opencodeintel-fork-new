@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import './styles/view-transitions.css'
 import { App } from './App.tsx'
+import { injectPythonTheme } from './lib/python-theme'
+
+// inject CSS variables for Python theme colors
+injectPythonTheme()
 
 // Create a client with default options
 const queryClient = new QueryClient({
