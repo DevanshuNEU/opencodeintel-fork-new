@@ -66,7 +66,7 @@ class TestWebSocketPlayground:
             "job_id": "idx_test123",
             "status": "completed",
             "repo_id": "anon_test123",
-            "stats": {"files_indexed": 100, "functions_found": 500}
+            "stats": {"files_processed": 100, "functions_indexed": 500}
         })
         
         with patch('routes.ws_playground.redis_client', mock_redis):
@@ -172,9 +172,9 @@ class TestPubSubIntegration:
         job_manager = AnonymousIndexingJob(mock_redis)
         
         stats = JobStats(
-            files_indexed=100,
-            functions_found=500,
-            time_taken_seconds=45.2
+            files_processed=100,
+            functions_indexed=500,
+            indexing_time_seconds=45.2
         )
         
         job_manager.update_status(
@@ -189,7 +189,7 @@ class TestPubSubIntegration:
         
         assert event_data["type"] == "completed"
         assert event_data["repo_id"] == "anon_test123"
-        assert event_data["stats"]["functions_found"] == 500
+        assert event_data["stats"]["functions_indexed"] == 500
 
     def test_processing_status_skips_duplicate_publish(self):
         """PROCESSING status should not publish (handled by update_progress)."""

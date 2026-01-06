@@ -152,6 +152,9 @@ async def websocket_playground_index(websocket: WebSocket, job_id: str):
                         job_id=job_id[:12],
                         event_type=event_type
                     )
+                    # Small delay to ensure client processes message before close
+                    # This prevents race condition where onclose fires before onmessage
+                    await asyncio.sleep(0.2)
                     break
                     
             except json.JSONDecodeError:

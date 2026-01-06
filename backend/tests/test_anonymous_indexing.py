@@ -199,9 +199,9 @@ class TestAnonymousIndexingJob:
         })
 
         stats = JobStats(
-            files_indexed=100,
-            functions_found=500,
-            time_taken_seconds=45.5
+            files_processed=100,
+            functions_indexed=500,
+            indexing_time_seconds=45.5
         )
 
         result = job_manager.update_status(
@@ -259,13 +259,13 @@ class TestJobDataclasses:
     def test_job_stats_to_dict(self):
         """JobStats converts to dict correctly."""
         stats = JobStats(
-            files_indexed=100,
-            functions_found=500,
-            time_taken_seconds=45.5
+            files_processed=100,
+            functions_indexed=500,
+            indexing_time_seconds=45.5
         )
         d = stats.to_dict()
-        assert d["files_indexed"] == 100
-        assert d["time_taken_seconds"] == 45.5
+        assert d["files_processed"] == 100
+        assert d["indexing_time_seconds"] == 45.5
 
 
 # =============================================================================
@@ -608,9 +608,9 @@ class TestStatusEndpoint:
             "created_at": "2024-01-01T00:00:00Z",
             "updated_at": "2024-01-01T00:01:00Z",
             "stats": {
-                "files_indexed": 100,
-                "functions_found": 500,
-                "time_taken_seconds": 45.2
+                "files_processed": 100,
+                "functions_indexed": 500,
+                "indexing_time_seconds": 45.2
             }
         }
         mock_job_class.return_value = mock_job_manager
@@ -621,7 +621,7 @@ class TestStatusEndpoint:
         data = response.json()
         assert data["status"] == "completed"
         assert data["repo_id"] == "anon_idx_test123456"
-        assert data["stats"]["files_indexed"] == 100
+        assert data["stats"]["files_processed"] == 100
 
     @patch('routes.playground.AnonymousIndexingJob')
     def test_failed_job_returns_error(self, mock_job_class, client):

@@ -248,8 +248,18 @@ export function useIndexingWebSocket(
     if (jobId) {
       connect(jobId);
     } else {
+      // Only cleanup connection, DON'T reset state!
+      // This preserves completedStats when jobId becomes null after completion
       cleanup();
-      setState(INITIAL_STATE);
+      // Only reset if we were never completed (e.g., user navigated away during indexing)
+      setState(prev => {
+        if (prev.phase === 'completed') {
+          // Keep completed state - just disconnect
+          return { ...prev, connectionState: 'disconnected' };
+        }
+        // Reset if we were mid-indexing (user cancelled, navigated away, etc.)
+        return INITIAL_STATE;
+      });
     }
     return cleanup;
   }, [jobId, connect, cleanup]);

@@ -672,8 +672,11 @@ class OptimizedCodeIndexer:
             
             files_processed = min(i + self.FILE_BATCH_SIZE, total_files)
             
-            # Send progress update
-            await progress_callback(files_processed, len(all_functions_data), total_files)
+            # Get the last file in this batch for display
+            current_file = batch[-1].name if batch else None
+            
+            # Send progress update with current file
+            await progress_callback(files_processed, len(all_functions_data), total_files, current_file)
             
             logger.debug("Processing files", 
                         processed=files_processed, 

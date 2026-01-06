@@ -169,11 +169,13 @@ export function HeroPlayground({
   }, [state]);
 
   // Determine visibility states
+  const hasError = state.status === 'error' || wsHasError;
   const showDemoSelector = mode === 'demo';
-  const showUrlInput = mode === 'custom' && !['indexing', 'ready'].includes(state.status) && !showCelebration && !wsIsCompleted;
-  const showValidation = mode === 'custom' && ['validating', 'valid', 'invalid'].includes(state.status) && !showCelebration;
-  const showIndexing = mode === 'custom' && state.status === 'indexing' && !showCelebration && !wsIsCompleted;
+  const showUrlInput = mode === 'custom' && !['indexing', 'ready', 'error'].includes(state.status) && !showCelebration && !wsIsCompleted && !wsHasError;
+  const showValidation = mode === 'custom' && ['validating', 'valid', 'invalid'].includes(state.status) && !showCelebration && !hasError;
+  const showIndexing = mode === 'custom' && state.status === 'indexing' && !showCelebration && !wsIsCompleted && !wsHasError;
   const showReady = (mode === 'custom' && state.status === 'ready') || (wsIsCompleted && !showCelebration);
+  const showError = mode === 'custom' && hasError && !showCelebration;
   const isSearchDisabled = mode === 'custom' && state.status !== 'ready' && !wsIsCompleted;
 
   // Can search?
@@ -350,6 +352,34 @@ export function HeroPlayground({
             </button>
           </motion.div>
         )}
+
+        {/* Error State - Inside AnimatePresence to prevent simultaneous renders */}
+        {showError && (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20"
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-amber-400 text-lg">⚠️</span>
+              <div className="flex-1">
+                <p className="text-amber-200 text-sm font-medium mb-1">Something went wrong</p>
+                <p className="text-zinc-400 text-sm">
+                  {state.status === 'error' ? state.message : wsError || 'An unexpected error occurred'}
+                </p>
+                <button 
+                  type="button"
+                  onClick={handleIndexAnother}
+                  className="mt-3 text-sm text-amber-400 hover:text-amber-300 transition-colors font-medium"
+                >
+                  ← Try again with a different repository
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Search Box */}
@@ -405,26 +435,6 @@ export function HeroPlayground({
             <span>{session?.searches.remaining ?? remaining} searches left</span>
           </div>
         </>
-      )}
-
-      {/* Error State */}
-      {(state.status === 'error' || wsHasError) && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20"
-        >
-          <p className="text-red-300 text-sm">
-            {state.status === 'error' ? state.message : wsError}
-          </p>
-          <button 
-            type="button"
-            onClick={handleIndexAnother}
-            className="mt-2 text-xs text-red-400 hover:text-red-300 transition-colors"
-          >
-            Try again
-          </button>
-        </motion.div>
       )}
 
       {/* Upgrade CTA (when limit reached) */}
