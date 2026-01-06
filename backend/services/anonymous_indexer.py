@@ -43,9 +43,9 @@ class JobProgress:
 @dataclass
 class JobStats:
     """Final stats for completed job."""
-    files_indexed: int = 0
-    functions_found: int = 0
-    time_taken_seconds: float = 0
+    files_processed: int = 0
+    functions_indexed: int = 0
+    indexing_time_seconds: float = 0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -345,12 +345,18 @@ async def run_indexing_job(
         job_manager.update_status(job_id, JobStatus.PROCESSING)
 
         # Progress callback for real-time updates
-        async def progress_callback(files_processed: int, functions_found: int, total: int):
+        async def progress_callback(
+            files_processed: int,
+            functions_found: int,
+            total: int,
+            current_file: Optional[str] = None
+        ):
             job_manager.update_progress(
                 job_id,
                 files_processed=files_processed,
                 functions_found=functions_found,
-                files_total=total
+                files_total=total,
+                current_file=current_file
             )
 
         # Run indexing with timeout
@@ -370,9 +376,9 @@ async def run_indexing_job(
         # --- Step 3: Mark complete ---
         elapsed = time.time() - start_time
         stats = JobStats(
-            files_indexed=file_count,
-            functions_found=total_functions,
-            time_taken_seconds=round(elapsed, 2)
+            files_processed=file_count,
+            functions_indexed=total_functions,
+            indexing_time_seconds=round(elapsed, 2)
         )
 
         job_manager.update_status(
