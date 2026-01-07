@@ -41,7 +41,6 @@ export function Hero({ onResultsReady }: Props) {
 
   const switchRepo = (r: DemoRepo) => {
     setRepo(r)
-    search(query, r.id)
   }
 
   const topResult = results[0]

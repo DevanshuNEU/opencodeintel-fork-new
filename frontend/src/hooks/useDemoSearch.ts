@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { API_URL } from '@/config/api'
-import { DEMO_REPOS, DEFAULT_DEMO_QUERY, type DemoRepo } from '@/config/demo-repos'
+import { DEMO_REPOS, type DemoRepo } from '@/config/demo-repos'
 import type { SearchResult } from '@/types'
 
 interface SearchState {
@@ -13,7 +13,7 @@ interface SearchState {
 }
 
 const initialState: SearchState = {
-  query: DEFAULT_DEMO_QUERY,
+  query: '',
   repo: DEMO_REPOS[0],
   results: [],
   loading: false,

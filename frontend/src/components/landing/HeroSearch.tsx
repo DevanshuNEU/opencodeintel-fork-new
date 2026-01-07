@@ -5,12 +5,50 @@ import { cn } from '@/lib/utils'
 
 type VisualState = 'idle' | 'focused' | 'searching' | 'done'
 
-// glow colors match python brand - blue idle, yellow searching, green done
 const glowStyles: Record<VisualState, string> = {
   idle: 'shadow-[0_0_0_1px_rgba(75,139,190,0.3)]',
   focused: 'shadow-[0_0_0_2px_var(--python-blue),0_0_20px_rgba(75,139,190,0.4)]',
   searching: 'shadow-[0_0_0_2px_var(--python-yellow),0_0_30px_rgba(255,212,59,0.3)]',
   done: 'shadow-[0_0_0_2px_#34D399,0_0_20px_rgba(52,211,153,0.4)]',
+}
+
+const EXAMPLE_QUERIES = [
+  'authentication decorator',
+  'error handling middleware',
+  'database connection pool',
+  'request validation logic',
+  'caching implementation',
+]
+
+function useTypewriter(phrases: string[], typingSpeed = 80, deleteSpeed = 40, pauseDuration = 2000) {
+  const [text, setText] = useState('')
+  const [phraseIndex, setPhraseIndex] = useState(0)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    const currentPhrase = phrases[phraseIndex]
+    
+    const timeout = setTimeout(() => {
+      if (!isDeleting) {
+        if (text.length < currentPhrase.length) {
+          setText(currentPhrase.slice(0, text.length + 1))
+        } else {
+          setTimeout(() => setIsDeleting(true), pauseDuration)
+        }
+      } else {
+        if (text.length > 0) {
+          setText(text.slice(0, -1))
+        } else {
+          setIsDeleting(false)
+          setPhraseIndex((prev) => (prev + 1) % phrases.length)
+        }
+      }
+    }, isDeleting ? deleteSpeed : typingSpeed)
+
+    return () => clearTimeout(timeout)
+  }, [text, phraseIndex, isDeleting, phrases, typingSpeed, deleteSpeed, pauseDuration])
+
+  return text
 }
 
 interface Props {
@@ -32,11 +70,10 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
   const inputRef = useRef<HTMLInputElement>(null)
   const [focused, setFocused] = useState(false)
   const [showDone, setShowDone] = useState(false)
+  const animatedPlaceholder = useTypewriter(EXAMPLE_QUERIES)
 
   useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }))
 
-  // flash green briefly when search completes - 800ms is long enough to notice
-  // but short enough to not feel sluggish
   useEffect(() => {
     if (searching) return
     if (!value) return
@@ -56,6 +93,8 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
     if (value.trim()) onSubmit()
   }
 
+  const showAnimatedPlaceholder = !value && !focused
+
   return (
     <form onSubmit={submit} className="w-full">
       <motion.div
@@ -63,12 +102,11 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
           'relative bg-zinc-900/90 backdrop-blur-sm rounded-2xl border border-zinc-800/50 overflow-hidden transition-shadow duration-300',
           glowStyles[state]
         )}
-        // subtle pulse while searching - makes it feel alive
         animate={searching ? { scale: [1, 1.005, 1] } : {}}
         transition={{ duration: 1.5, repeat: searching ? Infinity : 0 }}
       >
         {/* Shimmer border effect */}
-        <div className="absolute inset-0 rounded-2xl opacity-50">
+        <div className="absolute inset-0 rounded-2xl opacity-50 pointer-events-none">
           <div 
             className="absolute inset-0 rounded-2xl"
             style={{
@@ -93,16 +131,26 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
             {searching ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
           </div>
 
-          <input
-            ref={inputRef}
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            placeholder="Search for anything..."
-            className="flex-1 bg-transparent text-white text-lg placeholder:text-zinc-500 focus:outline-none"
-          />
+          <div className="relative flex-1">
+            <input
+              ref={inputRef}
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              placeholder={focused ? 'Search for anything...' : ''}
+              className="w-full bg-transparent text-white text-lg placeholder:text-zinc-500 focus:outline-none"
+            />
+            {showAnimatedPlaceholder && (
+              <div className="absolute inset-0 flex items-center pointer-events-none">
+                <span className="text-zinc-500 text-lg">
+                  {animatedPlaceholder}
+                  <span className="animate-pulse">|</span>
+                </span>
+              </div>
+            )}
+          </div>
 
           {value && !searching && (
             <button type="button" onClick={() => onChange('')} className="text-zinc-500 hover:text-zinc-300">
