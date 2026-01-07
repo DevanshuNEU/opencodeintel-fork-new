@@ -133,115 +133,108 @@ export function Hero({ onResultsReady }: Props) {
           ))}
         </motion.div>
 
-        {/* Result card with mouse-following glow */}
-        <motion.div
-          className="mt-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          <div
-            ref={cardRef}
-            onMouseMove={handleMouseMove}
-            className="relative group"
-          >
-            {/* Mouse glow effect */}
-            <div
-              className="absolute -inset-px rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-              style={{
-                background: `radial-gradient(400px circle at ${mousePos.x}px ${mousePos.y}px, rgba(59,130,246,0.15), transparent 40%)`
-              }}
-            />
-            
-            {/* Card */}
-            <div className="relative rounded-xl border border-white/[0.08] bg-zinc-900/50 backdrop-blur-sm overflow-hidden">
-              <AnimatePresence mode="wait">
-                {loading ? (
-                  <motion.div
-                    key="loading"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="p-6"
-                  >
-                    <div className="flex items-center gap-3 mb-4">
-                      <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                      <span className="text-sm text-zinc-500">Searching {repo.name}...</span>
-                    </div>
-                    <div className="space-y-3 animate-pulse">
-                      <div className="h-5 w-48 bg-white/5 rounded" />
-                      <div className="h-3 w-32 bg-white/5 rounded" />
-                      <div className="h-24 bg-white/[0.02] rounded-lg mt-3" />
-                    </div>
-                  </motion.div>
-                ) : topResult ? (
-                  <motion.div
-                    key="result"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    {/* Header */}
-                    <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between bg-white/[0.02]">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="text-xs text-zinc-500">Found in {searchTime}ms</span>
+        {/* Result card - only shows when loading or has results */}
+        <AnimatePresence>
+          {(loading || topResult) && (
+            <motion.div
+              className="mt-8"
+              initial={{ opacity: 0, y: 20, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -10, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div
+                ref={cardRef}
+                onMouseMove={handleMouseMove}
+                className="relative group"
+              >
+                {/* Mouse glow effect */}
+                <div
+                  className="absolute -inset-px rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                  style={{
+                    background: `radial-gradient(400px circle at ${mousePos.x}px ${mousePos.y}px, rgba(59,130,246,0.15), transparent 40%)`
+                  }}
+                />
+                
+                {/* Card */}
+                <div className="relative rounded-xl border border-white/[0.08] bg-zinc-900/50 backdrop-blur-sm overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    {loading ? (
+                      <motion.div
+                        key="loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="p-6"
+                      >
+                        <div className="flex items-center gap-3 mb-4">
+                          <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                          <span className="text-sm text-zinc-500">Searching {repo.name}...</span>
                         </div>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-medium">
-                          {Math.round(topResult.score * 100)}% match
-                        </span>
-                      </div>
-                      <span className="text-xs text-zinc-600">{repo.name}</span>
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="p-5">
-                      <div className="flex items-start gap-3 mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-semibold text-white">{topResult.name}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 uppercase font-medium">
-                              {topResult.type}
+                        <div className="space-y-3 animate-pulse">
+                          <div className="h-5 w-48 bg-white/5 rounded" />
+                          <div className="h-3 w-32 bg-white/5 rounded" />
+                          <div className="h-24 bg-white/[0.02] rounded-lg mt-3" />
+                        </div>
+                      </motion.div>
+                    ) : topResult ? (
+                      <motion.div
+                        key="result"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        {/* Header */}
+                        <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between bg-white/[0.02]">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                              <span className="text-xs text-zinc-500">Found in {searchTime}ms</span>
+                            </div>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-medium">
+                              {Math.round(topResult.score * 100)}% match
                             </span>
                           </div>
-                          <div className="text-xs text-zinc-600 font-mono mt-1">{topResult.file_path}</div>
+                          <span className="text-xs text-zinc-600">{repo.name}</span>
                         </div>
-                      </div>
-                      
-                      {/* Code preview */}
-                      <div className="relative rounded-lg overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-violet-500/5" />
-                        <pre className="relative text-xs text-zinc-300 bg-black/40 p-4 overflow-x-auto font-mono leading-relaxed">
-                          <code>{topResult.content?.slice(0, 250)}...</code>
-                        </pre>
-                      </div>
-                    </div>
+                        
+                        {/* Content */}
+                        <div className="p-5">
+                          <div className="flex items-start gap-3 mb-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-sm font-semibold text-white">{topResult.name}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 uppercase font-medium">
+                                  {topResult.type}
+                                </span>
+                              </div>
+                              <div className="text-xs text-zinc-600 font-mono mt-1">{topResult.file_path}</div>
+                            </div>
+                          </div>
+                          
+                          {/* Code preview */}
+                          <div className="relative rounded-lg overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-violet-500/5" />
+                            <pre className="relative text-xs text-zinc-300 bg-black/40 p-4 overflow-x-auto font-mono leading-relaxed">
+                              <code>{topResult.content?.slice(0, 250)}...</code>
+                            </pre>
+                          </div>
+                        </div>
 
-                    {/* Footer */}
-                    {results.length > 1 && (
-                      <div className="px-5 py-3 border-t border-white/[0.06] bg-white/[0.01]">
-                        <span className="text-xs text-zinc-600">+{results.length - 1} more results</span>
-                      </div>
-                    )}
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="empty"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="p-10 text-center"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3">
-                      <Search className="w-5 h-5 text-zinc-600" />
-                    </div>
-                    <p className="text-sm text-zinc-500">Search to see results</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </motion.div>
+                        {/* Footer */}
+                        {results.length > 1 && (
+                          <div className="px-5 py-3 border-t border-white/[0.06] bg-white/[0.01]">
+                            <span className="text-xs text-zinc-600">+{results.length - 1} more results</span>
+                          </div>
+                        )}
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* CTA */}
         <motion.div
