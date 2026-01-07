@@ -67,6 +67,18 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
         animate={searching ? { scale: [1, 1.005, 1] } : {}}
         transition={{ duration: 1.5, repeat: searching ? Infinity : 0 }}
       >
+        {/* Shimmer border effect */}
+        <div className="absolute inset-0 rounded-2xl opacity-50">
+          <div 
+            className="absolute inset-0 rounded-2xl"
+            style={{
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)',
+              backgroundSize: '200% 100%',
+              animation: 'shimmer 3s ease-in-out infinite',
+            }}
+          />
+        </div>
+
         {searching && (
           <motion.div
             className="absolute top-0 left-0 h-0.5 bg-gradient-to-r from-[var(--python-yellow)] to-[var(--python-blue)]"

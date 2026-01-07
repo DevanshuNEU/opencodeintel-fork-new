@@ -99,7 +99,9 @@ export function Hero({ onResultsReady }: Props) {
             </span>
           </h1>
           <p className="mt-5 text-lg text-zinc-400 max-w-lg mx-auto">
-            Stop grep-ing through thousands of files. Describe what you need and get the exact function.
+            Stop grep-ing through thousands of files.
+            <br />
+            Describe what you need and get the exact function.
           </p>
         </motion.div>
 
