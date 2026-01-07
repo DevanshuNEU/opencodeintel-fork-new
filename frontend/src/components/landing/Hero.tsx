@@ -1,6 +1,6 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Terminal, Sparkles } from 'lucide-react'
+import { Terminal, Sparkles, Loader2 } from 'lucide-react'
 import { HeroSearch, type HeroSearchHandle } from './HeroSearch'
 import { RepoSwitcher } from './RepoSwitcher'
 import { useDemoSearch, DEMO_REPOS, type DemoRepo } from '@/hooks/useDemoSearch'
@@ -13,21 +13,12 @@ interface Props {
 export function Hero({ onResultsReady }: Props) {
   const searchRef = useRef<HeroSearchHandle>(null)
   const { query, repo, results, loading, searchTime, setQuery, setRepo, search } = useDemoSearch(true)
-  const [showComparison, setShowComparison] = useState(false)
 
   useEffect(() => {
     if (results.length && onResultsReady) {
       onResultsReady(results, query, repo.id, searchTime)
     }
   }, [results, query, repo.id, searchTime, onResultsReady])
-
-  // show comparison after search completes
-  useEffect(() => {
-    if (results.length > 0 && !loading) {
-      const timer = setTimeout(() => setShowComparison(true), 300)
-      return () => clearTimeout(timer)
-    }
-  }, [results, loading])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -43,7 +34,6 @@ export function Hero({ onResultsReady }: Props) {
 
   const switchRepo = (r: DemoRepo) => {
     setRepo(r)
-    setShowComparison(false)
     search(query, r.id)
   }
 
@@ -68,7 +58,7 @@ export function Hero({ onResultsReady }: Props) {
       <div className="relative max-w-5xl mx-auto w-full">
         {/* headline */}
         <motion.div
-          className="text-center mb-12"
+          className="text-center mb-10"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -78,14 +68,14 @@ export function Hero({ onResultsReady }: Props) {
             <br />
             <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">We fixed it.</span>
           </h1>
-          <p className="text-xl text-zinc-400 mt-6 max-w-2xl mx-auto">
-            Semantic search for codebases. Ask for what you need, get the exact function.
+          <p className="text-xl text-zinc-400 mt-6 max-w-xl mx-auto">
+            Ask what you need. Get the exact function.
           </p>
         </motion.div>
 
         {/* search */}
         <motion.div
-          className="max-w-3xl mx-auto mb-6"
+          className="max-w-3xl mx-auto mb-5"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -94,7 +84,7 @@ export function Hero({ onResultsReady }: Props) {
             ref={searchRef}
             value={query}
             onChange={setQuery}
-            onSubmit={() => { setShowComparison(false); search() }}
+            onSubmit={() => search()}
             searching={loading}
             repoName={repo.name}
           />
@@ -109,72 +99,110 @@ export function Hero({ onResultsReady }: Props) {
           <RepoSwitcher repos={DEMO_REPOS} selected={repo} onSelect={switchRepo} disabled={loading} />
         </motion.div>
 
-        {/* side-by-side comparison */}
+        {/* side-by-side comparison - always visible */}
         <motion.div
-          className="mt-16 grid md:grid-cols-2 gap-6"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: showComparison ? 1 : 0, y: showComparison ? 0 : 40 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="mt-12 grid md:grid-cols-2 gap-5"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
         >
-          {/* grep side - the problem */}
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.03] overflow-hidden">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-red-500/10 bg-red-500/[0.05]">
+          {/* grep side */}
+          <div className="rounded-2xl border border-red-500/20 bg-[#0c0c0f] overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-red-500/[0.05]">
               <Terminal className="w-4 h-4 text-red-400" />
               <span className="text-sm font-medium text-red-400">grep</span>
-              <span className="ml-auto text-xs text-red-400/60">847 results • 2.3s</span>
+              <span className="ml-auto text-xs text-zinc-500">847 results • 2.3s</span>
             </div>
-            <div className="p-5 font-mono text-sm">
+            <div className="p-4 font-mono text-sm">
               <div className="text-zinc-500">$ grep -r "auth" ./src</div>
-              <div className="mt-4 space-y-1.5 text-zinc-600">
+              <div className="mt-3 space-y-1 text-zinc-600 text-xs">
                 <div>src/components/AuthButton.tsx</div>
                 <div>src/utils/auth.ts</div>
                 <div>src/hooks/useAuth.ts</div>
                 <div>src/pages/auth/login.tsx</div>
                 <div>src/middleware/auth.ts</div>
-                <div className="text-zinc-700">... 842 more results</div>
+                <div className="text-zinc-700">... 842 more</div>
               </div>
-              <div className="mt-6 pt-4 border-t border-red-500/10 text-red-400 text-xs">
-                Which one has the actual logic? 🤷
+              <div className="mt-4 pt-3 border-t border-white/5 text-red-400/80 text-xs">
+                Which one has the logic? 🤷
               </div>
             </div>
           </div>
 
-          {/* codeintel side - the solution */}
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.03] overflow-hidden">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-emerald-500/10 bg-emerald-500/[0.05]">
+          {/* codeintel side */}
+          <div className="rounded-2xl border border-emerald-500/20 bg-[#0c0c0f] overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-emerald-500/[0.05]">
               <Sparkles className="w-4 h-4 text-emerald-400" />
               <span className="text-sm font-medium text-emerald-400">CodeIntel</span>
-              <span className="ml-auto text-xs text-emerald-400/60">
-                {topResult ? '1 result' : 'searching'} • {searchTime ? `${searchTime}ms` : '...'}
+              <span className="ml-auto text-xs text-zinc-500">
+                {loading ? (
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    searching...
+                  </span>
+                ) : topResult ? (
+                  `1 result • ${searchTime}ms`
+                ) : (
+                  '1 result • 67ms'
+                )}
               </span>
             </div>
-            <div className="p-5">
-              {topResult ? (
+            <div className="p-4">
+              {loading ? (
+                <div className="space-y-3 animate-pulse">
+                  <div className="flex justify-between">
+                    <div className="h-5 w-40 bg-zinc-800 rounded" />
+                    <div className="h-8 w-12 bg-zinc-800 rounded" />
+                  </div>
+                  <div className="h-3 w-32 bg-zinc-800 rounded" />
+                  <div className="h-24 bg-zinc-800/50 rounded-lg" />
+                </div>
+              ) : topResult ? (
                 <>
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between mb-2">
                     <div>
-                      <span className="font-mono font-semibold text-white">{topResult.name}</span>
-                      <span className="ml-2 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 uppercase">
+                      <span className="font-mono font-semibold text-white text-sm">{topResult.name}</span>
+                      <span className="ml-2 text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 uppercase">
                         {topResult.type}
                       </span>
-                      <div className="text-xs text-zinc-500 font-mono mt-1">{topResult.file_path}</div>
+                      <div className="text-[11px] text-zinc-500 font-mono mt-1 truncate max-w-[200px]">{topResult.file_path}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-emerald-400">{Math.round(topResult.score * 100)}%</div>
-                      <div className="text-[10px] text-zinc-500">match</div>
+                      <div className="text-xl font-bold text-emerald-400">{Math.round(topResult.score * 100)}%</div>
                     </div>
                   </div>
-                  <pre className="text-xs text-zinc-300 bg-black/30 rounded-lg p-3 overflow-x-auto max-h-32">
-                    <code>{topResult.content?.slice(0, 300)}{topResult.content && topResult.content.length > 300 ? '...' : ''}</code>
+                  <pre className="text-[11px] text-zinc-400 bg-black/40 rounded-lg p-3 overflow-hidden max-h-24">
+                    <code>{topResult.content?.slice(0, 200)}...</code>
                   </pre>
-                  <div className="mt-4 pt-3 border-t border-emerald-500/10 text-emerald-400 text-xs">
-                    Found exactly what you needed ✓
+                  <div className="mt-3 pt-2 border-t border-white/5 text-emerald-400/80 text-xs">
+                    Found it ✓
                   </div>
                 </>
               ) : (
-                <div className="h-32 flex items-center justify-center text-zinc-600 text-sm">
-                  Search to see the magic...
-                </div>
+                <>
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <span className="font-mono font-semibold text-white text-sm">authenticate_user</span>
+                      <span className="ml-2 text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 uppercase">
+                        function
+                      </span>
+                      <div className="text-[11px] text-zinc-500 font-mono mt-1">src/auth/handlers.py</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xl font-bold text-emerald-400">94%</div>
+                    </div>
+                  </div>
+                  <pre className="text-[11px] text-zinc-400 bg-black/40 rounded-lg p-3 overflow-hidden max-h-24">
+                    <code>{`def authenticate_user(credentials):
+    user = db.get_user(credentials['email'])
+    if verify_password(credentials['password'], user.hash):
+        return create_session(user)
+    raise AuthError("Invalid")`}</code>
+                  </pre>
+                  <div className="mt-3 pt-2 border-t border-white/5 text-emerald-400/80 text-xs">
+                    Found it ✓
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -182,7 +210,7 @@ export function Hero({ onResultsReady }: Props) {
 
         {/* keyboard hint */}
         <motion.p
-          className="text-center mt-10 text-sm text-zinc-600"
+          className="text-center mt-8 text-sm text-zinc-600"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
