@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight } from 'lucide-react'
 import { Navbar, Hero, ResultsView } from '@/components/landing'
 import { API_URL } from '@/config/api'
 import { playgroundAPI } from '@/services/playground-api'
@@ -114,28 +113,7 @@ export function LandingPage() {
           onSignUp={() => navigate('/signup')}
         />
       ) : (
-        <>
-          <Hero onResultsReady={handleHeroResults} />
-          
-          {/* CTA section */}
-          <section className="py-24 px-6 border-t border-white/5">
-            <div className="max-w-3xl mx-auto text-center">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Ready to actually find code?
-              </h2>
-              <p className="text-lg text-zinc-400 mb-8">
-                Index your repo in under a minute. Free to start.
-              </p>
-              <button
-                onClick={() => navigate('/signup')}
-                className="group inline-flex items-center gap-2 px-8 py-4 text-lg font-semibold text-white rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 hover:from-blue-400 hover:to-cyan-400 transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
-              >
-                Get started free
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
-            </div>
-          </section>
-        </>
+        <Hero onResultsReady={handleHeroResults} />
       )}
     </div>
   )
