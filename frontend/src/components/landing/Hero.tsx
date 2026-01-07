@@ -252,13 +252,9 @@ export function Hero({ onResultsReady }: Props) {
         >
           <a
             href="/signup"
-            className="group relative inline-flex items-center gap-2"
+            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-zinc-300 rounded-lg border border-zinc-700 hover:border-zinc-500 hover:text-white hover:bg-white/5 transition-all"
           >
-            {/* Glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-violet-600 rounded-lg blur opacity-30 group-hover:opacity-50 transition-opacity" />
-            <div className="relative px-6 py-3 text-sm font-medium text-white rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 transition-all">
-              Index your first repo free →
-            </div>
+            Index your first repo free →
           </a>
           <p className="text-xs text-zinc-500 mt-4">
             Works with any Python repository • Now in beta
