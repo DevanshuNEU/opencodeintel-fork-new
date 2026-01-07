@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Loader2, Sparkles } from 'lucide-react'
+import { Search, Loader2 } from 'lucide-react'
 import { HeroSearch, type HeroSearchHandle } from './HeroSearch'
 import { useDemoSearch, DEMO_REPOS, type DemoRepo } from '@/hooks/useDemoSearch'
 import type { SearchResult } from '@/types'
@@ -14,7 +14,7 @@ const PYTHON_REPOS = DEMO_REPOS.filter(r => ['flask', 'fastapi'].includes(r.id))
 export function Hero({ onResultsReady }: Props) {
   const searchRef = useRef<HeroSearchHandle>(null)
   const cardRef = useRef<HTMLDivElement>(null)
-  const { query, repo, results, loading, searchTime, setQuery, setRepo, search } = useDemoSearch(true)
+  const { query, repo, results, loading, searchTime, setQuery, setRepo, search } = useDemoSearch(false)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
 
   useEffect(() => {
@@ -71,25 +71,12 @@ export function Hero({ onResultsReady }: Props) {
       </div>
 
       <div className="relative max-w-3xl mx-auto w-full">
-        {/* Badge */}
-        <motion.div
-          className="flex justify-center mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
-            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-xs text-blue-300">Semantic code search for Python</span>
-          </div>
-        </motion.div>
-
         {/* Headline */}
         <motion.div
           className="text-center mb-10"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
+          transition={{ duration: 0.5 }}
         >
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.1] tracking-tight">
             Find code by meaning,
@@ -109,7 +96,7 @@ export function Hero({ onResultsReady }: Props) {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
         >
           <HeroSearch
             ref={searchRef}
@@ -126,7 +113,7 @@ export function Hero({ onResultsReady }: Props) {
           className="mt-4 flex items-center justify-center gap-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
         >
           <span className="text-xs text-zinc-600">Try on:</span>
           {PYTHON_REPOS.map(r => (
@@ -152,7 +139,7 @@ export function Hero({ onResultsReady }: Props) {
           className="mt-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
         >
           <div
             ref={cardRef}
@@ -262,7 +249,7 @@ export function Hero({ onResultsReady }: Props) {
           className="mt-10 text-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.4 }}
         >
           <a
             href="/signup"
@@ -275,6 +262,16 @@ export function Hero({ onResultsReady }: Props) {
             </div>
           </a>
           <p className="text-xs text-zinc-600 mt-4">Free for open source projects</p>
+          
+          {/* Beta announcement - Linear style */}
+          <a 
+            href="/changelog" 
+            className="inline-flex items-center gap-1.5 mt-4 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-medium">BETA</span>
+            <span>Now available for Python repos</span>
+            <span>→</span>
+          </a>
         </motion.div>
       </div>
     </section>
