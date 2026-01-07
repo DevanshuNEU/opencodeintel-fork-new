@@ -258,20 +258,12 @@ export function Hero({ onResultsReady }: Props) {
             {/* Glow */}
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-violet-600 rounded-lg blur opacity-30 group-hover:opacity-50 transition-opacity" />
             <div className="relative px-6 py-3 text-sm font-medium text-white rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 transition-all">
-              Try with your own repo →
+              Index your first repo free →
             </div>
           </a>
-          <p className="text-xs text-zinc-600 mt-4">Free for open source projects</p>
-          
-          {/* Beta announcement - Linear style */}
-          <a 
-            href="/changelog" 
-            className="inline-flex items-center gap-1.5 mt-4 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-          >
-            <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-medium">BETA</span>
-            <span>Now available for Python repos</span>
-            <span>→</span>
-          </a>
+          <p className="text-xs text-zinc-500 mt-4">
+            Works with any Python repository • Now in beta
+          </p>
         </motion.div>
       </div>
     </section>
