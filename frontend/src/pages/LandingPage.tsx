@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { AnimatedSection } from '@/components/ui/AnimatedSection'
+import { ArrowRight } from 'lucide-react'
 import { Navbar, Hero, ResultsView } from '@/components/landing'
 import { API_URL } from '@/config/api'
 import { playgroundAPI } from '@/services/playground-api'
@@ -118,87 +117,22 @@ export function LandingPage() {
         <>
           <Hero onResultsReady={handleHeroResults} />
           
-          {/* Problem Section */}
-          <section className="py-32 px-6 border-t border-white/5">
-            <AnimatedSection>
-              <div className="max-w-4xl mx-auto text-center">
-                <span className="text-red-400 text-sm font-medium uppercase tracking-wider">The Problem</span>
-                <h2 className="text-4xl font-bold mt-4 mb-6">You've been here before</h2>
-                <p className="text-xl text-gray-400 mb-12">New codebase. 50,000 lines. You need to find where authentication happens.</p>
-                
-                <div className="bg-[#0d0d0f] rounded-xl border border-white/10 overflow-hidden text-left">
-                  <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-white/5">
-                    <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                    <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                    <span className="ml-2 text-xs text-gray-500 font-mono">terminal</span>
-                  </div>
-                  <div className="p-6 font-mono text-sm">
-                    <div className="text-gray-400">$ grep -r "auth" ./src</div>
-                    <div className="mt-4 text-gray-500 space-y-1">
-                      <div>src/components/AuthButton.tsx</div>
-                      <div>src/utils/auth.ts</div>
-                      <div>src/pages/auth/login.tsx</div>
-                      <div>src/middleware/auth.ts</div>
-                      <div className="text-gray-600">... 842 more results</div>
-                    </div>
-                    <div className="mt-6 text-red-400">847 results. Which one handles the actual logic?</div>
-                  </div>
-                </div>
-              </div>
-            </AnimatedSection>
-          </section>
-
-          {/* Solution Section */}
-          <section className="py-32 px-6">
-            <AnimatedSection>
-              <div className="max-w-4xl mx-auto text-center">
-                <span className="text-green-400 text-sm font-medium uppercase tracking-wider">The Solution</span>
-                <h2 className="text-4xl font-bold mt-4 mb-6">Search by meaning, not keywords</h2>
-                <p className="text-xl text-gray-400 mb-12">Ask for "authentication logic" and get the function that actually handles it.</p>
-                
-                <div className="bg-[#0d0d0f] rounded-xl border border-green-500/20 overflow-hidden text-left">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-green-500/5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                        <span className="text-white font-bold text-[10px]">CI</span>
-                      </div>
-                      <span className="text-xs text-gray-400 font-mono">CodeIntel</span>
-                    </div>
-                    <span className="text-xs text-green-400 font-mono">1 result • 89ms</span>
-                  </div>
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <span className="font-mono font-semibold text-white">authenticate_user</span>
-                        <span className="ml-3 text-[10px] px-2 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20">function</span>
-                        <p className="text-sm text-gray-500 font-mono mt-1">src/auth/handlers.py</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-green-400">94%</div>
-                        <div className="text-[10px] text-gray-500">match</div>
-                      </div>
-                    </div>
-                    <pre className="text-sm text-gray-300 bg-black/30 rounded-lg p-4 overflow-x-auto"><code>{`def authenticate_user(credentials: dict) -> User:
-    """Validates credentials and returns user."""
-    user = db.get_user(credentials['email'])
-    if not verify_password(credentials['password'], user.hash):
-        raise AuthError("Invalid credentials")
-    return create_session(user)`}</code></pre>
-                  </div>
-                </div>
-              </div>
-            </AnimatedSection>
-          </section>
-
-          {/* CTA */}
-          <section className="py-32 px-6 border-t border-white/5">
-            <div className="max-w-2xl mx-auto text-center">
-              <h2 className="text-4xl font-bold mb-6">Ready to find code faster?</h2>
-              <p className="text-xl text-gray-400 mb-8">Index your first repo in under a minute. No credit card required.</p>
-              <Button size="lg" className="bg-white text-black hover:bg-gray-100" onClick={() => navigate('/signup')}>
+          {/* CTA section */}
+          <section className="py-24 px-6 border-t border-white/5">
+            <div className="max-w-3xl mx-auto text-center">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Ready to actually find code?
+              </h2>
+              <p className="text-lg text-zinc-400 mb-8">
+                Index your repo in under a minute. Free to start.
+              </p>
+              <button
+                onClick={() => navigate('/signup')}
+                className="group inline-flex items-center gap-2 px-8 py-4 text-lg font-semibold text-white rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 hover:from-blue-400 hover:to-cyan-400 transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
+              >
                 Get started free
-              </Button>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
             </div>
           </section>
         </>
