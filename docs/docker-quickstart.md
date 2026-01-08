@@ -116,7 +116,7 @@ lsof -i :8000
 **Issue:** Environment variables not found  
 **Fix:** Make sure `.env` exists in project root (not just backend/)
 
-**Full troubleshooting guide:** See `DOCKER_TROUBLESHOOTING.md`
+**Full troubleshooting guide:** See [docker-troubleshooting.md](./docker-troubleshooting.md)
 
 ## Development Mode
 
@@ -131,7 +131,7 @@ docker compose -f docker-compose.dev.yml up
 
 ## Next Steps
 
-- 📖 Read full deployment guide: `DEPLOYMENT.md`
+- Read full deployment guide: [deployment.md](./deployment.md)
 - 🚀 Deploy to Railway: `./scripts/deploy-railway.sh`
 - 🌐 Deploy to Vercel: `./scripts/deploy-vercel.sh`
 - 🧪 Run tests: See `backend/README.md`
@@ -186,11 +186,11 @@ Once local dev works, deploy to production:
    ./scripts/deploy-vercel.sh
    ```
 
-Full deployment guide: `DEPLOYMENT.md`
+Full deployment guide: [deployment.md](./deployment.md)
 
 ---
 
 **Need help?** 
-- 📖 Check `DOCKER_TROUBLESHOOTING.md`
+- Check [docker-troubleshooting.md](./docker-troubleshooting.md)
 - 🐛 Open an issue: https://github.com/OpenCodeIntel/opencodeintel/issues
 - 📝 See full docs: `README.md`

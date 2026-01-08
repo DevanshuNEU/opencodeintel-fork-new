@@ -1,13 +1,13 @@
-# Contributing to CodeIntel
+# Contributing to OpenCodeIntel
 
-First off, thanks for considering contributing! CodeIntel is better because of people like you.
+Thanks for considering contributing! OpenCodeIntel is better because of people like you.
 
 ## Quick Start
 
 ```bash
 # Fork the repo, then clone
-git clone https://github.com/YOUR_USERNAME/codeintel-mcp
-cd codeintel-mcp
+git clone https://github.com/YOUR_USERNAME/opencodeintel
+cd opencodeintel
 
 # Set up backend
 cd backend
@@ -138,4 +138,4 @@ Be respectful, constructive, and collaborative. We're all here to build somethin
 
 ---
 
-**Thanks for contributing! 🚀**
+**Thanks for contributing!**

@@ -278,6 +278,6 @@ docker compose exec backend curl http://backend:8000/health
 
 1. Check GitHub Issues: https://github.com/OpenCodeIntel/opencodeintel/issues
 2. Run verification script: `./scripts/verify-setup.sh`
-3. Check DEPLOYMENT.md for step-by-step instructions
+3. Check [deployment.md](./deployment.md) for step-by-step instructions
 4. Make sure Docker Desktop has enough resources (Settings → Resources)
    - Recommended: 4GB RAM, 2 CPUs minimum
