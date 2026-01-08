@@ -41,14 +41,14 @@ export function StyleInsights({ repoId, apiUrl, apiKey }: StyleInsightsProps) {
 
         <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
           <div className="text-sm text-gray-400 mb-1">Async Adoption</div>
-          <div className="text-3xl font-bold text-green-400">
+          <div className="text-3xl font-bold text-blue-500">
             {data.summary?.async_adoption || '0%'}
           </div>
         </div>
 
         <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
           <div className="text-sm text-gray-400 mb-1">Type Hints</div>
-          <div className="text-3xl font-bold text-purple-400">
+          <div className="text-3xl font-bold text-blue-500">
             {data.summary?.type_hints_usage || '0%'}
           </div>
         </div>
@@ -126,7 +126,7 @@ export function StyleInsights({ repoId, apiUrl, apiKey }: StyleInsightsProps) {
             <span className="text-gray-300">Async/Await Usage</span>
             <div className="flex items-center gap-2">
               <span className="text-gray-500">{data.patterns?.async_usage}</span>
-              <span className="px-2 py-0.5 text-xs bg-green-500/10 text-green-400 border border-green-500/20 rounded">
+              <span className="px-2 py-0.5 text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">
                 {data.patterns?.async_percentage?.toFixed(0)}%
               </span>
             </div>
@@ -136,7 +136,7 @@ export function StyleInsights({ repoId, apiUrl, apiKey }: StyleInsightsProps) {
             <span className="text-gray-300">Type Annotations</span>
             <div className="flex items-center gap-2">
               <span className="text-gray-500">{data.patterns?.type_annotations}</span>
-              <span className="px-2 py-0.5 text-xs bg-green-500/10 text-green-400 border border-green-500/20 rounded">
+              <span className="px-2 py-0.5 text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">
                 {data.patterns?.typed_percentage?.toFixed(0)}%
               </span>
             </div>
