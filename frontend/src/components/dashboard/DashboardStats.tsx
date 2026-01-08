@@ -29,51 +29,54 @@ export function DashboardStats({ repos }: DashboardStatsProps) {
   const totalRepos = repos.length
   const indexedRepos = repos.filter(r => r.status === 'indexed').length
   const totalFunctions = repos.reduce((acc, r) => acc + (r.file_count || 0), 0)
-  const indexingRepos = repos.filter(r => r.status === 'indexing' || r.status === 'cloning').length
+  const indexingCount = repos.filter(r => r.status === 'indexing' || r.status === 'cloning').length
 
   const animatedTotal = useAnimatedCounter(totalRepos)
   const animatedIndexed = useAnimatedCounter(indexedRepos)
   const animatedFunctions = useAnimatedCounter(totalFunctions)
 
-  const stats = [
-    { label: 'Total Repositories', value: animatedTotal, suffix: '' },
-    { label: 'Indexed', value: animatedIndexed, suffix: `/${totalRepos}`, hasIndicator: indexingRepos > 0, indicatorText: `${indexingRepos} indexing...` },
-    { label: 'Functions Indexed', value: animatedFunctions, suffix: '' },
-  ]
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-      {stats.map((stat, index) => (
-        <motion.div
-          key={stat.label}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1, duration: 0.4 }}
-          className="relative overflow-hidden rounded-2xl bg-[#111113] border border-white/[0.06] p-6"
-        >
-          {/* Subtle glow - same blue-violet for all */}
-          <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-blue-500/20 to-violet-500/20 blur-3xl" />
-          
-          <div className="relative">
-            <p className="text-sm text-zinc-500 mb-2">{stat.label}</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-400">
-                {stat.value.toLocaleString()}
-              </span>
-              {stat.suffix && (
-                <span className="text-xl text-zinc-600">{stat.suffix}</span>
-              )}
-            </div>
-            
-            {stat.hasIndicator && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-blue-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                {stat.indicatorText}
-              </div>
-            )}
+      {/* Total Repos */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-2xl bg-[#111113] border border-white/[0.06] p-6"
+      >
+        <p className="text-sm text-zinc-500 mb-2">Total Repositories</p>
+        <p className="text-4xl font-bold text-blue-500">{animatedTotal}</p>
+      </motion.div>
+
+      {/* Indexed */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="relative overflow-hidden rounded-2xl bg-[#111113] border border-white/[0.06] p-6"
+      >
+        <p className="text-sm text-zinc-500 mb-2">Indexed</p>
+        <div className="flex items-baseline gap-1">
+          <span className="text-4xl font-bold text-blue-500">{animatedIndexed}</span>
+          <span className="text-xl text-zinc-600">/{totalRepos}</span>
+        </div>
+        {indexingCount > 0 && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-blue-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            {indexingCount} indexing...
           </div>
-        </motion.div>
-      ))}
+        )}
+      </motion.div>
+
+      {/* Functions */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="relative overflow-hidden rounded-2xl bg-[#111113] border border-white/[0.06] p-6"
+      >
+        <p className="text-sm text-zinc-500 mb-2">Functions Indexed</p>
+        <p className="text-4xl font-bold text-blue-500">{animatedFunctions.toLocaleString()}</p>
+      </motion.div>
     </div>
   )
 }
