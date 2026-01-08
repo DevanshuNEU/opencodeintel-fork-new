@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
+import { LayoutDashboard, Search, GitFork, Code2, Zap } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { RepoList } from '../RepoList'
 import { AddRepoForm } from '../AddRepoForm'
@@ -91,11 +92,11 @@ export function DashboardHome() {
   const isRepoView = selectedRepo && selectedRepoData
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: '📊' },
-    { id: 'search', label: 'Search', icon: '🔍' },
-    { id: 'dependencies', label: 'Dependencies', icon: '🔗' },
-    { id: 'insights', label: 'Code Style', icon: '✨' },
-    { id: 'impact', label: 'Impact', icon: '💥' },
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'search', label: 'Search', icon: Search },
+    { id: 'dependencies', label: 'Dependencies', icon: GitFork },
+    { id: 'insights', label: 'Code Style', icon: Code2 },
+    { id: 'impact', label: 'Impact', icon: Zap },
   ] as const
 
   return (
@@ -189,7 +190,7 @@ export function DashboardHome() {
                       : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <span>{tab.icon}</span>
+                  <tab.icon className="w-4 h-4" />
                   <span>{tab.label}</span>
                 </button>
               ))}
