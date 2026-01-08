@@ -9,6 +9,7 @@ import ReactFlow, {
 } from 'reactflow'
 import type { Node, Edge } from 'reactflow'
 import dagre from 'dagre'
+import { Lightbulb } from 'lucide-react'
 import 'reactflow/dist/style.css'
 import { useDependencyGraph } from '../hooks/useCachedQuery'
 
@@ -357,8 +358,9 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
             <span className="text-gray-400">Dependency</span>
           </div>
         </div>
-        <div className="mt-3 pt-3 border-t border-white/5 text-xs text-gray-500">
-          💡 Click any node to highlight its dependencies • Drag to pan • Scroll to zoom
+        <div className="mt-3 pt-3 border-t border-white/5 text-xs text-gray-500 flex items-center gap-2">
+          <Lightbulb className="w-3.5 h-3.5 text-blue-400" />
+          <span>Click any node to highlight its dependencies • Drag to pan • Scroll to zoom</span>
         </div>
       </div>
     </div>

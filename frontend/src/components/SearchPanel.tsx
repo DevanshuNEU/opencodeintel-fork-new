@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { Zap, Search } from 'lucide-react';
 import { SearchBox, ResultCard } from './search';
 import type { SearchResult } from '../types';
 
@@ -83,7 +84,10 @@ export function SearchPanel({ repoId, apiUrl, apiKey, repoUrl }: SearchPanelProp
             {cached && (
               <>
                 <span className="text-text-muted">•</span>
-                <span className="badge-success">⚡ Cached</span>
+                <span className="badge-success inline-flex items-center gap-1">
+                  <Zap className="w-3 h-3" />
+                  Cached
+                </span>
               </>
             )}
           </div>
@@ -108,7 +112,7 @@ export function SearchPanel({ repoId, apiUrl, apiKey, repoUrl }: SearchPanelProp
       {results.length === 0 && hasSearched && !loading && (
         <div className="card p-16 text-center">
           <div className="w-20 h-20 mx-auto mb-4 rounded-2xl glass flex items-center justify-center">
-            <span className="text-4xl">🔍</span>
+            <Search className="w-10 h-10 text-gray-500" />
           </div>
           <h3 className="text-base font-semibold mb-2 text-text-primary">No results found</h3>
           <p className="text-sm text-text-secondary">
