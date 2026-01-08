@@ -1,3 +1,5 @@
+import { useState, useRef, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import type { Repository } from '../types'
 import { RepoGridSkeleton } from './ui/Skeleton'
 
@@ -8,129 +10,133 @@ interface RepoListProps {
   loading?: boolean
 }
 
-// Status indicator with glow effect
-const StatusIndicator = ({ status }: { status: string }) => {
-  const config = {
-    indexed: { color: 'green', label: 'Indexed', icon: '✓' },
-    cloned: { color: 'blue', label: 'Ready', icon: '✓' },
-    indexing: { color: 'yellow', label: 'Indexing', icon: '◌' },
-    cloning: { color: 'yellow', label: 'Cloning', icon: '◌' },
-    error: { color: 'red', label: 'Error', icon: '✗' },
-  }[status] || { color: 'gray', label: status, icon: '•' }
-
-  const colorClasses = {
-    green: 'bg-green-500/10 text-green-400 border-green-500/20',
-    blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    yellow: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-    red: 'bg-red-500/10 text-red-400 border-red-500/20',
-    gray: 'bg-white/5 text-gray-400 border-white/10',
-  }[config.color]
-
-  const glowClasses = {
-    green: 'shadow-green-500/20',
-    blue: 'shadow-blue-500/20',
-    yellow: 'shadow-yellow-500/20',
-    red: 'shadow-red-500/20',
-    gray: '',
-  }[config.color]
-
+const StatusBadge = ({ status }: { status: string }) => {
+  const isIndexed = status === 'indexed'
+  
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium border rounded-full ${colorClasses} ${status === 'indexing' || status === 'cloning' ? 'animate-pulse' : ''}`}>
-      <span>{config.icon}</span>
-      <span>{config.label}</span>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border
+      ${isIndexed 
+        ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
+        : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+      }`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${isIndexed ? 'bg-blue-400' : 'bg-zinc-500 animate-pulse'}`} />
+      {isIndexed ? 'Indexed' : 'Pending'}
     </span>
   )
 }
 
+const RepoCard = ({ repo, index, onSelect }: { 
+  repo: Repository
+  index: number
+  onSelect: () => void 
+}) => {
+  const cardRef = useRef<HTMLButtonElement>(null)
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const [hovering, setHovering] = useState(false)
+
+  return (
+    <motion.button
+      ref={cardRef}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.3 }}
+      whileHover={{ y: -3 }}
+      onClick={onSelect}
+      onMouseMove={(e) => {
+        if (!cardRef.current) return
+        const rect = cardRef.current.getBoundingClientRect()
+        setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+      }}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      className="group relative text-left rounded-2xl overflow-hidden w-full
+        bg-[#111113] border border-white/[0.06] hover:border-blue-500/40
+        focus:outline-none focus:ring-2 focus:ring-blue-500/50 p-5 transition-colors"
+    >
+      {/* Mouse glow */}
+      {hovering && (
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: `radial-gradient(300px circle at ${mousePos.x}px ${mousePos.y}px, rgba(37, 99, 235, 0.08), transparent 50%)`,
+          }}
+        />
+      )}
+      
+      <div className="relative">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/15 transition-colors">
+            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+          </div>
+          <StatusBadge status={repo.status} />
+        </div>
+
+        {/* Title */}
+        <h3 className="text-lg font-semibold text-white mb-0.5 group-hover:text-blue-400 transition-colors">
+          {repo.name}
+        </h3>
+        <p className="text-xs text-zinc-500 font-mono mb-5">{repo.branch}</p>
+
+        {/* Stats */}
+        <div className="pt-4 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-zinc-500">Functions</span>
+            <span className="text-2xl font-bold text-blue-500">
+              {(repo.file_count || 0).toLocaleString()}
+            </span>
+          </div>
+        </div>
+      </div>
+    </motion.button>
+  )
+}
+
 export function RepoList({ repos, selectedRepo, onSelect, loading }: RepoListProps) {
-  if (loading) {
-    return <RepoGridSkeleton count={3} />
-  }
+  if (loading) return <RepoGridSkeleton count={3} />
 
   if (repos.length === 0) {
     return (
-      <div className="bg-[#111113] border border-white/5 rounded-2xl p-16 text-center">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-white/5 flex items-center justify-center">
-          <span className="text-4xl">📦</span>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="bg-[#111113] border border-white/[0.06] rounded-2xl p-16 text-center"
+      >
+        <div className="w-14 h-14 mx-auto mb-4 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+          <svg className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+          </svg>
         </div>
         <h3 className="text-lg font-semibold mb-2 text-white">No repositories yet</h3>
-        <p className="text-sm text-gray-400 max-w-sm mx-auto">
-          Add your first repository to start searching code semantically with AI
+        <p className="text-sm text-zinc-500 max-w-xs mx-auto">
+          Add your first repository to start searching code with AI
         </p>
-      </div>
+      </motion.div>
     )
   }
 
+  // Sort: indexed first, then by function count desc
+  const sortedRepos = useMemo(() => {
+    return [...repos].sort((a, b) => {
+      if (a.status === 'indexed' && b.status !== 'indexed') return -1
+      if (b.status === 'indexed' && a.status !== 'indexed') return 1
+      return (b.file_count || 0) - (a.file_count || 0)
+    })
+  }, [repos])
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {repos.map((repo, index) => {
-        const isSelected = selectedRepo === repo.id
-
-        return (
-          <button
-            key={repo.id}
-            onClick={() => onSelect(repo.id)}
-            className={`group relative text-left rounded-2xl p-5 transition-all duration-300 
-              bg-[#111113] border overflow-hidden opacity-0 animate-fade-in focus-ring
-              ${isSelected 
-                ? 'border-blue-500/50 shadow-lg shadow-blue-500/10' 
-                : 'border-white/5 hover:border-white/10 hover:bg-[#151518]'
-              }`}
-            style={{ animationDelay: `${index * 0.05}s` }}
-          >
-            {/* Subtle gradient overlay on hover */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            
-            {/* Content */}
-            <div className="relative">
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg
-                    ${isSelected 
-                      ? 'bg-blue-500/20 border border-blue-500/30' 
-                      : 'bg-white/5 border border-white/10 group-hover:bg-white/10'
-                    } transition-colors`}
-                  >
-                    📁
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white truncate max-w-[140px]">
-                      {repo.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 font-mono">{repo.branch}</p>
-                  </div>
-                </div>
-                <StatusIndicator status={repo.status} />
-              </div>
-
-              {/* Stats */}
-              <div className="space-y-3">
-                {repo.file_count > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Functions indexed</span>
-                    <span className="text-sm font-semibold text-blue-400 font-mono">
-                      {repo.file_count.toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                
-                {/* Quick actions on hover */}
-                <div className={`flex items-center gap-2 pt-3 border-t border-white/5 transition-all duration-200
-                  ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                >
-                  <span className="text-xs text-gray-500">Click to explore →</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Selected indicator */}
-            {isSelected && (
-              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-500 to-blue-600 rounded-l-2xl" />
-            )}
-          </button>
-        )
-      })}
+      {sortedRepos.map((repo, index) => (
+        <RepoCard 
+          key={repo.id}
+          repo={repo} 
+          index={index}
+          onSelect={() => onSelect(repo.id)}
+        />
+      ))}
     </div>
   )
 }

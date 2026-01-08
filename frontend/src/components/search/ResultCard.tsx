@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { toast } from 'sonner';
+import { Sparkles } from 'lucide-react';
 import type { SearchResult } from '../../types';
 
 interface ResultCardProps {
@@ -121,7 +122,7 @@ export function ResultCard({
           {aiSummary && isTopResult && (
             <div className="px-4 py-3 bg-accent/5 border-b border-border">
               <div className="flex items-start gap-2">
-                <span className="text-accent text-sm">✨</span>
+                <Sparkles className="w-4 h-4 text-accent" />
                 <div>
                   <p className="text-xs font-medium text-accent mb-1">AI Summary</p>
                   <p className="text-sm text-text-secondary leading-relaxed">{aiSummary}</p>

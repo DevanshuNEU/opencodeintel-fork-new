@@ -129,7 +129,7 @@ export function ImpactAnalyzer({ repoId, apiUrl, apiKey }: ImpactAnalyzerProps) 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
               <div className="text-sm text-gray-400 mb-1">Direct Dependencies</div>
-              <div className="text-3xl font-bold text-blue-400">
+              <div className="text-3xl font-bold text-blue-500">
                 {result.dependency_count}
               </div>
               <div className="text-xs text-gray-500 mt-1">
@@ -139,7 +139,7 @@ export function ImpactAnalyzer({ repoId, apiUrl, apiKey }: ImpactAnalyzerProps) 
 
             <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
               <div className="text-sm text-gray-400 mb-1">Total Impact</div>
-              <div className="text-3xl font-bold text-yellow-400">
+              <div className="text-3xl font-bold text-blue-500">
                 {result.dependent_count}
               </div>
               <div className="text-xs text-gray-500 mt-1">
@@ -149,7 +149,7 @@ export function ImpactAnalyzer({ repoId, apiUrl, apiKey }: ImpactAnalyzerProps) 
 
             <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
               <div className="text-sm text-gray-400 mb-1">Test Files</div>
-              <div className="text-3xl font-bold text-green-400">
+              <div className="text-3xl font-bold text-blue-500">
                 {result.test_files?.length || 0}
               </div>
               <div className="text-xs text-gray-500 mt-1">

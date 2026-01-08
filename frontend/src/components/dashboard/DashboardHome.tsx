@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
+import { LayoutDashboard, Search, GitFork, Code2, Zap } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { RepoList } from '../RepoList'
 import { AddRepoForm } from '../AddRepoForm'
@@ -8,7 +10,7 @@ import { DependencyGraph } from '../DependencyGraph'
 import { RepoOverview } from '../RepoOverview'
 import { StyleInsights } from '../StyleInsights'
 import { ImpactAnalyzer } from '../ImpactAnalyzer'
-import { PerformanceDashboard } from '../PerformanceDashboard'
+import { DashboardStats } from './DashboardStats'
 import type { Repository } from '../../types'
 import { API_URL } from '../../config/api'
 
@@ -21,11 +23,9 @@ export function DashboardHome() {
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
   const [loading, setLoading] = useState(false)
   const [reposLoading, setReposLoading] = useState(true)
-  const [showPerformance, setShowPerformance] = useState(false)
 
   const fetchRepos = async () => {
     if (!session?.access_token) return
-    
     try {
       const response = await fetch(`${API_URL}/repos`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
@@ -49,7 +49,6 @@ export function DashboardHome() {
     try {
       setLoading(true)
       const name = gitUrl.split('/').pop()?.replace('.git', '') || 'unknown'
-      
       const response = await fetch(`${API_URL}/repos`, {
         method: 'POST',
         headers: {
@@ -58,23 +57,16 @@ export function DashboardHome() {
         },
         body: JSON.stringify({ name, git_url: gitUrl, branch })
       })
-      
       const data = await response.json()
-      
       await fetch(`${API_URL}/repos/${data.repo_id}/index`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session?.access_token}` }
       })
-      
       await fetchRepos()
-      toast.success('Repository added!', {
-        description: `${name} is now being indexed`
-      })
+      toast.success('Repository added!', { description: `${name} is now being indexed` })
     } catch (error) {
       console.error('Error adding repo:', error)
-      toast.error('Failed to add repository', {
-        description: 'Please check the Git URL and try again'
-      })
+      toast.error('Failed to add repository', { description: 'Please check the Git URL and try again' })
     } finally {
       setLoading(false)
     }
@@ -82,7 +74,6 @@ export function DashboardHome() {
 
   const handleReindex = async () => {
     if (!selectedRepo) return
-    
     try {
       setLoading(true)
       await fetch(`${API_URL}/repos/${selectedRepo}/index`, {
@@ -91,9 +82,7 @@ export function DashboardHome() {
       })
       await fetchRepos()
     } catch (error) {
-      toast.error('Re-indexing failed', {
-        description: 'Please check the console for details'
-      })
+      toast.error('Re-indexing failed', { description: 'Please check the console for details' })
     } finally {
       setLoading(false)
     }
@@ -102,151 +91,154 @@ export function DashboardHome() {
   const selectedRepoData = repos.find(r => r.id === selectedRepo)
   const isRepoView = selectedRepo && selectedRepoData
 
-  // Tab button component
-  const TabButton = ({ tab, label }: { tab: RepoTab; label: string }) => (
-    <button
-      onClick={() => setActiveTab(tab)}
-      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-        activeTab === tab
-          ? 'bg-blue-500/10 text-blue-400'
-          : 'text-gray-400 hover:text-white hover:bg-white/5'
-      }`}
-    >
-      {label}
-    </button>
-  )
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'search', label: 'Search', icon: Search },
+    { id: 'dependencies', label: 'Dependencies', icon: GitFork },
+    { id: 'insights', label: 'Code Style', icon: Code2 },
+    { id: 'impact', label: 'Impact', icon: Zap },
+  ] as const
 
   return (
     <div className="pt-14 min-h-screen">
-      {/* Performance Dashboard Toggle */}
-      {showPerformance && (
-        <div className="mb-6">
-          <PerformanceDashboard apiUrl={API_URL} apiKey={session?.access_token || ''} />
-        </div>
-      )}
-
-      {/* Repository List View */}
-      {!isRepoView && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-white">Repositories</h1>
-              <p className="text-sm text-gray-400 mt-1">
-                {repos.length} repositories • {repos.filter(r => r.status === 'indexed').length} indexed
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowPerformance(!showPerformance)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                  showPerformance 
-                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-                    : 'border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                📊 Performance
-              </button>
+      <AnimatePresence mode="wait">
+        {/* Repository List View */}
+        {!isRepoView && (
+          <motion.div
+            key="repo-list"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="space-y-6"
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-1">Repositories</h1>
+                <p className="text-gray-400">
+                  Semantic code search powered by AI
+                </p>
+              </div>
               <AddRepoForm onAdd={handleAddRepo} loading={loading} />
             </div>
-          </div>
-          
-          <RepoList 
-            repos={repos} 
-            selectedRepo={selectedRepo}
-            loading={reposLoading}
-            onSelect={(id) => {
-              setSelectedRepo(id)
-              setActiveTab('overview')
-            }}
-          />
-        </div>
-      )}
-
-      {/* Single Repo View */}
-      {isRepoView && (
-        <div>
-          {/* Back Button & Header */}
-          <div className="mb-6">
-            <button
-              onClick={() => {
-                setSelectedRepo(null)
+            
+            {/* Stats */}
+            {repos.length > 0 && <DashboardStats repos={repos} />}
+            
+            {/* Repo Grid */}
+            <RepoList 
+              repos={repos} 
+              selectedRepo={selectedRepo}
+              loading={reposLoading}
+              onSelect={(id) => {
+                setSelectedRepo(id)
                 setActiveTab('overview')
               }}
-              className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors mb-4"
-            >
-              <span>←</span>
-              <span>Back to Repositories</span>
-            </button>
+            />
+          </motion.div>
+        )}
 
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-semibold text-white">{selectedRepoData.name}</h1>
-                <p className="text-sm text-gray-400 mt-1 font-mono">{selectedRepoData.git_url}</p>
+        {/* Single Repo View */}
+        {isRepoView && (
+          <motion.div
+            key="repo-detail"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            {/* Header */}
+            <div className="mb-6">
+              <button
+                onClick={() => { setSelectedRepo(null); setActiveTab('overview') }}
+                className="group flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors mb-4"
+              >
+                <span className="group-hover:-translate-x-1 transition-transform">←</span>
+                <span>Back to Repositories</span>
+              </button>
+
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
+                    <svg className="w-7 h-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold text-white">{selectedRepoData.name}</h1>
+                    <a 
+                      href={selectedRepoData.git_url?.replace('.git', '')} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-gray-400 hover:text-blue-400 transition-colors font-mono"
+                    >
+                      {selectedRepoData.git_url}
+                    </a>
+                  </div>
+                </div>
               </div>
-              
-              {selectedRepoData.status === 'indexed' && (
-                <span className="px-3 py-1 bg-green-500/10 border border-green-500/30 text-green-400 text-sm rounded-full">
-                  ✓ Indexed
-                </span>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-1 mb-6 p-1.5 bg-white/5 rounded-xl w-fit border border-white/5">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2 ${
+                    activeTab === tab.id
+                      ? 'bg-blue-500/20 text-blue-400 shadow-lg shadow-blue-500/10'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <div className="bg-gradient-to-br from-[#111113] to-[#0a0a0c] border border-white/5 rounded-2xl overflow-hidden">
+              {activeTab === 'overview' && (
+                <RepoOverview 
+                  repo={selectedRepoData} 
+                  onReindex={handleReindex}
+                  apiUrl={API_URL}
+                  apiKey={session?.access_token || ''}
+                />
+              )}
+              {activeTab === 'search' && (
+                <SearchPanel 
+                  repoId={selectedRepo} 
+                  apiUrl={API_URL} 
+                  apiKey={session?.access_token || ''}
+                  repoUrl={selectedRepoData?.git_url?.replace('.git', '')}
+                />
+              )}
+              {activeTab === 'dependencies' && (
+                <DependencyGraph 
+                  repoId={selectedRepo} 
+                  apiUrl={API_URL} 
+                  apiKey={session?.access_token || ''} 
+                />
+              )}
+              {activeTab === 'insights' && (
+                <StyleInsights 
+                  repoId={selectedRepo} 
+                  apiUrl={API_URL} 
+                  apiKey={session?.access_token || ''} 
+                />
+              )}
+              {activeTab === 'impact' && (
+                <ImpactAnalyzer 
+                  repoId={selectedRepo} 
+                  apiUrl={API_URL} 
+                  apiKey={session?.access_token || ''} 
+                />
               )}
             </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6 p-1 bg-white/5 rounded-xl w-fit">
-            <TabButton tab="overview" label="Overview" />
-            <TabButton tab="search" label="Search" />
-            <TabButton tab="dependencies" label="Dependencies" />
-            <TabButton tab="insights" label="Code Style" />
-            <TabButton tab="impact" label="Impact" />
-          </div>
-
-          {/* Tab Content */}
-          <div className="bg-[#111113] border border-white/5 rounded-xl">
-            {activeTab === 'overview' && (
-              <RepoOverview 
-                repo={selectedRepoData} 
-                onReindex={handleReindex}
-                apiUrl={API_URL}
-                apiKey={session?.access_token || ''}
-              />
-            )}
-
-            {activeTab === 'search' && (
-              <SearchPanel 
-                repoId={selectedRepo} 
-                apiUrl={API_URL} 
-                apiKey={session?.access_token || ''}
-                repoUrl={selectedRepoData?.git_url?.replace('.git', '')}
-              />
-            )}
-
-            {activeTab === 'dependencies' && (
-              <DependencyGraph 
-                repoId={selectedRepo} 
-                apiUrl={API_URL} 
-                apiKey={session?.access_token || ''} 
-              />
-            )}
-
-            {activeTab === 'insights' && (
-              <StyleInsights 
-                repoId={selectedRepo} 
-                apiUrl={API_URL} 
-                apiKey={session?.access_token || ''} 
-              />
-            )}
-
-            {activeTab === 'impact' && (
-              <ImpactAnalyzer 
-                repoId={selectedRepo} 
-                apiUrl={API_URL} 
-                apiKey={session?.access_token || ''} 
-              />
-            )}
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

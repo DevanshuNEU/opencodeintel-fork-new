@@ -9,6 +9,7 @@ import ReactFlow, {
 } from 'reactflow'
 import type { Node, Edge } from 'reactflow'
 import dagre from 'dagre'
+import { Lightbulb } from 'lucide-react'
 import 'reactflow/dist/style.css'
 import { useDependencyGraph } from '../hooks/useCachedQuery'
 
@@ -235,21 +236,21 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
           <div className="text-sm text-gray-400 mb-1">Total Files</div>
-          <div className="text-3xl font-bold text-white">{allNodes.length}</div>
+          <div className="text-3xl font-bold text-blue-500">{allNodes.length}</div>
         </div>
         <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
           <div className="text-sm text-gray-400 mb-1">Dependencies</div>
-          <div className="text-3xl font-bold text-blue-400">{edges.length}</div>
+          <div className="text-3xl font-bold text-blue-500">{edges.length}</div>
         </div>
         <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
           <div className="text-sm text-gray-400 mb-1">Avg per File</div>
-          <div className="text-3xl font-bold text-white">
+          <div className="text-3xl font-bold text-blue-500">
             {metrics?.avg_dependencies?.toFixed(1) || 0}
           </div>
         </div>
         <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
           <div className="text-sm text-gray-400 mb-1">Showing</div>
-          <div className="text-3xl font-bold text-green-400">{nodes.length}</div>
+          <div className="text-3xl font-bold text-blue-500">{nodes.length}</div>
         </div>
       </div>
 
@@ -357,8 +358,9 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
             <span className="text-gray-400">Dependency</span>
           </div>
         </div>
-        <div className="mt-3 pt-3 border-t border-white/5 text-xs text-gray-500">
-          💡 Click any node to highlight its dependencies • Drag to pan • Scroll to zoom
+        <div className="mt-3 pt-3 border-t border-white/5 text-xs text-gray-500 flex items-center gap-2">
+          <Lightbulb className="w-3.5 h-3.5 text-blue-400" />
+          <span>Click any node to highlight its dependencies • Drag to pan • Scroll to zoom</span>
         </div>
       </div>
     </div>
