@@ -13,7 +13,7 @@
 
 Instead:
 
-1. **Email:** devanshu.sharma@northeastern.edu
+1. **Email:** chicholikar.d@northeastern.edu
 2. **Subject:** `[SECURITY] CodeIntel Vulnerability Report`
 3. **Include:**
    - Description of the vulnerability
