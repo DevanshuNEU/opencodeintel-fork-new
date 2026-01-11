@@ -75,6 +75,27 @@ class NamingConventions:
 
 
 @dataclass
+class TestPattern:
+    """Detected testing patterns"""
+    framework: Optional[str] = None  # pytest, unittest, nose
+    fixture_style: Optional[str] = None  # pytest fixtures, setUp/tearDown
+    mock_library: Optional[str] = None  # unittest.mock, pytest-mock, responses
+    test_file_pattern: str = "test_*.py"
+    has_conftest: bool = False
+    has_factories: bool = False  # factory_boy, faker
+    coverage_config: bool = False
+
+
+@dataclass
+class ConfigPattern:
+    """Detected configuration patterns"""
+    env_loading: Optional[str] = None  # python-dotenv, environs, django-environ
+    settings_pattern: Optional[str] = None  # single file, split by env, pydantic
+    secrets_handling: Optional[str] = None  # env vars, vault, AWS secrets
+    config_validation: bool = False  # pydantic Settings, dynaconf
+
+
+@dataclass
 class CodebaseDNA:
     """Complete DNA profile of a codebase"""
     repo_id: str
@@ -86,12 +107,13 @@ class CodebaseDNA:
     error_patterns: ErrorPattern = field(default_factory=ErrorPattern)
     logging_patterns: LoggingPattern = field(default_factory=LoggingPattern)
     naming_conventions: NamingConventions = field(default_factory=NamingConventions)
+    test_patterns: TestPattern = field(default_factory=TestPattern)
+    config_patterns: ConfigPattern = field(default_factory=ConfigPattern)
     middleware_patterns: List[str] = field(default_factory=list)
     common_imports: List[str] = field(default_factory=list)
     skip_directories: List[str] = field(default_factory=list)
     api_versioning: Optional[str] = None
     router_pattern: Optional[str] = None
-    test_patterns: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -192,6 +214,34 @@ class CodebaseDNA:
                 md += f"**Router:** `{self.router_pattern}`\n"
             md += "\n"
         
+        # Test patterns
+        if self.test_patterns.framework:
+            md += "## Testing Patterns\n"
+            md += f"**Framework:** {self.test_patterns.framework}\n"
+            if self.test_patterns.fixture_style:
+                md += f"**Fixture Style:** {self.test_patterns.fixture_style}\n"
+            if self.test_patterns.mock_library:
+                md += f"**Mock Library:** {self.test_patterns.mock_library}\n"
+            md += f"**Test File Pattern:** `{self.test_patterns.test_file_pattern}`\n"
+            if self.test_patterns.has_conftest:
+                md += "**Has conftest.py:** Yes\n"
+            if self.test_patterns.has_factories:
+                md += "**Uses Factories:** Yes\n"
+            md += "\n"
+        
+        # Config patterns
+        if self.config_patterns.env_loading or self.config_patterns.settings_pattern:
+            md += "## Configuration Patterns\n"
+            if self.config_patterns.env_loading:
+                md += f"**Env Loading:** {self.config_patterns.env_loading}\n"
+            if self.config_patterns.settings_pattern:
+                md += f"**Settings Pattern:** {self.config_patterns.settings_pattern}\n"
+            if self.config_patterns.secrets_handling:
+                md += f"**Secrets Handling:** {self.config_patterns.secrets_handling}\n"
+            if self.config_patterns.config_validation:
+                md += "**Config Validation:** Yes (Pydantic/dynaconf)\n"
+            md += "\n"
+        
         # Skip directories
         if self.skip_directories:
             md += "## Skip Directories\n"
@@ -245,13 +295,16 @@ class DNAExtractor:
     def _detect_framework(self, files: List[Path]) -> Optional[str]:
         """Detect the primary framework used in the codebase"""
         framework_indicators = {
-            'fastapi': ['from fastapi', 'FastAPI()', 'APIRouter'],
+            'fastapi': ['from fastapi', 'FastAPI()', 'APIRouter', 'fastapi.routing'],
+            'django-rest-framework': ['from rest_framework', 'rest_framework.views', 'APIView', 'ViewSet', 'serializers.Serializer'],
+            'django': ['from django', 'django.conf', 'INSTALLED_APPS', 'django.urls', 'django.views'],
             'starlette': ['from starlette', 'Starlette()', 'starlette.routing'],
-            'flask': ['from flask', 'Flask(__name__)', '@app.route'],
-            'django': ['from django', 'django.conf', 'INSTALLED_APPS'],
-            'express': ['require("express")', 'express()', 'app.use('],
-            'nextjs': ['from next', 'getServerSideProps', 'getStaticProps'],
-            'nestjs': ['@Module(', '@Injectable(', '@Controller('],
+            'flask': ['from flask', 'Flask(__name__)', '@app.route', 'flask.Blueprint'],
+            'aiohttp': ['from aiohttp', 'aiohttp.web', 'web.Application'],
+            'tornado': ['from tornado', 'tornado.web', 'RequestHandler'],
+            'express': ['require("express")', 'express()', 'app.use(', 'express.Router'],
+            'nextjs': ['from next', 'getServerSideProps', 'getStaticProps', 'next/router'],
+            'nestjs': ['@Module(', '@Injectable(', '@Controller(', 'NestFactory'],
         }
         
         scores = Counter()
@@ -266,7 +319,11 @@ class DNAExtractor:
                 pass
         
         if scores:
-            return scores.most_common(1)[0][0]
+            top_framework = scores.most_common(1)[0][0]
+            # DRF is always used WITH Django, so note both
+            if top_framework == 'django-rest-framework':
+                return 'django + DRF'
+            return top_framework
         return None
 
     def _extract_middleware_patterns(self, files: List[Path], framework: Optional[str]) -> List[str]:
@@ -292,6 +349,22 @@ class DNAExtractor:
                     for dep in deps:
                         patterns.append(f'Depends({dep})')
                 
+                # Django middleware
+                if 'MIDDLEWARE' in content and ('django' in content or '.middleware' in content):
+                    patterns.append('Django MIDDLEWARE setting')
+                if 'MiddlewareMixin' in content:
+                    patterns.append('MiddlewareMixin')
+                if 'process_request' in content or 'process_response' in content:
+                    patterns.append('Django middleware hooks')
+                
+                # DRF middleware/permissions
+                if 'permission_classes' in content:
+                    perms = re.findall(r'permission_classes\s*=\s*\[([^\]]+)\]', content)
+                    for perm in perms:
+                        patterns.append(f'DRF permission_classes: {perm.strip()}')
+                if 'authentication_classes' in content:
+                    patterns.append('DRF authentication_classes')
+                
                 # Express middleware
                 if 'app.use(' in content:
                     patterns.append('app.use(middleware)')
@@ -299,6 +372,8 @@ class DNAExtractor:
                 # Flask decorators
                 if '@app.before_request' in content:
                     patterns.append('@app.before_request')
+                if '@app.after_request' in content:
+                    patterns.append('@app.after_request')
                     
             except:
                 pass
@@ -415,8 +490,36 @@ class DNAExtractor:
                 content = file_path.read_text(encoding='utf-8', errors='ignore')
                 
                 # Check for Supabase
-                if 'supabase' in content.lower():
+                if 'supabase' in content.lower() and not pattern.orm_used:
                     pattern.orm_used = 'Supabase'
+                
+                # Check for Django ORM
+                if 'from django.db import models' in content or 'models.Model' in content:
+                    pattern.orm_used = 'Django ORM'
+                    if 'models.UUIDField' in content:
+                        pattern.id_type = 'UUID (Django UUIDField)'
+                    elif 'models.AutoField' in content or 'models.BigAutoField' in content:
+                        pattern.id_type = 'AutoField (Django)'
+                    if 'models.DateTimeField' in content:
+                        pattern.timestamp_type = 'DateTimeField (Django)'
+                    if 'on_delete=models.CASCADE' in content:
+                        pattern.cascade_deletes = True
+                
+                # Check for SQLAlchemy
+                if 'from sqlalchemy' in content or 'sqlalchemy' in content:
+                    pattern.orm_used = 'SQLAlchemy'
+                    if 'UUID' in content:
+                        pattern.id_type = 'UUID (SQLAlchemy)'
+                    if 'DateTime' in content:
+                        pattern.timestamp_type = 'DateTime (SQLAlchemy)'
+                
+                # Check for Prisma (JS/TS)
+                if 'prisma' in content.lower() or '@prisma/client' in content:
+                    pattern.orm_used = 'Prisma'
+                
+                # Check for Tortoise ORM
+                if 'from tortoise' in content or 'tortoise.models' in content:
+                    pattern.orm_used = 'Tortoise ORM'
                     
                 # Check SQL files for patterns
                 if file_path.suffix == '.sql':
@@ -442,6 +545,10 @@ class DNAExtractor:
                         pattern.connection_pattern = 'Singleton: get_supabase_service()'
                     elif 'create_client(' in content:
                         pattern.connection_pattern = 'Direct: create_client()'
+                    elif 'DATABASES' in content and 'django' in content.lower():
+                        pattern.connection_pattern = 'Django DATABASES setting'
+                    elif 'create_engine(' in content:
+                        pattern.connection_pattern = 'SQLAlchemy: create_engine()'
                         
             except Exception as e:
                 logger.debug(f"Error reading {file_path}: {e}")
@@ -612,6 +719,109 @@ class DNAExtractor:
         
         return api_versioning, router_pattern
 
+    def _extract_test_patterns(self, files: List[Path], repo_path: Path) -> TestPattern:
+        """Extract testing patterns from codebase"""
+        pattern = TestPattern()
+        
+        # Check for conftest.py (pytest)
+        conftest_files = list(repo_path.rglob('conftest.py'))
+        pattern.has_conftest = len(conftest_files) > 0
+        
+        # Check for test directory structure
+        test_dirs = [d for d in ['tests', 'test'] if (repo_path / d).exists()]
+        
+        for file_path in files:
+            try:
+                content = file_path.read_text(encoding='utf-8', errors='ignore')
+                
+                # Detect test framework
+                if 'import pytest' in content or '@pytest' in content:
+                    pattern.framework = 'pytest'
+                    if '@pytest.fixture' in content:
+                        pattern.fixture_style = 'pytest fixtures'
+                elif 'from unittest' in content or 'import unittest' in content:
+                    if not pattern.framework:
+                        pattern.framework = 'unittest'
+                    if 'def setUp(' in content or 'def tearDown(' in content:
+                        pattern.fixture_style = 'setUp/tearDown'
+                elif 'from django.test' in content:
+                    pattern.framework = 'django.test'
+                    pattern.fixture_style = 'Django TestCase'
+                
+                # Detect mock library
+                if 'from unittest.mock import' in content or 'from unittest import mock' in content:
+                    pattern.mock_library = 'unittest.mock'
+                elif 'import responses' in content:
+                    pattern.mock_library = 'responses'
+                elif 'pytest_mock' in content or 'mocker' in content:
+                    pattern.mock_library = 'pytest-mock'
+                elif '@patch(' in content:
+                    pattern.mock_library = 'unittest.mock (decorator)'
+                
+                # Detect factories
+                if 'factory_boy' in content or 'factory.Factory' in content:
+                    pattern.has_factories = True
+                if 'from faker import' in content:
+                    pattern.has_factories = True
+                    
+            except:
+                pass
+        
+        # Check for coverage config
+        if (repo_path / '.coveragerc').exists() or (repo_path / 'pyproject.toml').exists():
+            pattern.coverage_config = True
+        
+        return pattern
+
+    def _extract_config_patterns(self, files: List[Path], repo_path: Path) -> ConfigPattern:
+        """Extract configuration patterns from codebase"""
+        pattern = ConfigPattern()
+        
+        for file_path in files:
+            try:
+                content = file_path.read_text(encoding='utf-8', errors='ignore')
+                
+                # Detect env loading
+                if 'from dotenv import' in content or 'load_dotenv' in content:
+                    pattern.env_loading = 'python-dotenv'
+                elif 'from environs import' in content:
+                    pattern.env_loading = 'environs'
+                elif 'import environ' in content or 'django-environ' in content:
+                    pattern.env_loading = 'django-environ'
+                elif 'from decouple import' in content:
+                    pattern.env_loading = 'python-decouple'
+                
+                # Detect settings pattern
+                if 'pydantic' in content and ('BaseSettings' in content or 'BaseModel' in content):
+                    pattern.settings_pattern = 'Pydantic Settings'
+                    pattern.config_validation = True
+                elif 'dynaconf' in content:
+                    pattern.settings_pattern = 'Dynaconf'
+                    pattern.config_validation = True
+                elif 'DJANGO_SETTINGS_MODULE' in content:
+                    pattern.settings_pattern = 'Django settings'
+                
+                # Detect secrets handling
+                if 'boto3' in content and 'secretsmanager' in content:
+                    pattern.secrets_handling = 'AWS Secrets Manager'
+                elif 'hvac' in content or 'vault' in content.lower():
+                    pattern.secrets_handling = 'HashiCorp Vault'
+                elif 'os.getenv(' in content or 'os.environ' in content:
+                    pattern.secrets_handling = 'Environment variables'
+                    
+            except:
+                pass
+        
+        # Check for specific config files
+        if (repo_path / 'settings.py').exists():
+            pattern.settings_pattern = 'Single settings file'
+        elif (repo_path / 'settings').is_dir():
+            pattern.settings_pattern = 'Split settings (by environment)'
+        elif (repo_path / 'config').is_dir():
+            pattern.settings_pattern = 'Config directory'
+        
+        return pattern
+
     def extract_dna(self, repo_path: str, repo_id: str) -> CodebaseDNA:
         """Extract complete DNA profile from a codebase"""
         repo_path = Path(repo_path)
@@ -641,6 +851,8 @@ class DNAExtractor:
         error_patterns = self._extract_error_patterns(files)
         logging_patterns = self._extract_logging_patterns(files)
         naming_conventions = self._extract_naming_conventions(files)
+        test_patterns = self._extract_test_patterns(files, repo_path)
+        config_patterns = self._extract_config_patterns(files, repo_path)
         common_imports = self._extract_common_imports(files)
         api_versioning, router_pattern = self._extract_api_patterns(files, repo_path)
         
@@ -654,6 +866,8 @@ class DNAExtractor:
             error_patterns=error_patterns,
             logging_patterns=logging_patterns,
             naming_conventions=naming_conventions,
+            test_patterns=test_patterns,
+            config_patterns=config_patterns,
             middleware_patterns=middleware_patterns,
             common_imports=common_imports,
             skip_directories=list(self.SKIP_DIRS),
