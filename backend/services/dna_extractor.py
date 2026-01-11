@@ -78,6 +78,7 @@ class NamingConventions:
 class CodebaseDNA:
     """Complete DNA profile of a codebase"""
     repo_id: str
+    detected_framework: Optional[str] = None
     language_distribution: Dict[str, int] = field(default_factory=dict)
     auth_patterns: AuthPattern = field(default_factory=AuthPattern)
     service_patterns: ServicePattern = field(default_factory=ServicePattern)
@@ -85,6 +86,7 @@ class CodebaseDNA:
     error_patterns: ErrorPattern = field(default_factory=ErrorPattern)
     logging_patterns: LoggingPattern = field(default_factory=LoggingPattern)
     naming_conventions: NamingConventions = field(default_factory=NamingConventions)
+    middleware_patterns: List[str] = field(default_factory=list)
     common_imports: List[str] = field(default_factory=list)
     skip_directories: List[str] = field(default_factory=list)
     api_versioning: Optional[str] = None
@@ -98,11 +100,22 @@ class CodebaseDNA:
         """Generate markdown DNA document for AI consumption"""
         md = f"# Codebase DNA\n\n"
         
+        # Framework detection
+        if self.detected_framework:
+            md += f"**Detected Framework:** {self.detected_framework}\n\n"
+        
         # Language distribution
         md += "## Language Distribution\n"
         for lang, count in sorted(self.language_distribution.items(), key=lambda x: -x[1]):
             md += f"- {lang}: {count} files\n"
         md += "\n"
+        
+        # Middleware patterns
+        if self.middleware_patterns:
+            md += "## Middleware Patterns\n"
+            for mw in self.middleware_patterns:
+                md += f"- `{mw}`\n"
+            md += "\n"
         
         # Auth patterns
         md += "## Authentication Patterns\n"
@@ -229,7 +242,70 @@ class DNAExtractor:
         
         return files
 
-    def _extract_auth_patterns(self, files: List[Path], repo_path: Path) -> AuthPattern:
+    def _detect_framework(self, files: List[Path]) -> Optional[str]:
+        """Detect the primary framework used in the codebase"""
+        framework_indicators = {
+            'fastapi': ['from fastapi', 'FastAPI()', 'APIRouter'],
+            'starlette': ['from starlette', 'Starlette()', 'starlette.routing'],
+            'flask': ['from flask', 'Flask(__name__)', '@app.route'],
+            'django': ['from django', 'django.conf', 'INSTALLED_APPS'],
+            'express': ['require("express")', 'express()', 'app.use('],
+            'nextjs': ['from next', 'getServerSideProps', 'getStaticProps'],
+            'nestjs': ['@Module(', '@Injectable(', '@Controller('],
+        }
+        
+        scores = Counter()
+        for file_path in files:
+            try:
+                content = file_path.read_text(encoding='utf-8', errors='ignore')
+                for framework, indicators in framework_indicators.items():
+                    for indicator in indicators:
+                        if indicator in content:
+                            scores[framework] += 1
+            except:
+                pass
+        
+        if scores:
+            return scores.most_common(1)[0][0]
+        return None
+
+    def _extract_middleware_patterns(self, files: List[Path], framework: Optional[str]) -> List[str]:
+        """Extract middleware patterns based on framework"""
+        patterns = []
+        
+        for file_path in files:
+            try:
+                content = file_path.read_text(encoding='utf-8', errors='ignore')
+                
+                # Starlette/ASGI middleware
+                if 'class' in content and 'Middleware' in content:
+                    middlewares = re.findall(r'class\s+(\w*Middleware\w*)', content)
+                    patterns.extend(middlewares)
+                if 'Middleware(' in content:
+                    patterns.append('Middleware(cls)')
+                if 'app.add_middleware' in content:
+                    patterns.append('app.add_middleware()')
+                
+                # FastAPI Depends
+                if 'Depends(' in content:
+                    deps = re.findall(r'Depends\((\w+)\)', content)
+                    for dep in deps:
+                        patterns.append(f'Depends({dep})')
+                
+                # Express middleware
+                if 'app.use(' in content:
+                    patterns.append('app.use(middleware)')
+                
+                # Flask decorators
+                if '@app.before_request' in content:
+                    patterns.append('@app.before_request')
+                    
+            except:
+                pass
+        
+        return list(set(patterns))
+
+    def _extract_auth_patterns(self, files: List[Path], repo_path: Path, framework: Optional[str] = None) -> AuthPattern:
         """Extract authentication patterns from codebase"""
         pattern = AuthPattern()
         
@@ -240,7 +316,7 @@ class DNAExtractor:
             try:
                 content = file_path.read_text(encoding='utf-8', errors='ignore')
                 
-                # Detect middleware imports
+                # FastAPI patterns
                 if 'require_auth' in content:
                     pattern.middleware_used.append('require_auth')
                 if 'public_auth' in content:
@@ -248,11 +324,41 @@ class DNAExtractor:
                 if 'Depends(' in content and 'auth' in content.lower():
                     pattern.auth_decorators.append('Depends(require_auth)')
                 
+                # Starlette patterns
+                if 'AuthenticationMiddleware' in content:
+                    pattern.middleware_used.append('AuthenticationMiddleware')
+                if 'AuthCredentials' in content:
+                    pattern.auth_context_type = 'AuthCredentials'
+                if 'AuthenticationBackend' in content:
+                    pattern.middleware_used.append('AuthenticationBackend')
+                if 'requires(' in content:
+                    scopes = re.findall(r'requires\([\'"](\w+)[\'"]\)', content)
+                    for scope in scopes:
+                        pattern.auth_decorators.append(f'@requires("{scope}")')
+                
+                # Flask patterns
+                if 'login_required' in content:
+                    pattern.auth_decorators.append('@login_required')
+                if 'flask_login' in content:
+                    pattern.middleware_used.append('flask_login')
+                if 'current_user' in content:
+                    pattern.auth_context_type = 'current_user'
+                
+                # Django patterns
+                if '@login_required' in content:
+                    pattern.auth_decorators.append('@login_required')
+                if 'permission_required' in content:
+                    pattern.auth_decorators.append('@permission_required')
+                if 'request.user' in content:
+                    pattern.auth_context_type = 'request.user'
+                
                 # Detect ownership checks
                 if 'get_repo_or_404' in content:
                     pattern.ownership_checks.append('get_repo_or_404(repo_id, auth.user_id)')
                 if 'verify_ownership' in content:
                     pattern.ownership_checks.append('verify_ownership')
+                if 'user_id' in content and ('==' in content or '.filter(' in content):
+                    pattern.ownership_checks.append('user_id check')
                 
                 # Detect AuthContext
                 if 'AuthContext' in content:
@@ -516,6 +622,10 @@ class DNAExtractor:
         files = self._discover_files(repo_path)
         logger.info(f"Found {len(files)} code files")
         
+        # Detect framework first
+        detected_framework = self._detect_framework(files)
+        logger.info(f"Detected framework: {detected_framework}")
+        
         # Language distribution
         lang_dist = Counter()
         for f in files:
@@ -523,8 +633,9 @@ class DNAExtractor:
             if lang != 'unknown':
                 lang_dist[lang] += 1
         
-        # Extract all patterns
-        auth_patterns = self._extract_auth_patterns(files, repo_path)
+        # Extract all patterns (pass framework where needed)
+        auth_patterns = self._extract_auth_patterns(files, repo_path, detected_framework)
+        middleware_patterns = self._extract_middleware_patterns(files, detected_framework)
         service_patterns = self._extract_service_patterns(files, repo_path)
         database_patterns = self._extract_database_patterns(files, repo_path)
         error_patterns = self._extract_error_patterns(files)
@@ -535,6 +646,7 @@ class DNAExtractor:
         
         dna = CodebaseDNA(
             repo_id=repo_id,
+            detected_framework=detected_framework,
             language_distribution=dict(lang_dist),
             auth_patterns=auth_patterns,
             service_patterns=service_patterns,
@@ -542,6 +654,7 @@ class DNAExtractor:
             error_patterns=error_patterns,
             logging_patterns=logging_patterns,
             naming_conventions=naming_conventions,
+            middleware_patterns=middleware_patterns,
             common_imports=common_imports,
             skip_directories=list(self.SKIP_DIRS),
             api_versioning=api_versioning,
