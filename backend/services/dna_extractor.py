@@ -498,6 +498,7 @@ class DNAExtractor:
                 logger.debug(f"Error reading {file_path}: {e}")
         
         pattern.middleware_used = list(set(pattern.middleware_used))
+        pattern.auth_decorators = list(set(pattern.auth_decorators))
         pattern.ownership_checks = list(set(pattern.ownership_checks))
         return pattern
     
@@ -646,27 +647,32 @@ class DNAExtractor:
             if file_path.suffix != '.py':
                 continue
             
-            try:
-                content = file_path.read_text(encoding='utf-8', errors='ignore')
-                
-                # Detect logger import
-                if 'from services.observability import logger' in content:
-                    pattern.logger_import = 'from services.observability import logger'
-                    pattern.structured_logging = True
-                elif 'import logging' in content:
-                    pattern.logger_import = 'import logging'
-                
-                # Detect log levels
-                for level in ['debug', 'info', 'warning', 'error', 'critical']:
-                    if f'logger.{level}' in content:
-                        log_levels.add(level)
-                
-                # Detect metrics
-                if 'metrics.increment' in content or 'metrics.gauge' in content:
-                    pattern.metrics_tracking = True
-                    
-            except Exception as e:
-                logger.debug(f"Error reading {file_path}: {e}")
+            content = self._safe_read_file(file_path)
+            if not content:
+                continue
+            
+            # Detect logger import/setup
+            if 'from services.observability import logger' in content:
+                pattern.logger_import = 'from services.observability import logger'
+                pattern.structured_logging = True
+            elif 'logging.getLogger' in content:
+                pattern.logger_import = 'logging.getLogger(__name__)'
+            elif 'import logging' in content and not pattern.logger_import:
+                pattern.logger_import = 'import logging'
+            
+            # Detect log levels (both logger.X and logging.X)
+            for level in ['debug', 'info', 'warning', 'error', 'critical']:
+                if f'logger.{level}' in content or f'logging.{level}' in content or f'.{level}(' in content:
+                    log_levels.add(level)
+            
+            # Detect metrics
+            if 'metrics.increment' in content or 'metrics.gauge' in content:
+                pattern.metrics_tracking = True
+            
+            # Detect structlog
+            if 'structlog' in content:
+                pattern.structured_logging = True
+                pattern.logger_import = 'structlog'
         
         pattern.log_levels_used = list(log_levels)
         return pattern
