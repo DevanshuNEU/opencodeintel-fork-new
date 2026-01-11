@@ -552,22 +552,17 @@ class DNAExtractor:
         return dna
     
     def save_to_cache(self, repo_id: str, dna: CodebaseDNA) -> bool:
-        """Save DNA to database cache"""
+        """Save DNA to database cache using architecture_patterns column"""
         try:
-            data = {
-                'repo_id': repo_id,
-                'dna_data': dna.to_dict(),
-                'dna_markdown': dna.to_markdown(),
-            }
+            # Store DNA in the architecture_patterns JSONB column
+            dna_data = {'codebase_dna': dna.to_dict()}
             
-            # Upsert to repository_insights or a new table
             self.supabase.client.table('repository_insights').upsert(
                 {
                     'repo_id': repo_id,
-                    'insight_type': 'codebase_dna',
-                    'data': dna.to_dict(),
+                    'architecture_patterns': dna_data,
                 },
-                on_conflict='repo_id,insight_type'
+                on_conflict='repo_id'
             ).execute()
             
             logger.info("DNA saved to cache", repo_id=repo_id)
@@ -579,12 +574,17 @@ class DNAExtractor:
     def load_from_cache(self, repo_id: str) -> Optional[CodebaseDNA]:
         """Load DNA from database cache"""
         try:
-            result = self.supabase.client.table('repository_insights').select('*').eq(
-                'repo_id', repo_id
-            ).eq('insight_type', 'codebase_dna').execute()
+            result = self.supabase.client.table('repository_insights').select(
+                'architecture_patterns'
+            ).eq('repo_id', repo_id).execute()
             
-            if result.data:
-                data = result.data[0]['data']
+            if result.data and result.data[0].get('architecture_patterns'):
+                arch_patterns = result.data[0]['architecture_patterns']
+                data = arch_patterns.get('codebase_dna')
+                
+                if not data:
+                    return None
+                
                 # Reconstruct CodebaseDNA from dict
                 dna = CodebaseDNA(
                     repo_id=data['repo_id'],
