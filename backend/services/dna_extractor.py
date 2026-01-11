@@ -253,7 +253,9 @@ class CodebaseDNA:
 class DNAExtractor:
     """Extracts architectural DNA from a codebase"""
     
-    SKIP_DIRS = {'node_modules', '.git', '__pycache__', 'venv', 'env', 'dist', 'build', '.next', 'coverage'}
+    SKIP_DIRS = {'node_modules', '.git', '__pycache__', 'venv', 'env', 'dist', 'build', '.next', 'coverage', '.venv', 'site-packages'}
+    MAX_FILE_SIZE = 1024 * 1024  # 1MB
+    MAX_FILES = 5000
     
     def __init__(self):
         self.parsers = {
@@ -262,6 +264,8 @@ class DNAExtractor:
             'typescript': Parser(Language(tsjavascript.language())),
         }
         self._supabase = None
+        self._file_cache: Dict[Path, str] = {}
+        self._stats = {'files_read': 0, 'files_skipped': 0, 'read_errors': 0}
         logger.info("DNAExtractor initialized")
     
     @property
@@ -269,6 +273,49 @@ class DNAExtractor:
         if self._supabase is None:
             self._supabase = get_supabase_service()
         return self._supabase
+    
+    def _reset_cache(self):
+        """Clear file cache between extractions"""
+        self._file_cache.clear()
+        self._stats = {'files_read': 0, 'files_skipped': 0, 'read_errors': 0}
+    
+    def _safe_read_file(self, file_path: Path) -> Optional[str]:
+        """Safely read file with caching, size limits, and error handling"""
+        if file_path in self._file_cache:
+            return self._file_cache[file_path]
+        
+        try:
+            # size check
+            if file_path.stat().st_size > self.MAX_FILE_SIZE:
+                self._stats['files_skipped'] += 1
+                return None
+            
+            # read with fallback encodings
+            content = None
+            for encoding in ['utf-8', 'latin-1', 'cp1252']:
+                try:
+                    content = file_path.read_text(encoding=encoding)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            
+            if content is None:
+                self._stats['read_errors'] += 1
+                return None
+            
+            # check for binary content (null bytes)
+            if '\x00' in content[:1024]:
+                self._stats['files_skipped'] += 1
+                return None
+            
+            self._file_cache[file_path] = content
+            self._stats['files_read'] += 1
+            return content
+            
+        except Exception as e:
+            logger.debug(f"Error reading {file_path}: {e}")
+            self._stats['read_errors'] += 1
+            return None
     
     def _detect_language(self, file_path: str) -> str:
         ext = Path(file_path).suffix.lower()
@@ -281,14 +328,22 @@ class DNAExtractor:
         }.get(ext, 'unknown')
     
     def _discover_files(self, repo_path: Path) -> List[Path]:
-        """Find all code files, skipping irrelevant directories"""
+        """Find all code files, skipping irrelevant directories and symlinks"""
         files = []
         extensions = {'.py', '.js', '.jsx', '.ts', '.tsx', '.sql'}
         
-        for item in repo_path.rglob('*'):
-            if item.is_file() and item.suffix in extensions:
-                if not any(skip in item.parts for skip in self.SKIP_DIRS):
-                    files.append(item)
+        try:
+            for item in repo_path.rglob('*'):
+                if item.is_symlink():
+                    continue
+                if item.is_file() and item.suffix in extensions:
+                    if not any(skip in item.parts for skip in self.SKIP_DIRS):
+                        files.append(item)
+                        if len(files) >= self.MAX_FILES:
+                            logger.warning(f"Hit max file limit ({self.MAX_FILES})")
+                            break
+        except Exception as e:
+            logger.error(f"Error discovering files: {e}")
         
         return files
 
@@ -824,7 +879,21 @@ class DNAExtractor:
 
     def extract_dna(self, repo_path: str, repo_id: str) -> CodebaseDNA:
         """Extract complete DNA profile from a codebase"""
+        import time
+        start_time = time.time()
+        
         repo_path = Path(repo_path)
+        
+        # validate path
+        if not repo_path.exists():
+            logger.error(f"Repo path does not exist: {repo_path}")
+            raise ValueError(f"Repository path does not exist: {repo_path}")
+        if not repo_path.is_dir():
+            logger.error(f"Repo path is not a directory: {repo_path}")
+            raise ValueError(f"Repository path is not a directory: {repo_path}")
+        
+        # reset cache for fresh extraction
+        self._reset_cache()
         
         logger.info("Extracting codebase DNA", repo_id=repo_id, path=str(repo_path))
         
@@ -875,7 +944,15 @@ class DNAExtractor:
             router_pattern=router_pattern,
         )
         
-        logger.info("DNA extraction complete", repo_id=repo_id)
+        elapsed = time.time() - start_time
+        logger.info(
+            "DNA extraction complete",
+            repo_id=repo_id,
+            duration_sec=round(elapsed, 2),
+            files_read=self._stats['files_read'],
+            files_skipped=self._stats['files_skipped'],
+            read_errors=self._stats['read_errors']
+        )
         return dna
     
     def save_to_cache(self, repo_id: str, dna: CodebaseDNA) -> bool:
