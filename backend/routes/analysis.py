@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from dependencies import (
-    dependency_analyzer, style_analyzer,
+    dependency_analyzer, style_analyzer, dna_extractor,
     get_repo_or_404
 )
 from services.input_validator import InputValidator
@@ -132,4 +132,51 @@ async def get_style_analysis(
         
         return {**style_data, "cached": False}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@router.get("/{repo_id}/dna")
+async def get_codebase_dna(
+    repo_id: str,
+    format: str = "json",
+    auth: AuthContext = Depends(require_auth)
+):
+    """
+    Extract codebase DNA - architectural patterns, conventions, and constraints.
+    
+    This endpoint analyzes your codebase and returns a DNA profile that helps
+    AI assistants understand how to write code consistent with your patterns.
+    
+    Args:
+        repo_id: Repository identifier
+        format: Output format - 'json' or 'markdown' (default: json)
+    
+    Returns:
+        DNA profile with auth patterns, service patterns, database patterns, etc.
+    """
+    try:
+        repo = get_repo_or_404(repo_id, auth.user_id)
+        
+        # Try cache first
+        cached_dna = dna_extractor.load_from_cache(repo_id)
+        if cached_dna:
+            logger.debug("Using cached DNA", repo_id=repo_id)
+            if format == "markdown":
+                return {"dna": cached_dna.to_markdown(), "cached": True}
+            return {**cached_dna.to_dict(), "cached": True}
+        
+        # Extract fresh DNA
+        logger.info("Extracting codebase DNA", repo_id=repo_id)
+        metrics.increment("dna_extractions")
+        
+        dna = dna_extractor.extract_dna(repo["local_path"], repo_id)
+        dna_extractor.save_to_cache(repo_id, dna)
+        
+        if format == "markdown":
+            return {"dna": dna.to_markdown(), "cached": False}
+        return {**dna.to_dict(), "cached": False}
+        
+    except Exception as e:
+        logger.error("Error extracting DNA", repo_id=repo_id, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
