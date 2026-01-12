@@ -212,21 +212,34 @@ async def handle_call_tool(
                 response.raise_for_status()
                 result = response.json()
                 
-                formatted = f"# Dependency Graph Analysis\n\n"
-                formatted += f"**Total Files:** {result.get('total_files', 0)}\n"
-                formatted += f"**Total Dependencies:** {result.get('total_dependencies', 0)}\n"
-                formatted += f"**Avg Dependencies per File:** {result.get('metrics', {}).get('avg_dependencies', 0):.1f}\n\n"
+                nodes = result.get('nodes', [])
+                edges = result.get('edges', [])
+                metrics = result.get('metrics', {})
                 
-                if result.get('metrics', {}).get('most_critical_files'):
+                formatted = f"# Dependency Graph Analysis\n\n"
+                formatted += f"**Total Files:** {len(nodes)}\n"
+                formatted += f"**Total Dependencies:** {metrics.get('total_edges', len(edges))}\n"
+                formatted += f"**Avg Dependencies per File:** {metrics.get('avg_dependencies', 0):.1f}\n\n"
+                
+                # Find most imported files (most dependents)
+                dependent_count = {}
+                for edge in edges:
+                    target = edge.get('target', '')
+                    dependent_count[target] = dependent_count.get(target, 0) + 1
+                
+                if dependent_count:
+                    sorted_deps = sorted(dependent_count.items(), key=lambda x: x[1], reverse=True)[:5]
                     formatted += "## Most Critical Files (High Impact)\n\n"
-                    for item in result['metrics']['most_critical_files'][:5]:
-                        formatted += f"- `{item['file']}` - **{item['dependents']} dependents**\n"
+                    for file, count in sorted_deps:
+                        formatted += f"- `{file}` - **{count} dependents**\n"
                     formatted += "\n"
                 
-                if result.get('external_dependencies'):
-                    formatted += f"## External Dependencies\n\n"
-                    for dep in result['external_dependencies'][:10]:
-                        formatted += f"- {dep}\n"
+                # Show high-import files
+                high_import_files = [n for n in nodes if n.get('imports', 0) >= 3]
+                if high_import_files:
+                    formatted += "## Files with Most Imports\n\n"
+                    for f in sorted(high_import_files, key=lambda x: x.get('imports', 0), reverse=True)[:5]:
+                        formatted += f"- `{f['id']}` - imports {f['imports']} files\n"
                 
                 return [types.TextContent(type="text", text=formatted)]
             
