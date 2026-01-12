@@ -34,3 +34,7 @@ backend/repos/
 # MCP Server
 mcp-server/__pycache__/
 *.code-workspace
+
+# Validation experiments
+validation-experiment/
+exp-2/
