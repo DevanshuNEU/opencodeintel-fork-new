@@ -123,6 +123,20 @@ async def handle_list_tools() -> list[types.Tool]:
                 },
                 "required": ["repo_id"]
             }
+        ),
+        types.Tool(
+            name="get_codebase_dna",
+            description="Extract the architectural DNA of a codebase. Returns patterns, conventions, and constraints that define how code should be written. Use this BEFORE generating any code to understand: authentication patterns, service layer structure, database conventions (UUID vs SERIAL, RLS policies), error handling, logging patterns, naming conventions, and common imports. This ensures generated code matches existing architecture.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo_id": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    }
+                },
+                "required": ["repo_id"]
+            }
         )
     ]
 
@@ -297,6 +311,35 @@ async def handle_call_tool(
                     formatted += "## Most Critical Files\n"
                     for item in metrics['most_critical_files'][:5]:
                         formatted += f"- `{item['file']}` ({item['dependents']} dependents)\n"
+                
+                return [types.TextContent(type="text", text=formatted)]
+            
+            elif name == "get_codebase_dna":
+                response = await client.get(
+                    f"{BACKEND_API_URL}/repos/{arguments['repo_id']}/dna?format=markdown",
+                    headers=headers
+                )
+                response.raise_for_status()
+                result = response.json()
+                
+                # DNA is already formatted as markdown by the backend
+                dna_markdown = result.get('dna', '')
+                
+                formatted = "# Codebase DNA\n\n"
+                formatted += "**Use this information to write code that matches the existing patterns.**\n\n"
+                
+                if result.get('cached'):
+                    formatted += "_(⚡ cached)_\n\n"
+                
+                formatted += dna_markdown
+                
+                formatted += "\n---\n"
+                formatted += "**Instructions:** When generating code for this codebase:\n"
+                formatted += "1. Follow the auth patterns shown above\n"
+                formatted += "2. Use the service layer structure (singletons in dependencies.py)\n"
+                formatted += "3. Match the database conventions (ID types, timestamps, RLS)\n"
+                formatted += "4. Use the logging patterns shown\n"
+                formatted += "5. Follow the naming conventions\n"
                 
                 return [types.TextContent(type="text", text=formatted)]
             
