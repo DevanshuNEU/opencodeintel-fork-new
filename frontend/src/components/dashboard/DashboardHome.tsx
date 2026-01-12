@@ -57,7 +57,15 @@ export function DashboardHome() {
         },
         body: JSON.stringify({ name, git_url: gitUrl, branch })
       })
+      
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.detail || 'Failed to add repository')
+      }
+      
       const data = await response.json()
+      if (!data.repo_id) throw new Error('Missing repo_id in response')
+      
       await fetch(`${API_URL}/repos/${data.repo_id}/index`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session?.access_token}` }
