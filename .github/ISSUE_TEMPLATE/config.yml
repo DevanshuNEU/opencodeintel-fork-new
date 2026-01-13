@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Questions & Discussions
+    url: https://github.com/OpenCodeIntel/opencodeintel/discussions
+    about: Ask questions or start a discussion instead of opening an issue
+  - name: 📖 Documentation
+    url: https://github.com/OpenCodeIntel/opencodeintel#readme
+    about: Check the README and docs before reporting issues

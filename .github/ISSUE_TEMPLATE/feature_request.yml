@@ -1,19 +1,19 @@
-name: Feature Request
+name: ✨ Feature Request
 description: Suggest a new feature or enhancement
 title: "[Feature]: "
-labels: ["enhancement", "needs-discussion"]
+labels: ["enhancement", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Have an idea to make CodeIntel better? We'd love to hear it!
+        Thanks for suggesting a feature! Please describe your idea clearly.
 
   - type: textarea
     id: problem
     attributes:
       label: Problem Statement
-      description: What problem does this feature solve?
-      placeholder: Describe the pain point or use case
+      description: What problem does this feature solve? Who benefits?
+      placeholder: "As a [user type], I want [goal] so that [benefit]"
     validations:
       required: true
 
@@ -21,8 +21,7 @@ body:
     id: solution
     attributes:
       label: Proposed Solution
-      description: How would you solve this?
-      placeholder: Describe your ideal solution
+      description: How should this work? Be specific.
     validations:
       required: true
 
@@ -30,30 +29,63 @@ body:
     id: alternatives
     attributes:
       label: Alternatives Considered
-      description: Any other approaches you've thought about?
-      placeholder: Other ways to solve this
+      description: What other solutions did you consider? Why is your proposal better?
 
   - type: dropdown
     id: component
     attributes:
       label: Component
-      description: Which part would this affect?
+      description: Which part of the system would this affect?
       options:
-        - MCP Tools
-        - Search & Indexing
-        - Dependency Analysis
-        - Code Style Analysis
-        - Frontend UI
-        - Performance
-        - Documentation
-        - Other
+        - Backend - API
+        - Backend - Indexing
+        - Backend - Search
+        - Backend - Analysis (Dependencies/DNA/Style)
+        - Frontend - Dashboard
+        - Frontend - Search UI
+        - MCP Server
+        - New Component
+        - Multiple Components
     validations:
       required: true
 
-  - type: checkboxes
-    id: contribution
+  - type: dropdown
+    id: priority
     attributes:
-      label: Contribution
-      description: Would you be interested in implementing this?
+      label: Priority
+      description: How important is this feature?
       options:
-        - label: I'd like to work on this feature
+        - Critical - Blocking major use case
+        - High - Significant user value
+        - Medium - Nice to have
+        - Low - Minor improvement
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Estimated Effort
+      description: How much work do you think this requires?
+      options:
+        - Small (< 1 day)
+        - Medium (1-3 days)
+        - Large (1-2 weeks)
+        - XL (> 2 weeks)
+        - Unknown
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups / Examples
+      description: Any wireframes, mockups, or examples from other products?
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know this feature is complete?
+      placeholder: |
+        - [ ] User can do X
+        - [ ] System responds with Y
+        - [ ] Performance meets Z threshold
