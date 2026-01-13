@@ -227,11 +227,11 @@ class DependencyAnalyzer:
     ) -> str:
         """Resolve an import to an actual file in the repo"""
         
-        # External dependency check
-        if not import_path.startswith('.') and not import_path.startswith('/'):
-            # Might still be internal for Python packages
-            if '/' not in import_path:
-                return None
+        # Skip obvious external packages (stdlib, third-party without dots)
+        # But allow dotted imports like 'starlette.exceptions' to be resolved below
+        if not import_path.startswith('.') and '.' not in import_path and '/' not in import_path:
+            # Single-word imports (os, sys, json) are always external
+            return None
         
         source_path = Path(source_file)
         source_dir = source_path.parent
