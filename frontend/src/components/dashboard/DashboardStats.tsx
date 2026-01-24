@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { FolderGit2, CheckCircle, Code2 } from 'lucide-react'
 import type { Repository } from '../../types'
 
 interface DashboardStatsProps {
@@ -35,48 +36,59 @@ export function DashboardStats({ repos }: DashboardStatsProps) {
   const animatedIndexed = useAnimatedCounter(indexedRepos)
   const animatedFunctions = useAnimatedCounter(totalFunctions)
 
+  const stats = [
+    {
+      label: 'Total Repositories',
+      value: animatedTotal,
+      icon: FolderGit2,
+      suffix: '',
+    },
+    {
+      label: 'Indexed',
+      value: animatedIndexed,
+      icon: CheckCircle,
+      suffix: `/${totalRepos}`,
+      extra: indexingCount > 0 ? (
+        <div className="mt-3 flex items-center gap-2 text-xs text-primary">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          {indexingCount} indexing...
+        </div>
+      ) : null,
+    },
+    {
+      label: 'Functions Indexed',
+      value: animatedFunctions,
+      icon: Code2,
+      suffix: '',
+      format: true,
+    },
+  ]
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-      {/* Total Repos */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl bg-[#111113] border border-white/[0.06] p-6"
-      >
-        <p className="text-sm text-zinc-500 mb-2">Total Repositories</p>
-        <p className="text-4xl font-bold text-blue-500">{animatedTotal}</p>
-      </motion.div>
-
-      {/* Indexed */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="relative overflow-hidden rounded-2xl bg-[#111113] border border-white/[0.06] p-6"
-      >
-        <p className="text-sm text-zinc-500 mb-2">Indexed</p>
-        <div className="flex items-baseline gap-1">
-          <span className="text-4xl font-bold text-blue-500">{animatedIndexed}</span>
-          <span className="text-xl text-zinc-600">/{totalRepos}</span>
-        </div>
-        {indexingCount > 0 && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-blue-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-            {indexingCount} indexing...
+      {stats.map((stat, index) => (
+        <motion.div
+          key={stat.label}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.05 }}
+          className="relative overflow-hidden rounded-xl bg-card border border-border p-6 hover:border-primary/30 transition-colors"
+        >
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-sm text-muted-foreground">{stat.label}</p>
+            <stat.icon className="w-5 h-5 text-muted-foreground/50" />
           </div>
-        )}
-      </motion.div>
-
-      {/* Functions */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="relative overflow-hidden rounded-2xl bg-[#111113] border border-white/[0.06] p-6"
-      >
-        <p className="text-sm text-zinc-500 mb-2">Functions Indexed</p>
-        <p className="text-4xl font-bold text-blue-500">{animatedFunctions.toLocaleString()}</p>
-      </motion.div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-4xl font-bold text-primary">
+              {stat.format ? stat.value.toLocaleString() : stat.value}
+            </span>
+            {stat.suffix && (
+              <span className="text-xl text-muted-foreground">{stat.suffix}</span>
+            )}
+          </div>
+          {stat.extra}
+        </motion.div>
+      ))}
     </div>
   )
 }
