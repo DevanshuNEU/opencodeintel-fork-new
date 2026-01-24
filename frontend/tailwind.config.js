@@ -157,6 +157,8 @@ export default {
         'blur-in': 'blur-in var(--duration-slow) var(--ease-out-expo) forwards',
         'glow-pulse': 'glow-pulse 2s var(--ease-in-out) infinite',
         shimmer: 'shimmer 2s infinite',
+        'accordion-down': 'accordion-down 0.2s ease-out',
+        'accordion-up': 'accordion-up 0.2s ease-out',
       },
       
       keyframes: {
@@ -183,6 +185,14 @@ export default {
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
+        },
+        'accordion-down': {
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' },
+        },
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' },
         },
       },
     },
