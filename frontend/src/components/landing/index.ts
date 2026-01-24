@@ -1,8 +1,9 @@
+// Landing page components barrel export
 export { Navbar } from './Navbar'
 export { Hero } from './Hero'
-export { HeroSearch, type HeroSearchHandle } from './HeroSearch'
-export { RepoSwitcher } from './RepoSwitcher'
+export { HeroSearch } from './HeroSearch'
+export { ResultsView } from './ResultsView'
 export { ResultCard } from './ResultCard'
 export { SkeletonCard } from './SkeletonCard'
 export { CompactSearchBar } from './CompactSearchBar'
-export { ResultsView } from './ResultsView'
+export { RepoSwitcher } from './RepoSwitcher'
