@@ -135,9 +135,9 @@ export function SignupForm() {
 
               <p className="text-xs text-muted-foreground text-center">
                 By signing up, you agree to our{' '}
-                <Link to="/terms" className="underline hover:text-foreground">Terms</Link>
+                <a href="#" className="underline hover:text-foreground">Terms</a>
                 {' '}and{' '}
-                <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>
+                <a href="#" className="underline hover:text-foreground">Privacy Policy</a>
               </p>
             </form>
 
