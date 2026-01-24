@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
+import { RepoSummaryCard } from './RepoSummaryCard'
 import type { Repository } from '../types'
 import { WS_URL } from '../config/api'
 import { useInvalidateRepoCache } from '../hooks/useCachedQuery'
@@ -84,6 +85,11 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
 
   return (
     <div className="p-6 space-y-6">
+      {/* AI Summary Card - Hero Section */}
+      {repo.status === 'indexed' && (
+        <RepoSummaryCard repo={repo} apiKey={apiKey} />
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Status */}
