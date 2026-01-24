@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Navbar, Hero, ResultsView } from '@/components/landing'
+import { Navbar, Hero, ResultsView, Features } from '@/components/landing'
 import { API_URL } from '@/config/api'
 import { playgroundAPI } from '@/services/playground-api'
 import type { SearchResult } from '@/types'
@@ -93,7 +93,7 @@ export function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <Navbar minimal={hasSearched} />
 
       {hasSearched ? (
@@ -113,7 +113,10 @@ export function LandingPage() {
           onSignUp={() => navigate('/signup')}
         />
       ) : (
-        <Hero onResultsReady={handleHeroResults} />
+        <>
+          <Hero onResultsReady={handleHeroResults} />
+          <Features />
+        </>
       )}
     </div>
   )
