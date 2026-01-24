@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, Sparkles } from 'lucide-react'
 import { HeroSearch, type HeroSearchHandle } from './HeroSearch'
 import { useDemoSearch, DEMO_REPOS, type DemoRepo } from '@/hooks/useDemoSearch'
@@ -24,22 +24,20 @@ const headlineVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.05, delayChildren: 0.2 }
+    transition: { staggerChildren: 0.08, delayChildren: 0.2 }
   }
 }
 
 const wordVariants = {
-  hidden: { opacity: 0, y: 20, filter: 'blur(10px)' },
+  hidden: { opacity: 0, y: 20 },
   visible: { 
     opacity: 1, 
     y: 0, 
-    filter: 'blur(0px)',
-    transition: { duration: 0.5, ease: [0.25, 0.4, 0.25, 1] }
+    transition: { duration: 0.4, ease: [0.25, 0.4, 0.25, 1] }
   }
 }
 
 export function Hero({ onResultsReady }: Props) {
-  const sectionRef = useRef<HTMLElement>(null)
   const searchRef = useRef<HeroSearchHandle>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const { query, repo, results, loading, searchTime, setQuery, setRepo, search } = useDemoSearch(false)
@@ -47,21 +45,6 @@ export function Hero({ onResultsReady }: Props) {
   const [isTyping, setIsTyping] = useState(true)
   const [typingIndex, setTypingIndex] = useState(0)
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
-
-  // Scroll-linked parallax
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ['start start', 'end start']
-  })
-  
-  const smoothProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30 })
-  const orb1Y = useTransform(smoothProgress, [0, 1], [0, -150])
-  const orb2Y = useTransform(smoothProgress, [0, 1], [0, -100])
-  const orb3Y = useTransform(smoothProgress, [0, 1], [0, -200])
-  const orb1X = useTransform(smoothProgress, [0, 1], [0, 50])
-  const orb2X = useTransform(smoothProgress, [0, 1], [0, -80])
-  const contentY = useTransform(smoothProgress, [0, 1], [0, 100])
-  const contentOpacity = useTransform(smoothProgress, [0, 0.5], [1, 0])
 
   useEffect(() => {
     if (results.length) onResultsReady?.(results, query, repo.id, searchTime)
@@ -120,41 +103,33 @@ export function Hero({ onResultsReady }: Props) {
   const line2Words = ['unfamiliar', 'codebases.']
 
   return (
-    <section ref={sectionRef} className="relative min-h-[90vh] flex flex-col justify-center pt-16 pb-8 px-6 overflow-hidden">
+    <section className="relative min-h-[90vh] flex flex-col justify-center pt-16 pb-8 px-6 overflow-hidden">
       {/* Grid pattern background */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,black_40%,transparent_100%)]" />
       
-      {/* Parallax gradient orbs */}
+      {/* Floating gradient orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
           className="absolute top-1/4 left-1/4 w-[600px] h-[600px] rounded-full"
-          style={{ 
-            background: 'radial-gradient(circle, rgba(79,70,229,0.2) 0%, transparent 60%)',
-            y: orb1Y,
-            x: orb1X,
-          }}
+          style={{ background: 'radial-gradient(circle, rgba(79,70,229,0.2) 0%, transparent 60%)' }}
+          animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
           className="absolute top-1/3 right-1/4 w-[500px] h-[500px] rounded-full"
-          style={{ 
-            background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 60%)',
-            y: orb2Y,
-            x: orb2X,
-          }}
+          style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 60%)' }}
+          animate={{ x: [0, -25, 0], y: [0, 25, 0] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
           className="absolute bottom-1/4 left-1/3 w-[400px] h-[400px] rounded-full"
-          style={{ 
-            background: 'radial-gradient(circle, rgba(34,211,238,0.1) 0%, transparent 60%)',
-            y: orb3Y,
-          }}
+          style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.1) 0%, transparent 60%)' }}
+          animate={{ x: [0, 20, 0], y: [0, -15, 0] }}
+          transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
         />
       </div>
 
-      <motion.div 
-        className="relative max-w-3xl mx-auto w-full"
-        style={{ y: contentY, opacity: contentOpacity }}
-      >
+      <div className="relative max-w-3xl mx-auto w-full">
         {/* Badge */}
         <motion.div
           className="flex justify-center mb-5"
@@ -356,7 +331,7 @@ export function Hero({ onResultsReady }: Props) {
           </div>
           <p className="text-xs text-muted-foreground/60">Works with any Python repository • Self-host or cloud</p>
         </motion.div>
-      </motion.div>
+      </div>
     </section>
   )
 }

@@ -10,6 +10,11 @@
  * Premium dark theme with glassmorphism
  */
 
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
 @layer base {
   :root {
     /* Background */

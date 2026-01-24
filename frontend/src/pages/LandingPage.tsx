@@ -3,12 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { Navbar, Hero, ResultsView, Features, Pricing, FAQ, Footer } from '@/components/landing'
 import { API_URL } from '@/config/api'
 import { playgroundAPI } from '@/services/playground-api'
-import { useSmoothScroll } from '@/hooks/useSmoothScroll'
 import type { SearchResult } from '@/types'
 
 export function LandingPage() {
   const navigate = useNavigate()
-  useSmoothScroll()
   
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
