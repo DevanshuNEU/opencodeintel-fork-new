@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { RepoSummaryCard } from './RepoSummaryCard'
+import { CodebaseIntelligence } from './CodebaseIntelligence'
 import type { Repository } from '../types'
 import { WS_URL } from '../config/api'
 import { useInvalidateRepoCache } from '../hooks/useCachedQuery'
@@ -13,6 +13,7 @@ interface RepoOverviewProps {
   onReindex: () => void
   apiUrl: string
   apiKey: string
+  onTabChange?: (tab: string) => void
 }
 
 interface IndexProgress {
@@ -22,7 +23,7 @@ interface IndexProgress {
   progress_pct: number
 }
 
-export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewProps) {
+export function RepoOverview({ repo, onReindex, apiUrl, apiKey, onTabChange }: RepoOverviewProps) {
   const [indexing, setIndexing] = useState(false)
   const [progress, setProgress] = useState<IndexProgress | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
@@ -85,55 +86,30 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
 
   return (
     <div className="p-6 space-y-6">
-      {/* AI Summary Card - Hero Section */}
+      {/* Codebase Intelligence - Hero Section */}
       {repo.status === 'indexed' && (
-        <RepoSummaryCard repo={repo} apiKey={apiKey} />
+        <CodebaseIntelligence repo={repo} apiKey={apiKey} onTabChange={onTabChange} />
       )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Status */}
+      {/* Pending State */}
+      {repo.status !== 'indexed' && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-muted border border-border rounded-xl p-5"
+          className="bg-muted border border-border rounded-xl p-8 text-center"
         >
-          <p className="text-sm text-muted-foreground mb-2">Status</p>
-          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium
-            ${repo.status === 'indexed' 
-              ? 'bg-primary/10 text-primary border border-primary/20' 
-              : 'bg-muted text-muted-foreground border border-border'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${repo.status === 'indexed' ? 'bg-primary' : 'bg-muted-foreground'}`} />
-            {repo.status === 'indexed' ? 'Indexed' : 'Pending'}
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+            <span className="w-3 h-3 rounded-full bg-primary animate-pulse" />
           </div>
-        </motion.div>
-
-        {/* Functions */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-muted border border-border rounded-xl p-5"
-        >
-          <p className="text-sm text-muted-foreground mb-2">Functions Indexed</p>
-          <p className="text-3xl font-bold text-primary">
-            {(repo.file_count || 0).toLocaleString()}
+          <h3 className="text-lg font-semibold text-foreground mb-2">Repository Not Indexed</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Index this repository to unlock codebase intelligence, semantic search, and dependency analysis.
           </p>
+          <Button onClick={handleReindex} disabled={indexing}>
+            {indexing ? 'Indexing...' : 'Start Indexing'}
+          </Button>
         </motion.div>
-
-        {/* Branch */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-muted border border-border rounded-xl p-5"
-        >
-          <p className="text-sm text-muted-foreground mb-2">Branch</p>
-          <p className="text-lg font-mono text-foreground">{repo.branch}</p>
-        </motion.div>
-      </div>
+      )}
 
       {/* Indexing Progress */}
       {indexing && progress && (

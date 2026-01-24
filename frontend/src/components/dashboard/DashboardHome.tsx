@@ -220,6 +220,7 @@ export function DashboardHome() {
                   onReindex={handleReindex}
                   apiUrl={API_URL}
                   apiKey={session?.access_token || ''}
+                  onTabChange={(tab) => setActiveTab(tab as RepoTab)}
                 />
               )}
               {activeTab === 'search' && (
