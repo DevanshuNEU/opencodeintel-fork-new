@@ -109,8 +109,8 @@ export function Features() {
                 y: -8, 
                 transition: { type: 'spring', stiffness: 400, damping: 25 } 
               }}
-              className={`group relative p-6 rounded-xl border border-white/[0.06] bg-card/30 
-                hover:bg-card/50 hover:border-white/[0.1] transition-colors duration-300
+              className={`group relative p-6 rounded-xl border border-border/50 bg-card/30 
+                hover:bg-card/50 hover:border-border transition-colors duration-300
                 hover:shadow-xl ${feature.glow}`}
             >
               {/* Icon */}

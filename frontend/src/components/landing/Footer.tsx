@@ -20,7 +20,7 @@ const LINKS = {
 
 export function Footer() {
   return (
-    <footer className="border-t border-white/[0.06] dark:border-white/[0.06] light:border-black/[0.06] py-12 px-6">
+    <footer className="border-t border-border py-12 px-6">
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
           {/* Brand */}
@@ -98,7 +98,7 @@ export function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="pt-8 border-t border-white/[0.06] dark:border-white/[0.06] light:border-black/[0.06] flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground/60">
             © {new Date().getFullYear()} CodeIntel. Open source under MIT.
           </p>

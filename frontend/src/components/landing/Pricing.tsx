@@ -78,7 +78,7 @@ export function Pricing() {
               className={`relative p-6 lg:p-8 rounded-2xl border transition-all duration-300 ${
                 plan.popular
                   ? 'border-accent bg-accent/5 shadow-2xl shadow-accent/10 z-10'
-                  : 'border-white/[0.08] bg-card/30 hover:bg-card/50 hover:border-white/[0.12]'
+                  : 'border-border/50 bg-card/30 hover:bg-card/50 hover:border-border'
               }`}
             >
               {plan.badge && (
@@ -127,7 +127,7 @@ export function Pricing() {
                 className={`block w-full py-3 px-4 rounded-lg text-center text-sm font-medium transition-all ${
                   plan.popular
                     ? 'bg-accent text-white hover:bg-accent/90 shadow-lg shadow-accent/20'
-                    : 'border border-white/10 text-foreground hover:bg-white/5'
+                    : 'border border-border text-foreground hover:bg-muted/50'
                 }`}
               >
                 {plan.cta}
