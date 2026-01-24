@@ -34,12 +34,10 @@ export function CodebaseIntelligence({ repo, apiKey, onTabChange }: CodebaseInte
   const intelligence = useMemo(() => {
     if (!deps?.metrics) return null
 
-    const criticalFiles = deps.metrics.most_critical_files || []
-    const complexFiles = deps.metrics.most_complex_files || []
     const nodes = deps.nodes || []
     const edges = deps.edges || []
 
-    // Find entry points (high in-degree, low out-degree = API surface)
+    // Calculate in-degree and out-degree from edges
     const inDegree: Record<string, number> = {}
     const outDegree: Record<string, number> = {}
     
@@ -48,7 +46,13 @@ export function CodebaseIntelligence({ repo, apiKey, onTabChange }: CodebaseInte
       outDegree[e.source] = (outDegree[e.source] || 0) + 1
     })
 
-    // Entry points: imported by many, imports few
+    // Critical files: highest in-degree (most dependents)
+    const criticalFiles = Object.entries(inDegree)
+      .map(([file, dependents]) => ({ file, dependents }))
+      .sort((a, b) => b.dependents - a.dependents)
+      .slice(0, 5)
+
+    // Entry points: imported by many, imports few (high in-degree, low out-degree)
     const entryPoints = nodes
       .map((n: any) => ({
         file: n.id,
