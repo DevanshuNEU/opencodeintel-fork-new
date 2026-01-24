@@ -3,6 +3,11 @@ node_modules/
 .pnp
 .pnp.js
 
+# Package manager locks (using bun.lockb)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # Testing
 coverage/
 
@@ -30,7 +35,14 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # Vite
 .vite/
+*.local
+
+# Bun
+.bun/
+
+# Vercel
 .vercel
