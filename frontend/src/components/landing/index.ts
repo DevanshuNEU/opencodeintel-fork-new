@@ -1,4 +1,4 @@
-// Landing page components barrel export
+// Landing page components
 export { Navbar } from './Navbar'
 export { Hero } from './Hero'
 export { HeroSearch } from './HeroSearch'
@@ -7,3 +7,6 @@ export { ResultCard } from './ResultCard'
 export { SkeletonCard } from './SkeletonCard'
 export { CompactSearchBar } from './CompactSearchBar'
 export { RepoSwitcher } from './RepoSwitcher'
+export { ThemeToggle } from './ThemeToggle'
+export { GitHubStars } from './GitHubStars'
+export { MobileMenu } from './MobileMenu'
