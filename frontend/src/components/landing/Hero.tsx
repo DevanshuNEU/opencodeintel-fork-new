@@ -175,7 +175,7 @@ export function Hero({ onResultsReady }: Props) {
           >
             Describe what you're looking for in plain English.
             <br className="hidden sm:block" />
-            Get the exact function, class, or pattern—instantly.
+            Get the exact function, class, or pattern. Instantly.
           </motion.p>
         </div>
 
