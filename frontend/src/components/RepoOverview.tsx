@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { Progress } from '@/components/ui/progress'
+import { Button } from '@/components/ui/button'
 import type { Repository } from '../types'
 import { WS_URL } from '../config/api'
 import { useInvalidateRepoCache } from '../hooks/useCachedQuery'
@@ -89,16 +90,16 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#0a0a0c] border border-white/[0.06] rounded-xl p-5"
+          className="bg-muted border border-border rounded-xl p-5"
         >
-          <p className="text-sm text-zinc-500 mb-2">Status</p>
+          <p className="text-sm text-muted-foreground mb-2">Status</p>
           <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium
             ${repo.status === 'indexed' 
-              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
-              : 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/20'
+              ? 'bg-primary/10 text-primary border border-primary/20' 
+              : 'bg-muted text-muted-foreground border border-border'
             }`}
           >
-            <span className={`w-2 h-2 rounded-full ${repo.status === 'indexed' ? 'bg-blue-400' : 'bg-zinc-400'}`} />
+            <span className={`w-2 h-2 rounded-full ${repo.status === 'indexed' ? 'bg-primary' : 'bg-muted-foreground'}`} />
             {repo.status === 'indexed' ? 'Indexed' : 'Pending'}
           </div>
         </motion.div>
@@ -108,10 +109,10 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-[#0a0a0c] border border-white/[0.06] rounded-xl p-5"
+          className="bg-muted border border-border rounded-xl p-5"
         >
-          <p className="text-sm text-zinc-500 mb-2">Functions Indexed</p>
-          <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-400">
+          <p className="text-sm text-muted-foreground mb-2">Functions Indexed</p>
+          <p className="text-3xl font-bold text-primary">
             {(repo.file_count || 0).toLocaleString()}
           </p>
         </motion.div>
@@ -121,10 +122,10 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-[#0a0a0c] border border-white/[0.06] rounded-xl p-5"
+          className="bg-muted border border-border rounded-xl p-5"
         >
-          <p className="text-sm text-zinc-500 mb-2">Branch</p>
-          <p className="text-lg font-mono text-white">{repo.branch}</p>
+          <p className="text-sm text-muted-foreground mb-2">Branch</p>
+          <p className="text-lg font-mono text-foreground">{repo.branch}</p>
         </motion.div>
       </div>
 
@@ -133,17 +134,17 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
         <motion.div 
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-5"
+          className="bg-primary/5 border border-primary/20 rounded-xl p-5"
         >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-              <span className="font-medium text-white">Indexing in Progress</span>
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span className="font-medium text-foreground">Indexing in Progress</span>
             </div>
-            <span className="text-sm font-mono text-blue-400">{progress.progress_pct}%</span>
+            <span className="text-sm font-mono text-primary">{progress.progress_pct}%</span>
           </div>
           <Progress value={progress.progress_pct} className="h-1.5 mb-3" />
-          <div className="flex justify-between text-xs text-zinc-500">
+          <div className="flex justify-between text-xs text-muted-foreground">
             <span>Files: {progress.files_processed}/{progress.total_files || '?'}</span>
             <span>Functions: {progress.functions_indexed}</span>
           </div>
@@ -155,23 +156,23 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-[#0a0a0c] border border-white/[0.06] rounded-xl p-5"
+        className="bg-muted border border-border rounded-xl p-5"
       >
-        <h3 className="text-sm font-medium text-white mb-4">Repository Details</h3>
+        <h3 className="text-sm font-medium text-foreground mb-4">Repository Details</h3>
         <div className="space-y-3 text-sm">
           <div className="flex items-start gap-3">
-            <span className="text-zinc-500 w-20">Name</span>
-            <span className="text-white">{repo.name}</span>
+            <span className="text-muted-foreground w-20">Name</span>
+            <span className="text-foreground">{repo.name}</span>
           </div>
           <div className="flex items-start gap-3">
-            <span className="text-zinc-500 w-20">Git URL</span>
-            <a href={repo.git_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 font-mono text-xs truncate transition-colors">
+            <span className="text-muted-foreground w-20">Git URL</span>
+            <a href={repo.git_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 font-mono text-xs truncate transition-colors">
               {repo.git_url}
             </a>
           </div>
           <div className="flex items-start gap-3">
-            <span className="text-zinc-500 w-20">Local Path</span>
-            <span className="text-zinc-400 font-mono text-xs truncate">{repo.local_path}</span>
+            <span className="text-muted-foreground w-20">Local Path</span>
+            <span className="text-muted-foreground font-mono text-xs truncate">{repo.local_path}</span>
           </div>
         </div>
       </motion.div>
@@ -181,26 +182,26 @@ export function RepoOverview({ repo, onReindex, apiUrl, apiKey }: RepoOverviewPr
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-[#0a0a0c] border border-white/[0.06] rounded-xl p-5"
+        className="bg-muted border border-border rounded-xl p-5"
       >
-        <h3 className="text-sm font-medium text-white mb-2">Actions</h3>
-        <p className="text-sm text-zinc-500 mb-4">
+        <h3 className="text-sm font-medium text-foreground mb-2">Actions</h3>
+        <p className="text-sm text-muted-foreground mb-4">
           Re-indexing uses incremental mode — only processes changed files.
         </p>
         <div className="flex gap-3">
-          <button
+          <Button
             onClick={handleReindex}
             disabled={indexing}
-            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {indexing ? 'Indexing...' : 'Re-index Repository'}
-          </button>
-          <button
-            className="px-4 py-2 bg-white/5 border border-white/[0.08] text-zinc-300 text-sm font-medium rounded-lg hover:bg-white/10 transition-colors"
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => toast.info('Delete functionality coming soon')}
           >
             Remove
-          </button>
+          </Button>
         </div>
       </motion.div>
     </div>

@@ -55,23 +55,14 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
   const [allNodes, setAllNodes] = useState<Node[]>([])
   const [allEdges, setAllEdges] = useState<Edge[]>([])
 
-  // Use cached query for dependencies
-  const { data, isLoading: loading, isFetching } = useDependencyGraph({ 
-    repoId, 
-    apiKey 
-  })
+  const { data, isLoading: loading, isFetching } = useDependencyGraph({ repoId, apiKey })
 
-  // Process data when it arrives
   useEffect(() => {
-    if (data) {
-      processGraphData(data)
-    }
+    if (data) processGraphData(data)
   }, [data])
 
   useEffect(() => {
-    if (allNodes.length > 0) {
-      applyFilters()
-    }
+    if (allNodes.length > 0) applyFilters()
   }, [filterCritical, minDeps, allNodes, allEdges])
 
   const applyFilters = () => {
@@ -81,19 +72,13 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
     if (filterCritical || minDeps > 0) {
       const threshold = minDeps || 3
       filteredNodes = allNodes.filter((node: any) => 
-        (node.data.imports || 0) >= threshold ||
-        allEdges.some(e => e.target === node.id)
+        (node.data.imports || 0) >= threshold || allEdges.some(e => e.target === node.id)
       )
-      
       const nodeIds = new Set(filteredNodes.map(n => n.id))
-      filteredEdges = allEdges.filter(e => 
-        nodeIds.has(e.source) && nodeIds.has(e.target)
-      )
+      filteredEdges = allEdges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target))
     }
 
-    const { nodes: layoutedNodes, edges: layoutedEdges } = 
-      getLayoutedElements(filteredNodes, filteredEdges)
-    
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(filteredNodes, filteredEdges)
     setNodes(layoutedNodes)
     setEdges(layoutedEdges)
   }
@@ -110,14 +95,8 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
         data: { 
           label: (
             <div title={fullPath} style={{ cursor: 'pointer' }}>
-              <div style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>
-                {fileName}
-              </div>
-              {importCount > 0 && (
-                <div style={{ fontSize: '9px', opacity: 0.8 }}>
-                  {importCount} imports
-                </div>
-              )}
+              <div style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>{fileName}</div>
+              {importCount > 0 && <div style={{ fontSize: '9px', opacity: 0.8 }}>{importCount} imports</div>}
             </div>
           ),
           language: node.language,
@@ -127,7 +106,7 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
         style: {
           background: getLanguageColor(node.language),
           color: 'white',
-          border: '2px solid #3b82f6',
+          border: '2px solid hsl(var(--primary))',
           borderRadius: '8px',
           padding: '8px 12px',
           fontSize: '11px',
@@ -143,89 +122,62 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
       source: edge.source,
       target: edge.target,
       animated: false,
-      style: { stroke: '#4b5563', strokeWidth: 1.5 },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: '#4b5563',
-      },
+      style: { stroke: '#6b7280', strokeWidth: 1.5 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#6b7280' },
     }))
     
     setAllNodes(flowNodes)
     setAllEdges(flowEdges)
     setMetrics(data.metrics)
     
-    const { nodes: layoutedNodes, edges: layoutedEdges } = 
-      getLayoutedElements(flowNodes, flowEdges)
-    
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(flowNodes, flowEdges)
     setNodes(layoutedNodes)
     setEdges(layoutedEdges)
   }
 
   const handleNodeClick = useCallback((event: any, node: Node) => {
     setHighlightedNode(node.id)
-    
-    const connectedNodeIds = new Set<string>()
-    connectedNodeIds.add(node.id)
-    
+    const connectedNodeIds = new Set<string>([node.id])
     allEdges.forEach(edge => {
       if (edge.source === node.id) connectedNodeIds.add(edge.target)
       if (edge.target === node.id) connectedNodeIds.add(edge.source)
     })
     
-    setNodes(nodes =>
-      nodes.map(n => ({
-        ...n,
-        style: {
-          ...n.style,
-          opacity: connectedNodeIds.has(n.id) ? 1 : 0.3,
-          border: n.id === node.id ? '3px solid #ef4444' : n.style?.border
-        }
-      }))
-    )
+    setNodes(nodes => nodes.map(n => ({
+      ...n,
+      style: {
+        ...n.style,
+        opacity: connectedNodeIds.has(n.id) ? 1 : 0.3,
+        border: n.id === node.id ? '3px solid #ef4444' : n.style?.border
+      }
+    })))
     
-    setEdges(edges =>
-      edges.map(e => ({
-        ...e,
-        style: {
-          ...e.style,
-          opacity: e.source === node.id || e.target === node.id ? 1 : 0.1,
-          strokeWidth: e.source === node.id || e.target === node.id ? 2.5 : 1.5
-        }
-      }))
-    )
+    setEdges(edges => edges.map(e => ({
+      ...e,
+      style: {
+        ...e.style,
+        opacity: e.source === node.id || e.target === node.id ? 1 : 0.1,
+        strokeWidth: e.source === node.id || e.target === node.id ? 2.5 : 1.5
+      }
+    })))
   }, [allEdges])
 
   const resetHighlight = () => {
     setHighlightedNode(null)
-    setNodes(nodes =>
-      nodes.map(n => ({
-        ...n,
-        style: { ...n.style, opacity: 1, border: '2px solid #3b82f6' }
-      }))
-    )
-    setEdges(edges =>
-      edges.map(e => ({
-        ...e,
-        style: { ...e.style, opacity: 1, strokeWidth: 1.5 }
-      }))
-    )
+    setNodes(nodes => nodes.map(n => ({ ...n, style: { ...n.style, opacity: 1, border: '2px solid hsl(var(--primary))' } })))
+    setEdges(edges => edges.map(e => ({ ...e, style: { ...e.style, opacity: 1, strokeWidth: 1.5 } })))
   }
 
   const getLanguageColor = (language: string) => {
-    const colors: any = {
-      'python': '#3776ab',
-      'javascript': '#f7df1e',
-      'typescript': '#3178c6',
-      'unknown': '#6b7280'
-    }
+    const colors: any = { 'python': '#3776ab', 'javascript': '#f7df1e', 'typescript': '#3178c6', 'unknown': '#6b7280' }
     return colors[language] || colors.unknown
   }
 
   if (loading) {
     return (
       <div className="p-12 text-center">
-        <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-400">Building dependency graph...</p>
+        <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-muted-foreground">Building dependency graph...</p>
       </div>
     )
   }
@@ -234,57 +186,45 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
     <div className="p-6 space-y-6">
       {/* Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
-          <div className="text-sm text-gray-400 mb-1">Total Files</div>
-          <div className="text-3xl font-bold text-blue-500">{allNodes.length}</div>
+        <div className="bg-muted border border-border rounded-xl p-5">
+          <div className="text-sm text-muted-foreground mb-1">Total Files</div>
+          <div className="text-3xl font-bold text-primary">{allNodes.length}</div>
         </div>
-        <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
-          <div className="text-sm text-gray-400 mb-1">Dependencies</div>
-          <div className="text-3xl font-bold text-blue-500">{edges.length}</div>
+        <div className="bg-muted border border-border rounded-xl p-5">
+          <div className="text-sm text-muted-foreground mb-1">Dependencies</div>
+          <div className="text-3xl font-bold text-primary">{edges.length}</div>
         </div>
-        <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
-          <div className="text-sm text-gray-400 mb-1">Avg per File</div>
-          <div className="text-3xl font-bold text-blue-500">
-            {metrics?.avg_dependencies?.toFixed(1) || 0}
-          </div>
+        <div className="bg-muted border border-border rounded-xl p-5">
+          <div className="text-sm text-muted-foreground mb-1">Avg per File</div>
+          <div className="text-3xl font-bold text-primary">{metrics?.avg_dependencies?.toFixed(1) || 0}</div>
         </div>
-        <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
-          <div className="text-sm text-gray-400 mb-1">Showing</div>
-          <div className="text-3xl font-bold text-blue-500">{nodes.length}</div>
+        <div className="bg-muted border border-border rounded-xl p-5">
+          <div className="text-sm text-muted-foreground mb-1">Showing</div>
+          <div className="text-3xl font-bold text-primary">{nodes.length}</div>
         </div>
       </div>
 
       {/* Filter Controls */}
-      <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
+      <div className="bg-muted border border-border rounded-xl p-5">
         <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={filterCritical}
               onChange={(e) => setFilterCritical(e.target.checked)}
-              className="w-4 h-4 bg-white/5 border-white/10 rounded focus:ring-2 focus:ring-blue-500"
+              className="w-4 h-4 rounded accent-primary"
             />
-            <span className="text-sm text-gray-300">Show only critical files (≥3 deps)</span>
+            <span className="text-sm text-foreground">Show only critical files (≥3 deps)</span>
           </label>
           
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-300">Min dependencies:</label>
-            <input
-              type="range"
-              min="0"
-              max="10"
-              value={minDeps}
-              onChange={(e) => setMinDeps(Number(e.target.value))}
-              className="w-32 accent-blue-500"
-            />
-            <span className="text-sm font-mono text-white">{minDeps}</span>
+            <label className="text-sm text-foreground">Min dependencies:</label>
+            <input type="range" min="0" max="10" value={minDeps} onChange={(e) => setMinDeps(Number(e.target.value))} className="w-32 accent-primary" />
+            <span className="text-sm font-mono text-foreground">{minDeps}</span>
           </div>
 
           {highlightedNode && (
-            <button
-              onClick={resetHighlight}
-              className="text-sm px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 border border-red-500/20 transition-colors"
-            >
+            <button onClick={resetHighlight} className="text-sm px-3 py-1.5 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 border border-destructive/20 transition-colors">
               Clear highlight
             </button>
           )}
@@ -293,17 +233,13 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
 
       {/* Most Critical Files */}
       {metrics?.most_critical_files && metrics.most_critical_files.length > 0 && (
-        <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
-          <h3 className="text-sm font-semibold mb-3 text-white">Most Critical Files</h3>
+        <div className="bg-muted border border-border rounded-xl p-5">
+          <h3 className="text-sm font-semibold mb-3 text-foreground">Most Critical Files</h3>
           <div className="space-y-2">
             {metrics.most_critical_files.slice(0, 5).map((item: any, idx: number) => (
               <div key={idx} className="flex items-center justify-between text-sm">
-                <span className="font-mono text-gray-300 truncate flex-1">
-                  {item.file.split('/').slice(-2).join('/')}
-                </span>
-                <span className="ml-2 px-2 py-0.5 text-xs bg-red-500/10 text-red-400 border border-red-500/20 rounded">
-                  {item.dependents} dependents
-                </span>
+                <span className="font-mono text-foreground truncate flex-1">{item.file.split('/').slice(-2).join('/')}</span>
+                <span className="ml-2 px-2 py-0.5 text-xs bg-destructive/10 text-destructive border border-destructive/20 rounded">{item.dependents} dependents</span>
               </div>
             ))}
           </div>
@@ -311,7 +247,7 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
       )}
 
       {/* Graph Visualization */}
-      <div className="bg-[#0a0a0c] border border-white/5 rounded-xl overflow-hidden" style={{ height: '700px' }}>
+      <div className="bg-card border border-border rounded-xl overflow-hidden" style={{ height: '700px' }}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -324,42 +260,39 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
           minZoom={0.1}
           maxZoom={2}
         >
-          <Background color="#1f1f23" gap={16} />
-          <Controls className="!bg-[#111113] !border-white/10 !rounded-lg [&>button]:!bg-[#111113] [&>button]:!border-white/10 [&>button]:!text-gray-400 [&>button:hover]:!bg-white/10" />
+          <Background color="hsl(var(--muted-foreground) / 0.2)" gap={16} />
+          <Controls className="!bg-card !border-border !rounded-lg [&>button]:!bg-card [&>button]:!border-border [&>button]:!text-muted-foreground [&>button:hover]:!bg-muted" />
           <MiniMap 
-            nodeColor={(node) => {
-              const style = node.style as any
-              return style?.background || '#6b7280'
-            }}
+            nodeColor={(node) => (node.style as any)?.background || '#6b7280'}
             maskColor="rgba(0, 0, 0, 0.5)"
-            className="!bg-[#111113] !border-white/10"
+            className="!bg-card !border-border"
           />
         </ReactFlow>
       </div>
 
       {/* Legend */}
-      <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-5">
-        <h3 className="text-sm font-semibold mb-3 text-white">Graph Legend</h3>
+      <div className="bg-muted border border-border rounded-xl p-5">
+        <h3 className="text-sm font-semibold mb-3 text-foreground">Graph Legend</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ background: '#3776ab' }} />
-            <span className="text-gray-400">Python</span>
+            <span className="text-muted-foreground">Python</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ background: '#3178c6' }} />
-            <span className="text-gray-400">TypeScript</span>
+            <span className="text-muted-foreground">TypeScript</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ background: '#f7df1e' }} />
-            <span className="text-gray-400">JavaScript</span>
+            <span className="text-muted-foreground">JavaScript</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-1 h-4 bg-blue-500" />
-            <span className="text-gray-400">Dependency</span>
+            <div className="w-1 h-4 bg-primary" />
+            <span className="text-muted-foreground">Dependency</span>
           </div>
         </div>
-        <div className="mt-3 pt-3 border-t border-white/5 text-xs text-gray-500 flex items-center gap-2">
-          <Lightbulb className="w-3.5 h-3.5 text-blue-400" />
+        <div className="mt-3 pt-3 border-t border-border text-xs text-muted-foreground flex items-center gap-2">
+          <Lightbulb className="w-3.5 h-3.5 text-primary" />
           <span>Click any node to highlight its dependencies • Drag to pan • Scroll to zoom</span>
         </div>
       </div>

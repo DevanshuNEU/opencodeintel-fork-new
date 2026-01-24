@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Search, Command, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface SearchBoxProps {
   value: string;
@@ -37,7 +38,6 @@ export function SearchBox({
   const [animatedPlaceholder, setAnimatedPlaceholder] = useState('');
   const [isTyping, setIsTyping] = useState(true);
 
-  // Keyboard shortcut: ⌘K or Ctrl+K to focus
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -48,15 +48,12 @@ export function SearchBox({
         inputRef.current?.blur();
       }
     };
-
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Animated placeholder typewriter effect
   useEffect(() => {
     if (placeholder || value) return;
-
     const currentText = PLACEHOLDER_EXAMPLES[placeholderIndex];
     let charIndex = 0;
     let timeout: NodeJS.Timeout;
@@ -86,18 +83,14 @@ export function SearchBox({
       };
       deleteChar();
     }
-
     return () => clearTimeout(timeout);
   }, [placeholderIndex, isTyping, placeholder, value]);
 
-  const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!value.trim() || loading || disabled) return;
-      onSubmit();
-    },
-    [value, loading, disabled, onSubmit]
-  );
+  const handleSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    if (!value.trim() || loading || disabled) return;
+    onSubmit();
+  }, [value, loading, disabled, onSubmit]);
 
   const displayPlaceholder = placeholder || animatedPlaceholder || PLACEHOLDER_EXAMPLES[0];
 
@@ -106,27 +99,16 @@ export function SearchBox({
       <div
         className={cn(
           'relative flex items-center gap-3 px-4 py-3.5',
-          'glass rounded-xl',
-          'transition-all duration-normal ease-out-expo',
-          isFocused && 'border-accent shadow-glow',
+          'bg-background border border-border rounded-xl',
+          'transition-all duration-200',
+          isFocused && 'border-primary ring-2 ring-primary/20',
           disabled && 'opacity-50 cursor-not-allowed'
         )}
       >
-        {/* Search icon */}
-        <div
-          className={cn(
-            'flex-shrink-0 transition-colors duration-fast',
-            isFocused ? 'text-accent' : 'text-text-muted'
-          )}
-        >
-          {loading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Search className="w-5 h-5" />
-          )}
+        <div className={cn('flex-shrink-0 transition-colors', isFocused ? 'text-primary' : 'text-muted-foreground')}>
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
         </div>
 
-        {/* Input */}
         <input
           ref={inputRef}
           type="text"
@@ -137,36 +119,25 @@ export function SearchBox({
           placeholder={displayPlaceholder}
           disabled={disabled || loading}
           autoFocus={autoFocus}
-          className="flex-1 bg-transparent text-text-primary text-base placeholder:text-text-muted focus:outline-none disabled:cursor-not-allowed"
+          className="flex-1 bg-transparent text-foreground text-base placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed"
         />
 
-        {/* Keyboard shortcut hint */}
         {!isFocused && !value && (
-          <div className="hidden sm:flex items-center gap-1 text-text-muted">
-            <kbd className="px-1.5 py-0.5 text-xs font-mono bg-bg-tertiary border border-border rounded">
+          <div className="hidden sm:flex items-center gap-1 text-muted-foreground">
+            <kbd className="px-1.5 py-0.5 text-xs font-mono bg-muted border border-border rounded">
               <Command className="w-3 h-3 inline" />
             </kbd>
-            <kbd className="px-1.5 py-0.5 text-xs font-mono bg-bg-tertiary border border-border rounded">
-              K
-            </kbd>
+            <kbd className="px-1.5 py-0.5 text-xs font-mono bg-muted border border-border rounded">K</kbd>
           </div>
         )}
 
-        {/* Submit button */}
         {value && (
-          <button
-            type="submit"
-            disabled={loading || disabled}
-            className="btn-primary flex-shrink-0 px-4 py-1.5 text-sm"
-          >
+          <Button type="submit" disabled={loading || disabled} size="sm">
             {loading ? 'Searching...' : 'Search'}
-          </button>
+          </Button>
         )}
       </div>
-
-      <p className="mt-2 text-xs text-text-muted px-1">
-        Semantic search — finds code by meaning, not just keywords
-      </p>
+      <p className="mt-2 text-xs text-muted-foreground px-1">Semantic search — finds code by meaning, not just keywords</p>
     </form>
   );
 }
