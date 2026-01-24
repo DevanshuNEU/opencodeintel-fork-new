@@ -1,57 +1,57 @@
 import { motion } from 'framer-motion'
 import { Check, Sparkles } from 'lucide-react'
 
-const TIERS = [
+const PLANS = [
   {
     name: 'Free',
     price: '$0',
     period: 'forever',
-    description: 'For open source and small projects',
+    description: 'For open source and hobby projects',
     features: [
       'Up to 3 repositories',
       'Semantic code search',
-      'Dependency graph',
+      'Dependency visualization',
       'Community support',
       'Public repos only',
     ],
     cta: 'Get Started',
-    ctaLink: '/signup',
-    highlighted: false,
+    ctaHref: '/signup',
+    popular: false,
   },
   {
     name: 'Pro',
     price: '$19',
     period: '/month',
-    description: 'For professional developers',
+    description: 'For professional developers and small teams',
     features: [
       'Unlimited repositories',
       'Private repo support',
       'API access',
-      'MCP integration',
-      'Priority support',
-      'Advanced analytics',
+      'MCP server integration',
+      'Priority indexing',
+      'Email support',
     ],
     cta: 'Join Waitlist',
-    ctaLink: '/waitlist',
-    highlighted: true,
-    badge: 'Most Popular',
+    ctaHref: '/waitlist',
+    popular: true,
+    badge: 'Coming Soon',
   },
   {
     name: 'Enterprise',
     price: 'Custom',
     period: '',
-    description: 'For teams with advanced needs',
+    description: 'For teams that need full control',
     features: [
       'Self-hosted deployment',
-      'SSO / SAML',
+      'SSO / SAML authentication',
       'Dedicated support',
       'Custom integrations',
       'SLA guarantee',
-      'Onboarding assistance',
+      'On-premise option',
     ],
     cta: 'Contact Sales',
-    ctaLink: 'mailto:devanshurajesh@gmail.com?subject=CodeIntel Enterprise',
-    highlighted: false,
+    ctaHref: 'mailto:devanshurajesh@gmail.com?subject=CodeIntel%20Enterprise',
+    popular: false,
   },
 ]
 
@@ -84,7 +84,7 @@ export function Pricing() {
             Simple, transparent pricing
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Start free, upgrade when you need more. No hidden fees, no surprises.
+            Start free, upgrade when you need more. No hidden fees.
           </p>
         </motion.div>
 
@@ -96,76 +96,67 @@ export function Pricing() {
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
         >
-          {TIERS.map((tier) => (
+          {PLANS.map((plan) => (
             <motion.div
-              key={tier.name}
+              key={plan.name}
               variants={itemVariants}
-              className={`
-                relative p-6 rounded-2xl border transition-all duration-300
-                ${tier.highlighted 
-                  ? 'border-accent/50 bg-accent/[0.03] scale-[1.02] shadow-xl shadow-accent/10' 
-                  : 'border-white/[0.08] dark:border-white/[0.08] light:border-black/[0.08] bg-card/30 hover:border-white/[0.12] dark:hover:border-white/[0.12]'
-                }
-              `}
+              className={`relative p-6 lg:p-8 rounded-2xl border transition-all duration-300 ${
+                plan.popular
+                  ? 'border-accent bg-accent/5 shadow-lg shadow-accent/10'
+                  : 'border-white/[0.08] dark:border-white/[0.08] light:border-black/[0.08] bg-card/30 hover:bg-card/50'
+              }`}
             >
-              {/* Badge */}
-              {tier.badge && (
+              {/* Popular badge */}
+              {plan.badge && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent text-white text-xs font-medium">
                     <Sparkles className="w-3 h-3" />
-                    {tier.badge}
+                    {plan.badge}
                   </div>
                 </div>
               )}
 
-              {/* Header */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-foreground mb-1">{tier.name}</h3>
-                <p className="text-sm text-muted-foreground">{tier.description}</p>
+                <h3 className="text-xl font-semibold text-foreground mb-2">{plan.name}</h3>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold text-foreground">{plan.price}</span>
+                  {plan.period && <span className="text-muted-foreground">{plan.period}</span>}
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
               </div>
 
-              {/* Price */}
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-foreground">{tier.price}</span>
-                <span className="text-muted-foreground">{tier.period}</span>
-              </div>
-
-              {/* Features */}
               <ul className="space-y-3 mb-8">
-                {tier.features.map((feature) => (
+                {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-3 text-sm">
-                    <Check className={`w-4 h-4 mt-0.5 flex-shrink-0 ${tier.highlighted ? 'text-accent' : 'text-emerald-400'}`} />
+                    <Check className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
                     <span className="text-muted-foreground">{feature}</span>
                   </li>
                 ))}
               </ul>
 
-              {/* CTA */}
               <a
-                href={tier.ctaLink}
-                className={`
-                  block w-full py-3 px-4 rounded-lg text-center text-sm font-medium transition-all
-                  ${tier.highlighted
-                    ? 'bg-accent hover:bg-accent/90 text-white shadow-lg shadow-accent/20'
-                    : 'border border-white/[0.1] dark:border-white/[0.1] light:border-black/[0.1] text-foreground hover:bg-white/5 dark:hover:bg-white/5 light:hover:bg-black/5'
-                  }
-                `}
+                href={plan.ctaHref}
+                className={`block w-full py-3 px-4 rounded-lg text-center text-sm font-medium transition-all ${
+                  plan.popular
+                    ? 'bg-accent text-white hover:bg-accent/90 shadow-lg shadow-accent/20'
+                    : 'border border-white/10 dark:border-white/10 light:border-black/10 text-foreground hover:bg-white/5 dark:hover:bg-white/5 light:hover:bg-black/5'
+                }`}
               >
-                {tier.cta}
+                {plan.cta}
               </a>
             </motion.div>
           ))}
         </motion.div>
 
-        {/* Footer note */}
+        {/* Bottom note */}
         <motion.p
-          className="text-center text-sm text-muted-foreground/60 mt-10"
+          className="text-center text-sm text-muted-foreground/60 mt-8"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.3 }}
         >
-          All plans include 14-day money-back guarantee. Prices in USD.
+          All plans include automatic updates and security patches
         </motion.p>
       </div>
     </section>
