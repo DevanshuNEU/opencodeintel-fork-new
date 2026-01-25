@@ -19,7 +19,7 @@ export function ResultCard({ result, rank, isExpanded: initialExpanded = false, 
   const [expanded, setExpanded] = useState(initialExpanded);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number | undefined>(initialExpanded ? undefined : 0);
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   
   const matchPercent = Math.round(result.score * 100);
   const isTopResult = rank === 1;
@@ -90,7 +90,7 @@ export function ResultCard({ result, rank, isExpanded: initialExpanded = false, 
           <div className="relative">
             <SyntaxHighlighter
               language={result.language || 'text'}
-              style={theme === 'dark' ? oneDark : oneLight}
+              style={resolvedTheme === 'dark' ? oneDark : oneLight}
               customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.75rem', lineHeight: '1.6', padding: '1rem' }}
               showLineNumbers
               startingLineNumber={result.line_start}

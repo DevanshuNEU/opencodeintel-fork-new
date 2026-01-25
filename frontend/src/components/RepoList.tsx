@@ -83,7 +83,7 @@ const RepoCard = ({ repo, index, onSelect }: {
         {/* Stats */}
         <div className="pt-4 border-t border-border">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Functions</span>
+            <span className="text-sm text-muted-foreground">Files</span>
             <span className="text-2xl font-bold text-primary">
               {(repo.file_count || 0).toLocaleString()}
             </span>

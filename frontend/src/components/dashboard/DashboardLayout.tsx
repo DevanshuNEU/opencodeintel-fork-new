@@ -17,13 +17,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { theme } = useTheme()
   
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY)
-    return stored ? JSON.parse(stored) : false
+    try {
+      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+      return stored ? JSON.parse(stored) : false
+    } catch {
+      return false
+    }
   })
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(sidebarCollapsed))
+    try {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(sidebarCollapsed))
+    } catch {
+      // Ignore storage errors
+    }
   }, [sidebarCollapsed])
 
   useKeyboardShortcut(SHORTCUTS.COMMAND_PALETTE, () => {

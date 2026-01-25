@@ -53,7 +53,9 @@ export function RepoSummaryCard({ repo, apiKey }: RepoSummaryCardProps) {
             <span className="text-[10px] px-1.5 py-0.5 bg-primary/20 text-primary rounded font-normal">Auto-generated</span>
           </h3>
           
-          <p className="text-foreground leading-relaxed mb-4">{summary.main}</p>
+          <p className="text-foreground leading-relaxed mb-4">
+            <strong>{repo.name}</strong> {summary.main}
+          </p>
           
           {/* Quick Stats Pills */}
           <div className="flex flex-wrap gap-2">
@@ -99,7 +101,19 @@ function generateSummary(repo: Repository, insights: any, style: any) {
   const fileCount = insights?.total_files || repo.file_count || 0
   const functionCount = style?.summary?.total_functions || insights?.total_functions || 0
   const languages = insights?.languages || style?.language_distribution || {}
-  const primaryLang = Object.keys(languages)[0] || 'Unknown'
+  
+  // Get primary language by sorting entries by value descending
+  const langEntries = Object.entries(languages)
+  let primaryLang = 'Unknown'
+  if (langEntries.length > 0) {
+    const sorted = langEntries.sort((a, b) => {
+      const valA = typeof a[1] === 'number' ? a[1] : (a[1] as any)?.percentage ?? (a[1] as any)?.count ?? 0
+      const valB = typeof b[1] === 'number' ? b[1] : (b[1] as any)?.percentage ?? (b[1] as any)?.count ?? 0
+      return Number(valB) - Number(valA)
+    })
+    primaryLang = sorted[0][0]
+  }
+  
   const asyncAdoption = style?.summary?.async_adoption || null
   const typeHints = style?.summary?.type_hints_usage || null
   
@@ -125,8 +139,8 @@ function generateSummary(repo: Repository, insights: any, style: any) {
     stats.push({ icon: Code2, label: 'Async', value: asyncAdoption })
   }
 
-  // Generate main summary text
-  let main = `**${repo.name}** is a `
+  // Generate main summary text (repo name rendered separately in JSX)
+  let main = `is a `
   
   if (functionCount > 500) main += 'large '
   else if (functionCount > 100) main += 'medium-sized '

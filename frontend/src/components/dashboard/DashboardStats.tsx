@@ -29,12 +29,12 @@ const useAnimatedCounter = (end: number, duration: number = 1200) => {
 export function DashboardStats({ repos }: DashboardStatsProps) {
   const totalRepos = repos.length
   const indexedRepos = repos.filter(r => r.status === 'indexed').length
-  const totalFunctions = repos.reduce((acc, r) => acc + (r.file_count || 0), 0)
+  const totalFiles = repos.reduce((acc, r) => acc + (r.file_count || 0), 0)
   const indexingCount = repos.filter(r => r.status === 'indexing' || r.status === 'cloning').length
 
   const animatedTotal = useAnimatedCounter(totalRepos)
   const animatedIndexed = useAnimatedCounter(indexedRepos)
-  const animatedFunctions = useAnimatedCounter(totalFunctions)
+  const animatedFiles = useAnimatedCounter(totalFiles)
 
   const stats = [
     {
@@ -56,8 +56,8 @@ export function DashboardStats({ repos }: DashboardStatsProps) {
       ) : null,
     },
     {
-      label: 'Functions Indexed',
-      value: animatedFunctions,
+      label: 'Files Indexed',
+      value: animatedFiles,
       icon: Code2,
       suffix: '',
       format: true,

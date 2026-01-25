@@ -82,6 +82,7 @@ export function TopNav({ onToggleSidebar, sidebarCollapsed, onOpenCommandPalette
             size="icon"
             onClick={toggleTheme}
             className="text-muted-foreground hover:text-foreground"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? (
               <Sun className="w-5 h-5" />

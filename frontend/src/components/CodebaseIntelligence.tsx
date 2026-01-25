@@ -32,10 +32,11 @@ export function CodebaseIntelligence({ repo, apiKey, onTabChange }: CodebaseInte
 
   // Derive intelligence from raw data
   const intelligence = useMemo(() => {
-    if (!deps?.metrics) return null
-
-    const nodes = deps.nodes || []
-    const edges = deps.edges || []
+    const nodes = deps?.nodes || []
+    const edges = deps?.edges || []
+    
+    // Gate on deps existence or having graph data
+    if (!deps && nodes.length === 0) return null
 
     // Calculate in-degree and out-degree from edges
     const inDegree: Record<string, number> = {}
@@ -90,15 +91,21 @@ export function CodebaseIntelligence({ repo, apiKey, onTabChange }: CodebaseInte
     })
 
     // Find "start here" file - the most critical file that's also an entry point
-    const startHere = criticalFiles[0]?.file || entryPoints[0]?.file || null
+    const criticalEntryPoint = criticalFiles.find(cf => 
+      entryPoints.some(ep => ep.file === cf.file)
+    )
+    const startHere = criticalEntryPoint?.file || entryPoints[0]?.file || null
 
     // Generate smart summary
-    const totalFiles = deps.total_files || nodes.length
-    const totalFunctions = style?.summary?.total_functions || repo.file_count || 0
+    const totalFiles = deps?.total_files || nodes.length
+    const totalFunctions: number | null = style?.summary?.total_functions ?? null
     
-    let sizeDesc = 'compact'
-    if (totalFunctions > 1000) sizeDesc = 'large'
-    else if (totalFunctions > 200) sizeDesc = 'medium-sized'
+    let sizeDesc: string | null = null
+    if (typeof totalFunctions === 'number') {
+      if (totalFunctions > 1000) sizeDesc = 'large'
+      else if (totalFunctions > 200) sizeDesc = 'medium-sized'
+      else sizeDesc = 'compact'
+    }
 
     // Detect patterns
     const hasMiddleware = nodes.some((n: any) => 
@@ -168,9 +175,11 @@ export function CodebaseIntelligence({ repo, apiKey, onTabChange }: CodebaseInte
             </h3>
             
             <p className="text-foreground leading-relaxed mb-4">
-              <strong>{repo.name}</strong> is a {intelligence.summary.size} {intelligence.summary.language} codebase 
-              with <span className="text-primary font-semibold">{intelligence.summary.totalFunctions.toLocaleString()}</span> functions 
-              across {intelligence.summary.totalFiles} files.
+              <strong>{repo.name}</strong> is a {intelligence.summary.size ? `${intelligence.summary.size} ` : ''}{intelligence.summary.language} codebase 
+              {intelligence.summary.totalFunctions != null ? (
+                <> with <span className="text-primary font-semibold">{intelligence.summary.totalFunctions.toLocaleString()}</span> functions</>
+              ) : null}
+              {' '}across {intelligence.summary.totalFiles} files.
               {intelligence.summary.pattern && (
                 <> Uses {intelligence.summary.pattern}.</>
               )}
@@ -367,8 +376,8 @@ export function CodebaseIntelligence({ repo, apiKey, onTabChange }: CodebaseInte
   )
 }
 
-function HealthIndicator({ label, value, threshold }: { label: string, value: string | null, threshold: number }) {
-  if (!value) {
+function HealthIndicator({ label, value, threshold }: { label: string, value: string | number | null, threshold: number }) {
+  if (value == null) {
     return (
       <div className="p-3 bg-muted/50 rounded-lg">
         <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{label}</p>
@@ -377,15 +386,16 @@ function HealthIndicator({ label, value, threshold }: { label: string, value: st
     )
   }
 
-  const numValue = parseFloat(value)
-  const isGood = numValue >= threshold
+  const numValue = typeof value === 'number' ? value : parseFloat(value)
+  const isGood = !isNaN(numValue) && numValue >= threshold
+  const displayValue = typeof value === 'number' ? `${value}%` : value
 
   return (
     <div className="p-3 bg-muted/50 rounded-lg">
       <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{label}</p>
       <p className={`text-sm font-semibold flex items-center gap-1 ${isGood ? 'text-green-600 dark:text-green-400' : 'text-foreground'}`}>
         {isGood && <CheckCircle2 className="w-3.5 h-3.5" />}
-        {value}
+        {displayValue}
       </p>
     </div>
   )
