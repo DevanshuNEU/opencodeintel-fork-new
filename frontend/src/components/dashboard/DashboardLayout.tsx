@@ -1,31 +1,49 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { TopNav } from './TopNav'
 import { CommandPalette } from './CommandPalette'
 import { Toaster } from '@/components/ui/sonner'
 import { useKeyboardShortcut, SHORTCUTS } from '../../hooks/useKeyboardShortcut'
+import { useTheme } from 'next-themes'
 
 interface DashboardLayoutProps {
   children?: React.ReactNode
 }
 
+const SIDEBAR_STORAGE_KEY = 'codeintel-sidebar-collapsed'
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const { theme } = useTheme()
+  
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+      return stored ? JSON.parse(stored) : false
+    } catch {
+      return false
+    }
+  })
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
 
-  // Keyboard shortcuts
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(sidebarCollapsed))
+    } catch {
+      // Ignore storage errors
+    }
+  }, [sidebarCollapsed])
+
   useKeyboardShortcut(SHORTCUTS.COMMAND_PALETTE, () => {
     setCommandPaletteOpen(true)
   })
 
   useKeyboardShortcut(SHORTCUTS.TOGGLE_SIDEBAR, () => {
-    setSidebarCollapsed(prev => !prev)
+    setSidebarCollapsed((prev: boolean) => !prev)
   })
 
   return (
-    <div className="min-h-screen bg-[#09090b]">
-      {/* Top Navigation */}
+    <div className="min-h-screen bg-background">
       <TopNav 
         onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         sidebarCollapsed={sidebarCollapsed}
@@ -33,13 +51,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       />
 
       <div className="flex">
-        {/* Sidebar */}
         <Sidebar 
           collapsed={sidebarCollapsed} 
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
 
-        {/* Main Content */}
         <main 
           className={`flex-1 transition-all duration-300 ${
             sidebarCollapsed ? 'ml-16' : 'ml-60'
@@ -51,22 +67,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </main>
       </div>
 
-      {/* Command Palette */}
       <CommandPalette 
         isOpen={commandPaletteOpen} 
         onClose={() => setCommandPaletteOpen(false)} 
       />
 
       <Toaster 
-        theme="dark" 
+        theme={theme === 'dark' ? 'dark' : 'light'}
         position="bottom-right"
-        toastOptions={{
-          style: {
-            background: '#111113',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: '#fff',
-          },
-        }}
       />
     </div>
   )

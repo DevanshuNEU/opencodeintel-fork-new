@@ -95,6 +95,31 @@ export function useStyleAnalysis({ repoId, apiKey, enabled = true }: UseCachedQu
 }
 
 /**
+ * Hook for fetching repository insights with caching
+ */
+export function useRepoInsights({ repoId, apiKey, enabled = true }: UseCachedQueryOptions) {
+  return useQuery({
+    queryKey: ['insights', repoId],
+    queryFn: async () => {
+      const data = await fetchWithAuth(
+        `${API_URL}/repos/${repoId}/insights`,
+        apiKey
+      )
+      saveToCache('insights', repoId, data)
+      return data
+    },
+    enabled: enabled && !!repoId && !!apiKey,
+    staleTime: STALE_TIME,
+    gcTime: CACHE_TIME,
+    initialData: () => getFromCache('insights', repoId),
+    initialDataUpdatedAt: () => {
+      const cached = getFromCache('insights', repoId)
+      return cached ? Date.now() - STALE_TIME + 1000 : 0
+    }
+  })
+}
+
+/**
  * Hook for fetching impact analysis with caching
  */
 export function useImpactAnalysis({ 
@@ -134,6 +159,7 @@ export function useInvalidateRepoCache() {
     queryClient.invalidateQueries({ queryKey: ['dependencies', repoId] })
     queryClient.invalidateQueries({ queryKey: ['style-analysis', repoId] })
     queryClient.invalidateQueries({ queryKey: ['impact', repoId] })
+    queryClient.invalidateQueries({ queryKey: ['insights', repoId] })
     
     // Invalidate localStorage cache
     invalidateRepoCache(repoId)
