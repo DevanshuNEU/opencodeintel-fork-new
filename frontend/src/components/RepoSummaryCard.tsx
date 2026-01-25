@@ -154,10 +154,11 @@ function generateSummary(repo: Repository, insights: any, style: any) {
   
   main += `${primaryLang} codebase with ${functionCount.toLocaleString()} functions across ${fileCount} files. `
   
-  if (namingStyle) {
+  if (namingStyle && primaryNaming) {
     main += `The code primarily uses ${namingStyle} naming conventions`
-    if (primaryNaming && parseFloat((primaryNaming[1] as any).percentage) > 80) {
-      main += ` (${(primaryNaming[1] as any).percentage} consistency)`
+    const consistencyPct = parseFloat((primaryNaming[1] as any)?.percentage ?? '0') || 0
+    if (consistencyPct > 80) {
+      main += ` (${consistencyPct}% consistency)`
     }
     main += '. '
   }
