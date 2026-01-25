@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Zap, Search } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { SearchBox, ResultCard } from './search';
+import { SearchEmptyState } from './search/SearchEmptyState';
+import { SearchResultsSkeleton } from './ui/Skeleton';
 import type { SearchResult } from '../types';
 
 interface SearchPanelProps {
@@ -21,8 +23,8 @@ export function SearchPanel({ repoId, apiUrl, apiKey, repoUrl, defaultBranch }: 
   const [hasSearched, setHasSearched] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  const searchWithQuery = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
     setLoading(true);
     setHasSearched(true);
     setAiSummary(null);
@@ -32,7 +34,7 @@ export function SearchPanel({ repoId, apiUrl, apiKey, repoUrl, defaultBranch }: 
       const response = await fetch(`${apiUrl}/search`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, repo_id: repoId, max_results: 10 }),
+        body: JSON.stringify({ query: searchQuery, repo_id: repoId, max_results: 10 }),
       });
       const data = await response.json();
       setResults(data.results || []);
@@ -45,6 +47,13 @@ export function SearchPanel({ repoId, apiUrl, apiKey, repoUrl, defaultBranch }: 
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = () => searchWithQuery(query);
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setQuery(suggestion);
+    searchWithQuery(suggestion);
   };
 
   return (
@@ -70,30 +79,34 @@ export function SearchPanel({ repoId, apiUrl, apiKey, repoUrl, defaultBranch }: 
         )}
       </div>
 
+      {/* Loading Skeleton */}
+      {loading && (
+        <SearchResultsSkeleton count={3} />
+      )}
+
       {/* Results */}
-      <div className="space-y-3">
-        {results.map((result, idx) => (
-          <ResultCard
-            key={`${result.file_path}-${result.line_start}-${idx}`}
-            result={result}
-            rank={idx + 1}
-            isExpanded={idx === 0}
-            aiSummary={idx === 0 ? aiSummary || undefined : undefined}
-            repoUrl={repoUrl}
-            defaultBranch={defaultBranch}
-          />
-        ))}
-      </div>
+      {!loading && (
+        <div className="space-y-3">
+          {results.map((result, idx) => (
+            <ResultCard
+              key={`${result.file_path}-${result.line_start}-${idx}`}
+              result={result}
+              rank={idx + 1}
+              isExpanded={idx === 0}
+              aiSummary={idx === 0 ? aiSummary || undefined : undefined}
+              repoUrl={repoUrl}
+              defaultBranch={defaultBranch}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Empty State */}
-      {results.length === 0 && hasSearched && !loading && (
-        <div className="bg-muted border border-border rounded-xl p-16 text-center">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-background border border-border flex items-center justify-center">
-            <Search className="w-10 h-10 text-muted-foreground" />
-          </div>
-          <h3 className="text-base font-semibold mb-2 text-foreground">No results found</h3>
-          <p className="text-sm text-muted-foreground">Try a different query or check if the repository is fully indexed</p>
-        </div>
+      {results.length === 0 && hasSearched && !loading && query && (
+        <SearchEmptyState 
+          query={query} 
+          onSuggestionClick={handleSuggestionClick} 
+        />
       )}
     </div>
   );

@@ -12,6 +12,7 @@ import dagre from 'dagre'
 import { Lightbulb } from 'lucide-react'
 import 'reactflow/dist/style.css'
 import { useDependencyGraph } from '../hooks/useCachedQuery'
+import { DependencyGraphSkeleton } from './ui/Skeleton'
 
 interface DependencyGraphProps {
   repoId: string
@@ -174,12 +175,7 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
   }
 
   if (loading) {
-    return (
-      <div className="p-12 text-center">
-        <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-muted-foreground">Building dependency graph...</p>
-      </div>
-    )
+    return <DependencyGraphSkeleton />
   }
 
   return (
