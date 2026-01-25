@@ -129,9 +129,10 @@ function generateSummary(repo: Repository, insights: any, style: any) {
     : null
   const namingStyle = primaryNaming ? primaryNaming[0] : null
 
-  // Get critical files
-  if (insights?.most_critical_files) {
+  // Get critical files - defensive checks for malformed data
+  if (Array.isArray(insights?.most_critical_files)) {
     insights.most_critical_files.slice(0, 3).forEach((f: any) => {
+      if (!f || typeof f.file !== 'string') return
       criticalFiles.push(f.file.split('/').pop() || f.file)
     })
   }
