@@ -117,10 +117,16 @@ function generateSummary(repo: Repository, insights: any, style: any) {
   const asyncAdoption = style?.summary?.async_adoption || null
   const typeHints = style?.summary?.type_hints_usage || null
   
-  // Get naming convention
+  // Get naming convention - defensive parsing
   const namingConventions = style?.naming_conventions?.functions || {}
-  const primaryNaming = Object.entries(namingConventions)
-    .sort((a: any, b: any) => parseFloat(b[1].percentage) - parseFloat(a[1].percentage))[0]
+  const namingEntries = Object.entries(namingConventions)
+  const primaryNaming = namingEntries.length > 0
+    ? namingEntries.sort((a: any, b: any) => {
+        const pctA = parseFloat(a[1]?.percentage ?? '0') || 0
+        const pctB = parseFloat(b[1]?.percentage ?? '0') || 0
+        return pctB - pctA
+      })[0]
+    : null
   const namingStyle = primaryNaming ? primaryNaming[0] : null
 
   // Get critical files

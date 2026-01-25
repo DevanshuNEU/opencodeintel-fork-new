@@ -9,9 +9,10 @@ interface SearchPanelProps {
   apiUrl: string;
   apiKey: string;
   repoUrl?: string;
+  defaultBranch?: string;
 }
 
-export function SearchPanel({ repoId, apiUrl, apiKey, repoUrl }: SearchPanelProps) {
+export function SearchPanel({ repoId, apiUrl, apiKey, repoUrl, defaultBranch }: SearchPanelProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -79,6 +80,7 @@ export function SearchPanel({ repoId, apiUrl, apiKey, repoUrl }: SearchPanelProp
             isExpanded={idx === 0}
             aiSummary={idx === 0 ? aiSummary || undefined : undefined}
             repoUrl={repoUrl}
+            defaultBranch={defaultBranch}
           />
         ))}
       </div>

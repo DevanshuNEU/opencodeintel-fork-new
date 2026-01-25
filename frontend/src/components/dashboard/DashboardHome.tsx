@@ -229,6 +229,7 @@ export function DashboardHome() {
                   apiUrl={API_URL} 
                   apiKey={session?.access_token || ''}
                   repoUrl={selectedRepoData?.git_url?.replace('.git', '')}
+                  defaultBranch={selectedRepoData?.branch}
                 />
               )}
               {activeTab === 'dependencies' && (

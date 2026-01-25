@@ -13,9 +13,10 @@ interface ResultCardProps {
   isExpanded?: boolean;
   aiSummary?: string;
   repoUrl?: string;
+  defaultBranch?: string;
 }
 
-export function ResultCard({ result, rank, isExpanded: initialExpanded = false, aiSummary, repoUrl }: ResultCardProps) {
+export function ResultCard({ result, rank, isExpanded: initialExpanded = false, aiSummary, repoUrl, defaultBranch = 'main' }: ResultCardProps) {
   const [expanded, setExpanded] = useState(initialExpanded);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number | undefined>(initialExpanded ? undefined : 0);
@@ -26,7 +27,7 @@ export function ResultCard({ result, rank, isExpanded: initialExpanded = false, 
   
   const cleanFilePath = result.file_path.replace(/^repos\/[a-f0-9-]+\//, '');
   const displayPath = cleanFilePath.split('/').slice(-3).join('/');
-  const githubUrl = repoUrl ? `${repoUrl}/blob/main/${cleanFilePath}#L${result.line_start}-L${result.line_end}` : null;
+  const githubUrl = repoUrl ? `${repoUrl}/blob/${defaultBranch}/${cleanFilePath}#L${result.line_start}-L${result.line_end}` : null;
 
   useEffect(() => {
     if (expanded) {
@@ -98,7 +99,7 @@ export function ResultCard({ result, rank, isExpanded: initialExpanded = false, 
             >
               {result.code}
             </SyntaxHighlighter>
-            <span className="absolute top-3 right-3 px-2 py-0.5 text-[10px] font-mono uppercase bg-muted text-muted-foreground rounded">{result.language}</span>
+            <span className="absolute top-3 right-3 px-2 py-0.5 text-[10px] font-mono uppercase bg-muted text-muted-foreground rounded">{result.language || 'text'}</span>
           </div>
 
           <div className="px-4 py-3 bg-muted/50 flex items-center justify-between">
