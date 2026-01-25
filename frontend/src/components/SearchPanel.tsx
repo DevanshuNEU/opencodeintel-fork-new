@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Zap, Search } from 'lucide-react';
 import { SearchBox, ResultCard } from './search';
+import { SearchResultsSkeleton } from './ui/Skeleton';
 import type { SearchResult } from '../types';
 
 interface SearchPanelProps {
@@ -70,20 +71,27 @@ export function SearchPanel({ repoId, apiUrl, apiKey, repoUrl, defaultBranch }: 
         )}
       </div>
 
+      {/* Loading Skeleton */}
+      {loading && (
+        <SearchResultsSkeleton count={3} />
+      )}
+
       {/* Results */}
-      <div className="space-y-3">
-        {results.map((result, idx) => (
-          <ResultCard
-            key={`${result.file_path}-${result.line_start}-${idx}`}
-            result={result}
-            rank={idx + 1}
-            isExpanded={idx === 0}
-            aiSummary={idx === 0 ? aiSummary || undefined : undefined}
-            repoUrl={repoUrl}
-            defaultBranch={defaultBranch}
-          />
-        ))}
-      </div>
+      {!loading && (
+        <div className="space-y-3">
+          {results.map((result, idx) => (
+            <ResultCard
+              key={`${result.file_path}-${result.line_start}-${idx}`}
+              result={result}
+              rank={idx + 1}
+              isExpanded={idx === 0}
+              aiSummary={idx === 0 ? aiSummary || undefined : undefined}
+              repoUrl={repoUrl}
+              defaultBranch={defaultBranch}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Empty State */}
       {results.length === 0 && hasSearched && !loading && (

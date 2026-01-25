@@ -1,4 +1,5 @@
 import { useStyleAnalysis } from '../hooks/useCachedQuery'
+import { StyleInsightsSkeleton } from './ui/Skeleton'
 
 interface StyleInsightsProps {
   repoId: string
@@ -10,12 +11,7 @@ export function StyleInsights({ repoId, apiUrl, apiKey }: StyleInsightsProps) {
   const { data, isLoading: loading } = useStyleAnalysis({ repoId, apiKey })
 
   if (loading) {
-    return (
-      <div className="p-12 text-center">
-        <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-muted-foreground">Analyzing code style patterns...</p>
-      </div>
-    )
+    return <StyleInsightsSkeleton />
   }
 
   if (!data) return null
