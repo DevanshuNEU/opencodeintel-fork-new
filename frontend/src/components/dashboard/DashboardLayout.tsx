@@ -57,7 +57,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         />
 
         <main 
-          className={`flex-1 transition-all duration-300 ${
+          className={`flex-1 transition-all duration-300 pt-14 ${
             sidebarCollapsed ? 'ml-16' : 'ml-60'
           }`}
         >
