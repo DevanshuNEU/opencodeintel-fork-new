@@ -9,6 +9,13 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Load .env file if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, rely on exported env vars
+
 # Load from environment (set in .env or export manually)
 if not os.environ.get("VOYAGE_API_KEY"):
     print("❌ VOYAGE_API_KEY not set. Export it or add to .env file.")
@@ -77,7 +84,8 @@ async def run_final_test():
             start = time.time()
             try:
                 v2_results = await indexer.search_v2(query, repo["id"], top_k=3)
-            except:
+            except Exception as e:
+                print(f"  V2 error [{repo['name']}] '{query}': {e}")
                 v2_results = []
             v2_time = (time.time() - start) * 1000
             total_v2_time += v2_time
@@ -86,7 +94,8 @@ async def run_final_test():
             start = time.time()
             try:
                 v3_results = await indexer.search_v3(query, repo["id"], top_k=3, include_tests=False)
-            except:
+            except Exception as e:
+                print(f"  V3 error [{repo['name']}] '{query}': {e}")
                 v3_results = []
             v3_time = (time.time() - start) * 1000
             total_v3_time += v3_time
