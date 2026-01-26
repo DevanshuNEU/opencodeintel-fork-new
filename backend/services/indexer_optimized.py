@@ -633,7 +633,28 @@ class OptimizedCodeIndexer:
             metrics.increment("search_v3_errors")
             # fallback to V2
             logger.info("Falling back to search_v2")
-            return await self.search_v2(query, repo_id, top_k, use_reranking)
+            results = await self.search_v2(query, repo_id, top_k, use_reranking)
+            # apply test filtering to V2 results (V2 doesn't filter tests by default)
+            if not include_tests:
+                results = [r for r in results if not self._is_test_file(r.get("file_path", ""))]
+            return results
+    
+    def _is_test_file(self, file_path: str) -> bool:
+        """Check if file is a test file (stricter pattern matching)"""
+        import os
+        fp = file_path.lower()
+        # test directories
+        if "/test/" in fp or "/tests/" in fp:
+            return True
+        # basename patterns
+        basename = os.path.basename(fp)
+        if basename.startswith("test_") or basename.startswith("test."):
+            return True
+        if "_test." in basename or basename.endswith("_test.py"):
+            return True
+        if ".spec." in basename:
+            return True
+        return False
 
     async def explain_code(
         self,
