@@ -538,17 +538,16 @@ class OptimizedCodeIndexer:
         metrics.increment("search_v2_requests")
 
         try:
-            searcher = HybridSearcher(
-                pinecone_index=self.index,
-                embedding_fn=lambda q: self._create_embeddings_batch([q]).then(lambda x: x[0]),
-            )
-
-            # wrapper for async embed
-            async def embed(q):
+            async def embed_query(q: str) -> List[float]:
+                """Embed a single query string."""
                 embs = await self._create_embeddings_batch([q])
                 return embs[0]
 
-            searcher.embed = embed
+            searcher = HybridSearcher(
+                pinecone_index=self.index,
+                embedding_fn=embed_query,
+            )
+            searcher.embed = embed_query
 
             results = await searcher.search(
                 query=query,

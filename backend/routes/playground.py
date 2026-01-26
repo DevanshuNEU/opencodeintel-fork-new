@@ -429,14 +429,31 @@ async def playground_search(
                 "limit": limit_result.limit,
             }
 
-        # Search
-        results = await indexer.semantic_search(
+        # Search V2: Hybrid search with BM25 + Cohere reranking
+        v2_results = await indexer.search_v2(
             query=sanitized_query,
             repo_id=repo_id,
-            max_results=min(request.max_results, 10),
-            use_query_expansion=True,
+            top_k=min(request.max_results, 10),
             use_reranking=True
         )
+
+        # Format results for frontend compatibility
+        results = []
+        for r in v2_results:
+            results.append({
+                "name": r.get("name", ""),
+                "qualified_name": r.get("qualified_name", r.get("name", "")),
+                "file_path": r.get("file_path", ""),
+                "code": r.get("code", ""),
+                "signature": r.get("signature", ""),
+                "language": r.get("language", ""),
+                "score": r.get("score", 0),
+                "line_start": r.get("line_start", 0),
+                "line_end": r.get("line_end", 0),
+                "type": "function",  # backward compat with V1
+                "summary": r.get("summary"),
+                "class_name": r.get("class_name"),
+            })
 
         # Cache results
         cache.set_search_results(sanitized_query, repo_id, results, ttl=3600)
