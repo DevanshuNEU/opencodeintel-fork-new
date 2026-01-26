@@ -49,6 +49,9 @@ class PlaygroundSearchRequest(BaseModel):
     demo_repo: Optional[str] = None  # Keep for backward compat
     repo_id: Optional[str] = None    # Direct repo_id (user-indexed repos)
     max_results: int = 10
+    # V3 options
+    use_v3: bool = True              # Use Search V3 by default (better accuracy)
+    include_tests: bool = False      # Include test files in results
 
 
 class ValidateRepoRequest(BaseModel):
@@ -429,17 +432,26 @@ async def playground_search(
                 "limit": limit_result.limit,
             }
 
-        # Search V2: Hybrid search with BM25 + Cohere reranking
-        v2_results = await indexer.search_v2(
-            query=sanitized_query,
-            repo_id=repo_id,
-            top_k=min(request.max_results, 10),
-            use_reranking=True
-        )
+        # Search V3 (default) or V2 (fallback)
+        if request.use_v3:
+            search_results = await indexer.search_v3(
+                query=sanitized_query,
+                repo_id=repo_id,
+                top_k=min(request.max_results, 10),
+                include_tests=request.include_tests,
+                use_reranking=True
+            )
+        else:
+            search_results = await indexer.search_v2(
+                query=sanitized_query,
+                repo_id=repo_id,
+                top_k=min(request.max_results, 10),
+                use_reranking=True
+            )
 
         # Format results for frontend compatibility
         results = []
-        for r in v2_results:
+        for r in search_results:
             results.append({
                 "name": r.get("name", ""),
                 "qualified_name": r.get("qualified_name", r.get("name", "")),
@@ -453,6 +465,7 @@ async def playground_search(
                 "type": "function",  # backward compat with V1
                 "summary": r.get("summary"),
                 "class_name": r.get("class_name"),
+                "is_test_file": r.get("is_test_file", False),  # V3 feature
             })
 
         # Cache results
@@ -467,6 +480,7 @@ async def playground_search(
             "remaining_searches": limit_result.remaining,
             "limit": limit_result.limit,
             "search_time_ms": search_time,
+            "search_version": "v3" if request.use_v3 else "v2",
         }
     except HTTPException:
         raise
