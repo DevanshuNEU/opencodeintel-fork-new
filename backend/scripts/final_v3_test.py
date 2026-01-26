@@ -44,9 +44,20 @@ REPOS = [
 
 
 def has_test_file(results):
+    """Check if any of top 3 results are test files (stricter pattern matching)"""
+    import os
     for r in results[:3]:
         fp = r.get("file_path", "").lower()
-        if "test" in fp or "_test" in fp or "spec" in fp:
+        # check for test directories
+        if "/test/" in fp or "/tests/" in fp:
+            return True
+        # check basename patterns
+        basename = os.path.basename(fp)
+        if basename.startswith("test_") or basename.startswith("test."):
+            return True
+        if "_test." in basename or basename.endswith("_test.py"):
+            return True
+        if ".spec." in basename:
             return True
     return False
 
