@@ -39,6 +39,7 @@ export function LoginForm() {
       await signInWithGitHub()
     } catch (err: any) {
       setError(err.message || 'GitHub sign in failed')
+    } finally {
       setOauthLoading(null)
     }
   }
@@ -50,6 +51,7 @@ export function LoginForm() {
       await signInWithGoogle()
     } catch (err: any) {
       setError(err.message || 'Google sign in failed')
+    } finally {
       setOauthLoading(null)
     }
   }
@@ -152,9 +154,13 @@ export function LoginForm() {
                 className="h-10"
                 onClick={handleGitHubSignIn}
                 disabled={loading || oauthLoading !== null}
+                aria-label={oauthLoading === 'github' ? 'Signing in with GitHub' : undefined}
               >
                 {oauthLoading === 'github' ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="sr-only">Signing in with GitHub</span>
+                  </>
                 ) : (
                   <>
                     <Github className="w-4 h-4 mr-2" />
@@ -168,9 +174,13 @@ export function LoginForm() {
                 className="h-10"
                 onClick={handleGoogleSignIn}
                 disabled={loading || oauthLoading !== null}
+                aria-label={oauthLoading === 'google' ? 'Signing in with Google' : undefined}
               >
                 {oauthLoading === 'google' ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="sr-only">Signing in with Google</span>
+                  </>
                 ) : (
                   <>
                     <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
