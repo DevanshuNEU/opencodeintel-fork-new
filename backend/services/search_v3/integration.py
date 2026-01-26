@@ -156,10 +156,14 @@ class SearchV3Integration:
         file_dependencies: Optional[Dict[str, List[str]]] = None,
         include_tests: bool = False,
         top_k: int = 10,
-        use_reranking: bool = True
+        use_reranking: bool = True,
+        pro_user: bool = False
     ) -> List[Dict]:
         """
         Full Search V3 pipeline
+        
+        Args:
+            pro_user: Enable Cohere reranking (costs money, pro tier only)
         """
         self._ensure_initialized()
         
@@ -175,7 +179,8 @@ class SearchV3Integration:
             repo_id=repo_id,
             pinecone_index=pinecone_index,
             file_dependencies=file_dependencies,
-            config=config
+            config=config,
+            pro_user=pro_user
         )
 
 

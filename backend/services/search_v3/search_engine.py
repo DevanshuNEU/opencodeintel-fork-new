@@ -95,7 +95,8 @@ class SearchEngineV3:
         repo_id: str,
         pinecone_index: Any,
         file_dependencies: Optional[Dict[str, List[str]]] = None,
-        config: Optional[SearchConfig] = None
+        config: Optional[SearchConfig] = None,
+        pro_user: bool = False
     ) -> List[Dict]:
         """
         Execute full search pipeline
@@ -145,13 +146,15 @@ class SearchEngineV3:
                 if not include_tests:
                     results = self.code_graph_ranker.filter_test_files(results, include_tests)
             
-            # step 5: reranking
-            if config.use_reranking and self.cohere_client and len(results) > 1:
+            # step 5: reranking (pro users only - Cohere costs money)
+            reranking_used = False
+            if config.use_reranking and self.cohere_client and pro_user and len(results) > 1:
                 results = await self._rerank_results(query, results, config.top_k * 2)
                 # re-apply test filtering after rerank (Cohere doesn't know our preference)
                 if not include_tests:
                     results = [r for r in results if not self.code_graph_ranker._is_test_file(r.get('file_path', ''))]
                 results = results[:config.top_k]
+                reranking_used = True
             else:
                 results = results[:config.top_k]
             
@@ -161,7 +164,9 @@ class SearchEngineV3:
                        query=query[:50],
                        intent=analysis.intent.value,
                        result_count=len(results),
-                       include_tests=include_tests)
+                       include_tests=include_tests,
+                       pro_user=pro_user,
+                       reranking_used=reranking_used)
             
             return results
             
