@@ -324,6 +324,7 @@ class Metrics:
     def __init__(self):
         self._counters: Dict[str, int] = {}
         self._timings: Dict[str, list] = {}
+        self._gauges: Dict[str, float] = {}
     
     def increment(self, name: str, value: int = 1, **tags):
         """Increment a counter"""
@@ -339,10 +340,15 @@ class Metrics:
         if len(self._timings[name]) > 1000:
             self._timings[name] = self._timings[name][-1000:]
     
+    def gauge(self, name: str, value: float):
+        """Record a point-in-time value (like avg score, current queue size)"""
+        self._gauges[name] = value
+    
     def get_stats(self) -> Dict:
         """Get all metrics with basic stats"""
         stats = {
             "counters": self._counters.copy(),
+            "gauges": self._gauges.copy(),
             "timings": {}
         }
         
@@ -361,6 +367,7 @@ class Metrics:
         """Reset all metrics"""
         self._counters = {}
         self._timings = {}
+        self._gauges = {}
 
 
 # Global metrics instance

@@ -327,7 +327,7 @@ code: |
             
             # metrics for observability
             avg_score = sum(r['rerank_score'] for r in reranked) / len(reranked) if reranked else 0
-            metrics.timing("search.rerank.avg_score", avg_score * 100)  # scale to percentage
+            metrics.gauge("search.rerank.avg_score", avg_score * 100)  # scale to percentage
             metrics.increment("search.rerank.success")
             
             logger.info("Cohere rerank complete",
