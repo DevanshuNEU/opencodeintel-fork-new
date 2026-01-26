@@ -10,6 +10,13 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Load .env file if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, rely on exported env vars
+
 # Load from environment (set in .env or export manually)
 if not os.environ.get("VOYAGE_API_KEY"):
     print("❌ VOYAGE_API_KEY not set. Export it or add to .env file.")
