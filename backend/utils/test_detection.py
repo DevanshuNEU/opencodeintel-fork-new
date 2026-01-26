@@ -6,34 +6,49 @@ import re
 from typing import List
 
 
-# Regex patterns for test files (consolidated from CodeGraphRanker)
+# Anchored regex patterns for test files (boundary-aware to prevent false matches)
+# Uses (?:^|/) for start boundary and (?:/|$) for end boundary
 TEST_PATTERNS = [
-    r'test[s]?[/_]',          # test/, tests/, test_
-    r'[/_]test[s]?\.py$',     # _test.py, _tests.py
-    r'\.test\.[jt]sx?$',      # .test.js, .test.ts
-    r'\.spec\.[jt]sx?$',      # .spec.js, .spec.ts  
-    r'__tests__',             # __tests__/
-    r'conftest\.py$',         # pytest config
-    r'fixtures?[/_]',         # fixtures/
-    r'mock[s]?[/_]',          # mocks/
+    # test directories: /test/, /tests/, but NOT "contest", "latest"
+    r'(?:^|/)tests?(?:/|$)',
+    # test_ prefix in filename: test_foo.py, but NOT "contest_foo.py"
+    r'(?:^|/)test_[^/]+$',
+    # _test suffix: foo_test.py, foo_tests.py
+    r'(?:^|/)[^/]+_tests?\.py$',
+    # .test.js, .test.ts, .test.tsx, .test.jsx
+    r'\.test\.[jt]sx?$',
+    # .spec.js, .spec.ts, .spec.tsx, .spec.jsx
+    r'\.spec\.[jt]sx?$',
+    # __tests__ directory (Jest convention)
+    r'(?:^|/)__tests__(?:/|$)',
+    # conftest.py (pytest config)
+    r'(?:^|/)conftest\.py$',
+    # fixtures directory
+    r'(?:^|/)fixtures?(?:/|$)',
+    # mocks directory
+    r'(?:^|/)mocks?(?:/|$)',
 ]
+
+# Pre-compile patterns for performance
+_COMPILED_PATTERNS = [re.compile(p) for p in TEST_PATTERNS]
 
 
 def is_test_file(file_path: str) -> bool:
     """
-    Check if file is a test file using regex patterns.
+    Check if file is a test file using anchored regex patterns.
     
     Args:
-        file_path: Path to check (can be relative or absolute)
+        file_path: Path to check (can be relative or absolute, Windows or Unix)
         
     Returns:
         True if file matches any test pattern
     """
     if not file_path:
         return False
-    file_path_lower = file_path.lower()
-    for pattern in TEST_PATTERNS:
-        if re.search(pattern, file_path_lower):
+    # normalize: lowercase + Windows separators to Unix
+    normalized = file_path.lower().replace('\\', '/')
+    for pattern in _COMPILED_PATTERNS:
+        if pattern.search(normalized):
             return True
     return False
 
