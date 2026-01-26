@@ -8,12 +8,18 @@ import { Label } from '@/components/ui/label'
 interface AddRepoFormProps {
   onAdd: (gitUrl: string, branch: string) => Promise<void>
   loading: boolean
+  isOpen?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function AddRepoForm({ onAdd, loading }: AddRepoFormProps) {
+export function AddRepoForm({ onAdd, loading, isOpen, onOpenChange }: AddRepoFormProps) {
   const [gitUrl, setGitUrl] = useState('')
   const [branch, setBranch] = useState('main')
-  const [showForm, setShowForm] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  // Support both controlled and uncontrolled modes
+  const showForm = isOpen !== undefined ? isOpen : internalOpen
+  const setShowForm = onOpenChange || setInternalOpen
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

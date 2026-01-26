@@ -8,6 +8,7 @@ interface RepoListProps {
   repos: Repository[]
   selectedRepo: string | null
   onSelect: (repoId: string) => void
+  onAddClick?: () => void
   loading?: boolean
 }
 
@@ -94,15 +95,18 @@ const RepoCard = ({ repo, index, onSelect }: {
   )
 }
 
-export function RepoList({ repos, selectedRepo, onSelect, loading }: RepoListProps) {
+export function RepoList({ repos, selectedRepo, onSelect, onAddClick, loading }: RepoListProps) {
   if (loading) return <RepoGridSkeleton count={3} />
 
   if (repos.length === 0) {
     return (
-      <motion.div 
+      <motion.button
+        onClick={onAddClick}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="bg-card border border-border rounded-xl p-16 text-center"
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+        className="w-full bg-card border border-dashed border-border hover:border-primary/40 rounded-xl p-16 text-center transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
       >
         <div className="w-14 h-14 mx-auto mb-4 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
           <Plus className="w-6 h-6 text-primary" />
@@ -111,7 +115,7 @@ export function RepoList({ repos, selectedRepo, onSelect, loading }: RepoListPro
         <p className="text-sm text-muted-foreground max-w-xs mx-auto">
           Add your first repository to start searching code with AI
         </p>
-      </motion.div>
+      </motion.button>
     )
   }
 

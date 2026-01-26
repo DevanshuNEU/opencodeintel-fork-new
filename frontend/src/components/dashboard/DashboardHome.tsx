@@ -32,6 +32,7 @@ export function DashboardHome() {
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
   const [loading, setLoading] = useState(false)
   const [reposLoading, setReposLoading] = useState(true)
+  const [showAddForm, setShowAddForm] = useState(false)
 
   const fetchRepos = async () => {
     if (!session?.access_token) return
@@ -136,7 +137,12 @@ export function DashboardHome() {
                   Semantic code search powered by AI
                 </p>
               </div>
-              <AddRepoForm onAdd={handleAddRepo} loading={loading} />
+              <AddRepoForm 
+                onAdd={handleAddRepo} 
+                loading={loading}
+                isOpen={showAddForm}
+                onOpenChange={setShowAddForm}
+              />
             </div>
             
             {/* Stats */}
@@ -151,6 +157,7 @@ export function DashboardHome() {
                 setSelectedRepo(id)
                 setActiveTab('overview')
               }}
+              onAddClick={() => setShowAddForm(true)}
             />
           </motion.div>
         )}
