@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Navbar } from '@/components/landing'
-import { Github, Loader2, Mail, Lock } from 'lucide-react'
+import { Github, Loader2, Mail, Lock, CheckCircle2 } from 'lucide-react'
 
 export function SignupForm() {
   const [email, setEmail] = useState('')
@@ -15,6 +15,7 @@ export function SignupForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState<'github' | 'google' | null>(null)
+  const [emailSent, setEmailSent] = useState(false)
   const { signUp, signInWithGitHub, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
 
@@ -35,7 +36,7 @@ export function SignupForm() {
     setLoading(true)
     try {
       await signUp(email, password)
-      navigate('/dashboard')
+      setEmailSent(true)
     } catch (err: any) {
       setError(err.message || 'Signup failed')
     } finally {
@@ -73,22 +74,58 @@ export function SignupForm() {
 
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-semibold text-foreground mb-2">
-              Create your account
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Free for open source projects
-            </p>
-          </div>
+          {/* Email Verification Sent */}
+          {emailSent ? (
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-green-500" />
+              </div>
+              <h1 className="text-2xl font-semibold text-foreground mb-2">
+                Check your email
+              </h1>
+              <p className="text-sm text-muted-foreground mb-6">
+                We sent a verification link to<br />
+                <span className="font-medium text-foreground">{email}</span>
+              </p>
+              <div className="bg-card rounded-lg border border-border p-4 text-sm text-muted-foreground">
+                <p className="mb-2">
+                  Click the link in the email to verify your account and get started.
+                </p>
+                <p>
+                  Didn't receive it? Check your spam folder or{' '}
+                  <button 
+                    onClick={() => setEmailSent(false)}
+                    className="text-primary hover:underline"
+                  >
+                    try again
+                  </button>
+                </p>
+              </div>
+              <Link 
+                to="/login" 
+                className="inline-block mt-6 text-sm text-muted-foreground hover:text-foreground"
+              >
+                ← Back to login
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="text-center mb-8">
+                <h1 className="text-2xl font-semibold text-foreground mb-2">
+                  Create your account
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Free for open source projects
+                </p>
+              </div>
 
-          <div className="bg-card rounded-lg border border-border p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <Alert variant="destructive" className="bg-destructive/10 border-destructive/20">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+              <div className="bg-card rounded-lg border border-border p-6">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {error && (
+                    <Alert variant="destructive" className="bg-destructive/10 border-destructive/20">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -242,6 +279,8 @@ export function SignupForm() {
               Sign in
             </Link>
           </p>
+            </>
+          )}
         </div>
       </div>
     </div>
