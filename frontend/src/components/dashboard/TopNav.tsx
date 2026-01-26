@@ -34,7 +34,7 @@ export function TopNav({ onToggleSidebar, sidebarCollapsed, onOpenCommandPalette
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-border bg-background/80 backdrop-blur-xl">
+    <nav className="fixed top-0 left-0 right-0 z-50 h-[var(--navbar-height)] border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="h-full px-4 flex items-center justify-between">
         {/* Left Section */}
         <div className="flex items-center gap-4">
