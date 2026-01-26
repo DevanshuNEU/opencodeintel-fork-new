@@ -111,8 +111,6 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         flex flex-col border-r border-border bg-background 
         transition-all duration-300
         ${getWidthClass()}
-        
-        /* Mobile: hidden by default, shown when mobileOpen */
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0
       `}

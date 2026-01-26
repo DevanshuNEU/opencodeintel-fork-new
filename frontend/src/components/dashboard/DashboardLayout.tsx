@@ -111,8 +111,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <main 
           className={`
             flex-1 transition-all duration-300 pt-[var(--navbar-height)]
-            ml-0 lg:ml-[var(--sidebar-width)]
-            ${sidebarCollapsed ? 'lg:ml-[var(--sidebar-width-collapsed)]' : ''}
+            ml-0 ${sidebarCollapsed ? 'lg:ml-[var(--sidebar-width-collapsed)]' : 'lg:ml-[var(--sidebar-width)]'}
           `}
         >
           <div className="p-4 md:p-6">
