@@ -296,7 +296,7 @@ code: |
             documents = [self._format_doc_as_yaml(r) for r in results]
             
             # call Cohere rerank API
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             rerank_response = await loop.run_in_executor(
                 None,
                 lambda: self.cohere_client.rerank(
