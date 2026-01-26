@@ -106,14 +106,16 @@ async def run_extended_test():
         # V2
         try:
             v2_results = await indexer.search_v2(query, repo_id, top_k=5)
-        except:
+        except Exception as e:
+            print(f"  V2 error for '{query}': {e}")
             v2_results = []
         v2_eval = evaluate_results(v2_results, q)
         
         # V3
         try:
             v3_results = await indexer.search_v3(query, repo_id, top_k=5, include_tests=False)
-        except:
+        except Exception as e:
+            print(f"  V3 error for '{query}': {e}")
             v3_results = []
         v3_eval = evaluate_results(v3_results, q)
         
