@@ -8,7 +8,11 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ["VOYAGE_API_KEY"] = "pa-LPXoLbJ3W-S01F70zQsHcRFUTPXZ52dZ3d9PrXnxm7A"
+
+# Load from environment (set in .env or export manually)
+if not os.environ.get("VOYAGE_API_KEY"):
+    print("❌ VOYAGE_API_KEY not set. Export it or add to .env file.")
+    sys.exit(1)
 
 from services.indexer_optimized import OptimizedCodeIndexer
 

@@ -232,8 +232,8 @@ async def run_benchmark(repo_id: str):
         else:
             print("⚠️ Voyage AI not enabled - using OpenAI embeddings")
             print("   Set VOYAGE_API_KEY for better code search accuracy!")
-    except:
-        pass
+    except Exception as e:
+        print(f"⚠️ Could not check Voyage status: {e}")
 
 
 if __name__ == "__main__":

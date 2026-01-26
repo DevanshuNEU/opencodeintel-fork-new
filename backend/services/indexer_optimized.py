@@ -547,7 +547,6 @@ class OptimizedCodeIndexer:
                 pinecone_index=self.index,
                 embedding_fn=embed_query,
             )
-            searcher.embed = embed_query
 
             results = await searcher.search(
                 query=query,

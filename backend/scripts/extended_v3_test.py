@@ -8,7 +8,11 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ["VOYAGE_API_KEY"] = "pa-LPXoLbJ3W-S01F70zQsHcRFUTPXZ52dZ3d9PrXnxm7A"
+
+# Load from environment (set in .env or export manually)
+if not os.environ.get("VOYAGE_API_KEY"):
+    print("❌ VOYAGE_API_KEY not set. Export it or add to .env file.")
+    sys.exit(1)
 
 from services.indexer_optimized import OptimizedCodeIndexer
 
@@ -61,13 +65,15 @@ async def run_extended_tests():
         # V2
         try:
             v2_results = await indexer.search_v2(query, repo_id, top_k=3)
-        except:
+        except Exception as e:
+            print(f"  V2 error: {e}")
             v2_results = []
         
         # V3
         try:
             v3_results = await indexer.search_v3(query, repo_id, top_k=3, include_tests=False)
-        except:
+        except Exception as e:
+            print(f"  V3 error: {e}")
             v3_results = []
         
         # Check for test files in top 3

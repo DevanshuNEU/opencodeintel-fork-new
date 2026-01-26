@@ -126,8 +126,8 @@ class QueryUnderstanding:
         # extract keywords
         keywords = self._extract_keywords(query_lower)
         
-        # find code-specific terms
-        code_terms = self._extract_code_terms(query_lower)
+        # find code-specific terms (use original query to preserve CamelCase)
+        code_terms = self._extract_code_terms(query)
         
         # expand query with synonyms
         expanded = self._expand_query(query_lower, code_terms)

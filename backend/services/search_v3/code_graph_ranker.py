@@ -91,8 +91,9 @@ class CodeGraphRanker:
         # find max for normalization
         max_dependents = max(dependent_counts.values()) if dependent_counts else 1
         
-        # calculate importance for each file
-        for file_path in file_dependencies.keys():
+        # calculate importance for each file (include files that only appear as dependencies)
+        all_files = set(file_dependencies.keys()) | set(dependent_counts.keys())
+        for file_path in all_files:
             is_test = self._is_test_file(file_path)
             is_core = self._is_core_file(file_path)
             dep_count = dependent_counts.get(file_path, 0)

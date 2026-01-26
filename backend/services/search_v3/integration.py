@@ -3,6 +3,7 @@ Search V3 Integration - Bridge between indexer and Search V3 components
 Provides methods to use V3 search from existing indexer infrastructure
 """
 import os
+import threading
 from typing import List, Dict, Optional, Any
 
 from services.observability import logger, track_time
@@ -24,12 +25,15 @@ class SearchV3Integration:
     """
     
     _instance = None
+    _lock = threading.Lock()
     
     @classmethod
     def get_instance(cls) -> 'SearchV3Integration':
-        """Singleton instance"""
+        """Thread-safe singleton instance (double-checked locking)"""
         if cls._instance is None:
-            cls._instance = cls()
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = cls()
         return cls._instance
     
     def __init__(self):
@@ -51,7 +55,8 @@ class SearchV3Integration:
                 try:
                     self._voyage_embedding_provider = get_embedding_provider("voyage")
                     logger.info("Voyage available for new indexing")
-                except:
+                except Exception as e:
+                    logger.warning("Failed to init Voyage, falling back to OpenAI", error=str(e))
                     self._voyage_embedding_provider = self._index_embedding_provider
                 
                 self._query_understanding = QueryUnderstanding()

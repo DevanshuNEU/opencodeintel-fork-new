@@ -421,8 +421,9 @@ async def playground_search(
     try:
         sanitized_query = InputValidator.sanitize_string(request.query, max_length=200)
 
-        # Check cache
-        cached_results = cache.get_search_results(sanitized_query, repo_id)
+        # Check cache (include flags in key to avoid returning wrong results)
+        cache_key = f"{sanitized_query}:v3={request.use_v3}:tests={request.include_tests}"
+        cached_results = cache.get_search_results(cache_key, repo_id)
         if cached_results:
             return {
                 "results": cached_results,
@@ -468,8 +469,8 @@ async def playground_search(
                 "is_test_file": r.get("is_test_file", False),  # V3 feature
             })
 
-        # Cache results
-        cache.set_search_results(sanitized_query, repo_id, results, ttl=3600)
+        # Cache results (using same key that includes flags)
+        cache.set_search_results(cache_key, repo_id, results, ttl=3600)
 
         search_time = int((time.time() - start_time) * 1000)
 
