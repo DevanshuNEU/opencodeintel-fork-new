@@ -22,6 +22,7 @@ if not os.environ.get("VOYAGE_API_KEY"):
     sys.exit(1)
 
 from services.indexer_optimized import OptimizedCodeIndexer
+from utils.test_detection import has_test_file_in_top_n as has_test_file
 
 # All query types combined
 ALL_QUERIES = [
@@ -41,25 +42,6 @@ REPOS = [
     {"id": "0323a08f-9d21-4c59-b567-e0629a9bbb24", "name": "Starlette"},
     {"id": "b0d22b4c-9d05-426e-8d9c-7278cce0f4c7", "name": "Flask"},
 ]
-
-
-def has_test_file(results):
-    """Check if any of top 3 results are test files (stricter pattern matching)"""
-    import os
-    for r in results[:3]:
-        fp = r.get("file_path", "").lower()
-        # check for test directories
-        if "/test/" in fp or "/tests/" in fp:
-            return True
-        # check basename patterns
-        basename = os.path.basename(fp)
-        if basename.startswith("test_") or basename.startswith("test."):
-            return True
-        if "_test." in basename or basename.endswith("_test.py"):
-            return True
-        if ".spec." in basename:
-            return True
-    return False
 
 
 async def run_final_test():

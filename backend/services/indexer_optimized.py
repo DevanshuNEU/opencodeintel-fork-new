@@ -14,6 +14,8 @@ from typing import List, Dict, Optional, Tuple
 import asyncio
 from collections import defaultdict
 
+from utils.test_detection import is_test_file, filter_test_files
+
 # Tree-sitter for parsing
 import tree_sitter_python as tspython
 import tree_sitter_javascript as tsjavascript
@@ -636,25 +638,8 @@ class OptimizedCodeIndexer:
             results = await self.search_v2(query, repo_id, top_k, use_reranking)
             # apply test filtering to V2 results (V2 doesn't filter tests by default)
             if not include_tests:
-                results = [r for r in results if not self._is_test_file(r.get("file_path", ""))]
+                results = filter_test_files(results)
             return results
-    
-    def _is_test_file(self, file_path: str) -> bool:
-        """Check if file is a test file (stricter pattern matching)"""
-        import os
-        fp = file_path.lower()
-        # test directories
-        if "/test/" in fp or "/tests/" in fp:
-            return True
-        # basename patterns
-        basename = os.path.basename(fp)
-        if basename.startswith("test_") or basename.startswith("test."):
-            return True
-        if "_test." in basename or basename.endswith("_test.py"):
-            return True
-        if ".spec." in basename:
-            return True
-        return False
 
     async def explain_code(
         self,

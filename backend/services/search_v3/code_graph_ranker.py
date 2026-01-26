@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Set
 from dataclasses import dataclass
 
 from services.observability import logger
+from utils.test_detection import is_test_file as shared_is_test_file
 
 
 @dataclass
@@ -29,18 +30,6 @@ class CodeGraphRanker:
     3. Export/public boost (public APIs are usually more relevant)
     4. Core file boost (main, index, app files)
     """
-    
-    # patterns for test files
-    TEST_PATTERNS = [
-        r'test[s]?[/_]',          # test/, tests/, test_
-        r'[/_]test[s]?\.py$',     # _test.py, _tests.py
-        r'\.test\.[jt]sx?$',      # .test.js, .test.ts
-        r'\.spec\.[jt]sx?$',      # .spec.js, .spec.ts  
-        r'__tests__',             # __tests__/
-        r'conftest\.py$',         # pytest config
-        r'fixtures?[/_]',         # fixtures/
-        r'mock[s]?[/_]',          # mocks/
-    ]
     
     # patterns for core files (boost these)
     CORE_PATTERNS = [
@@ -135,12 +124,8 @@ class CodeGraphRanker:
         return importance_map
     
     def _is_test_file(self, file_path: str) -> bool:
-        """Check if file is a test file"""
-        file_path_lower = file_path.lower()
-        for pattern in self.TEST_PATTERNS:
-            if re.search(pattern, file_path_lower):
-                return True
-        return False
+        """Check if file is a test file (uses shared utility)"""
+        return shared_is_test_file(file_path)
     
     def _is_core_file(self, file_path: str) -> bool:
         """Check if file is a core/important file"""
