@@ -574,6 +574,7 @@ class OptimizedCodeIndexer:
         top_k: int = 10,
         include_tests: bool = False,
         use_reranking: bool = True,
+        pro_user: bool = False,
     ) -> List[Dict]:
         """
         Search V3 - "Project Brain" search with:
@@ -581,7 +582,10 @@ class OptimizedCodeIndexer:
         - Query understanding & intent classification
         - Code graph importance ranking
         - Test file filtering
-        - Cohere reranking
+        - Cohere reranking (pro users only)
+        
+        Args:
+            pro_user: Enable Cohere reranking (costs money, pro tier only)
         """
         from services.search_v3.integration import get_search_v3
         
@@ -609,7 +613,8 @@ class OptimizedCodeIndexer:
                 file_dependencies=file_dependencies,
                 include_tests=include_tests,
                 top_k=top_k,
-                use_reranking=use_reranking
+                use_reranking=use_reranking,
+                pro_user=pro_user
             )
             
             elapsed = time.time() - start_time
