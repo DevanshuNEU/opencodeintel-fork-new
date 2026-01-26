@@ -16,13 +16,14 @@ class SearchV3Integration:
     """
     Integration layer for Search V3
     Use this from the indexer to access V3 capabilities
+    
+    NOTE: For SEARCH queries, we use OpenAI embeddings to match the existing
+    Pinecone index (1536 dim). V3 features like query understanding and 
+    code graph ranking still work. For full Voyage benefits, repos need
+    to be re-indexed with Voyage embeddings.
     """
     
     _instance = None
-    _embedding_provider = None
-    _search_engine = None
-    _query_understanding = None
-    _code_graph_ranker = None
     
     @classmethod
     def get_instance(cls) -> 'SearchV3Integration':
@@ -33,53 +34,72 @@ class SearchV3Integration:
     
     def __init__(self):
         self._initialized = False
+        self._index_embedding_provider = None
+        self._voyage_embedding_provider = None
+        self._search_engine = None
+        self._query_understanding = None
+        self._code_graph_ranker = None
     
     def _ensure_initialized(self):
         """Lazy initialization"""
         if not self._initialized:
             try:
-                self._embedding_provider = get_embedding_provider("auto")
+                # for SEARCH: use OpenAI to match existing index (1536 dim)
+                self._index_embedding_provider = get_embedding_provider("openai")
+                
+                # for NEW INDEXING: use Voyage if available
+                try:
+                    self._voyage_embedding_provider = get_embedding_provider("voyage")
+                    logger.info("Voyage available for new indexing")
+                except:
+                    self._voyage_embedding_provider = self._index_embedding_provider
+                
                 self._query_understanding = QueryUnderstanding()
                 self._code_graph_ranker = CodeGraphRanker()
+                
+                # search engine uses OpenAI for queries (matches index)
+                # explicitly pass Cohere key for reranking
                 self._search_engine = SearchEngineV3(
-                    embedding_provider=self._embedding_provider
+                    embedding_provider=self._index_embedding_provider,
+                    cohere_api_key=os.getenv("COHERE_API_KEY")
                 )
                 self._initialized = True
                 logger.info("SearchV3Integration initialized",
-                           embedding_model=self._embedding_provider.model_name)
+                           query_model=self._index_embedding_provider.model_name,
+                           index_model=self._voyage_embedding_provider.model_name)
             except Exception as e:
                 logger.error("Failed to initialize SearchV3Integration", error=str(e))
                 raise
     
     @property
     def embedding_provider(self) -> EmbeddingProvider:
-        """Get the embedding provider"""
+        """Get the embedding provider for queries (matches index)"""
         self._ensure_initialized()
-        return self._embedding_provider
+        return self._index_embedding_provider
     
     @property
     def is_voyage_enabled(self) -> bool:
-        """Check if Voyage AI is being used"""
+        """Check if Voyage AI is available for new indexing"""
         self._ensure_initialized()
-        return "voyage" in self._embedding_provider.model_name.lower()
+        return "voyage" in self._voyage_embedding_provider.model_name.lower()
     
     @track_time("v3_embed_documents")
     async def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """
-        Embed documents using V3 provider (Voyage or OpenAI)
-        Use this when indexing code chunks
+        Embed documents using Voyage (if available) for NEW indexing.
+        NOTE: This creates Voyage-dimension vectors. Repos indexed with this
+        cannot be searched with OpenAI queries.
         """
         self._ensure_initialized()
-        return await self._embedding_provider.embed_documents(texts)
+        return await self._voyage_embedding_provider.embed_documents(texts)
     
     @track_time("v3_embed_query")
     async def embed_query(self, query: str) -> List[float]:
         """
-        Embed a search query using V3 provider
-        Use this for search queries
+        Embed a search query using OpenAI (matches existing index)
         """
         self._ensure_initialized()
-        return await self._embedding_provider.embed_query(query)
+        return await self._index_embedding_provider.embed_query(query)
     
     def analyze_query(self, query: str):
         """

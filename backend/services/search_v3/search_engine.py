@@ -147,7 +147,11 @@ class SearchEngineV3:
             
             # step 5: reranking
             if config.use_reranking and self.cohere_client and len(results) > 1:
-                results = await self._rerank_results(query, results, config.top_k)
+                results = await self._rerank_results(query, results, config.top_k * 2)
+                # re-apply test filtering after rerank (Cohere doesn't know our preference)
+                if not include_tests:
+                    results = [r for r in results if not self.code_graph_ranker._is_test_file(r.get('file_path', ''))]
+                results = results[:config.top_k]
             else:
                 results = results[:config.top_k]
             
@@ -239,31 +243,54 @@ class SearchEngineV3:
         
         return results
     
+    def _format_doc_as_yaml(self, result: Dict) -> str:
+        """
+        Format code result as YAML for optimal Cohere reranking.
+        Cohere recommends YAML for structured/semi-structured data like code.
+        """
+        file_name = result.get('file_path', '').split('/')[-1] if result.get('file_path') else ''
+        code_snippet = result.get('code', '')[:400].replace('\n', '\n  ')
+        
+        yaml_doc = f"""name: {result.get('name', 'unknown')}
+type: {result.get('type', 'function')}
+file: {file_name}
+qualified_name: {result.get('qualified_name', '')}
+signature: {result.get('signature', 'N/A')}
+summary: {result.get('summary', 'N/A')}
+code: |
+  {code_snippet}"""
+        return yaml_doc
+
+    @track_time("cohere_rerank")
     async def _rerank_results(
         self,
         query: str,
         results: List[Dict],
         top_k: int
     ) -> List[Dict]:
-        """Rerank results using Cohere"""
+        """
+        Rerank results using Cohere rerank-v3.5
+        
+        Best practices applied:
+        - YAML format for structured code data
+        - Relevance threshold filtering (score >= 0.01)
+        - Graceful fallback on errors
+        """
         if not self.cohere_client:
+            logger.debug("Cohere not configured, skipping rerank")
             return results[:top_k]
         
+        if not results:
+            return []
+        
+        # minimum relevance threshold (Cohere scores are 0-1)
+        MIN_RELEVANCE = 0.01
+        
         try:
-            # prepare documents for reranking
-            documents = []
-            for r in results:
-                # create rich document text
-                doc_text = f"{r.get('name', '')} {r.get('qualified_name', '')}"
-                if r.get('signature'):
-                    doc_text += f"\n{r['signature']}"
-                if r.get('summary'):
-                    doc_text += f"\n{r['summary']}"
-                if r.get('code'):
-                    doc_text += f"\n{r['code'][:500]}"  # limit code length
-                documents.append(doc_text)
+            # format documents as YAML (Cohere best practice for code)
+            documents = [self._format_doc_as_yaml(r) for r in results]
             
-            # call cohere rerank
+            # call Cohere rerank API
             loop = asyncio.get_event_loop()
             rerank_response = await loop.run_in_executor(
                 None,
@@ -271,28 +298,45 @@ class SearchEngineV3:
                     model="rerank-v3.5",
                     query=query,
                     documents=documents,
-                    top_n=top_k
+                    top_n=min(top_k * 2, len(documents))  # get extra for filtering
                 )
             )
             
-            # reorder results based on reranking
+            # process reranked results
             reranked = []
             for item in rerank_response.results:
+                # skip low-relevance results
+                if item.relevance_score < MIN_RELEVANCE:
+                    continue
+                    
                 idx = item.index
+                if idx >= len(results):
+                    continue
+                    
                 result = results[idx].copy()
+                result['rerank_score'] = item.relevance_score
+                result['original_score'] = results[idx].get('score', 0)
+                # use rerank score as primary
                 result['score'] = item.relevance_score
-                result['original_vector_score'] = results[idx].get('score', 0)
                 reranked.append(result)
             
-            logger.debug("Reranking complete", 
-                        original_count=len(results), 
-                        reranked_count=len(reranked))
+            # metrics for observability
+            avg_score = sum(r['rerank_score'] for r in reranked) / len(reranked) if reranked else 0
+            metrics.timing("search.rerank.avg_score", avg_score * 100)  # scale to percentage
+            metrics.increment("search.rerank.success")
             
-            return reranked
+            logger.info("Cohere rerank complete",
+                       query=query[:50],
+                       input_count=len(results),
+                       output_count=len(reranked),
+                       avg_relevance=round(avg_score, 3))
+            
+            return reranked[:top_k]
             
         except Exception as e:
-            logger.error("Reranking failed, using original order", error=str(e))
+            logger.error("Cohere rerank failed, using original order", error=str(e))
             capture_exception(e, operation="cohere_rerank")
+            metrics.increment("search.rerank.error")
             return results[:top_k]
 
 
