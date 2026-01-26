@@ -88,10 +88,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside 
       className={`
-        fixed left-0 top-14 bottom-0 z-40 
+        fixed left-0 top-[var(--navbar-height)] bottom-0 z-40 
         flex flex-col border-r border-border bg-background 
         transition-all duration-300
-        ${collapsed ? 'w-16' : 'w-60'}
+        ${collapsed ? 'w-[var(--sidebar-width-collapsed)]' : 'w-[var(--sidebar-width)]'}
       `}
     >
       <nav className="flex-1 p-3 space-y-1">
