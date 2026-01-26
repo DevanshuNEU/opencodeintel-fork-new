@@ -14,6 +14,8 @@ from typing import List, Dict, Optional, Tuple
 import asyncio
 from collections import defaultdict
 
+from utils.test_detection import is_test_file, filter_test_files
+
 # Tree-sitter for parsing
 import tree_sitter_python as tspython
 import tree_sitter_javascript as tsjavascript
@@ -538,17 +540,15 @@ class OptimizedCodeIndexer:
         metrics.increment("search_v2_requests")
 
         try:
-            searcher = HybridSearcher(
-                pinecone_index=self.index,
-                embedding_fn=lambda q: self._create_embeddings_batch([q]).then(lambda x: x[0]),
-            )
-
-            # wrapper for async embed
-            async def embed(q):
+            async def embed_query(q: str) -> List[float]:
+                """Embed a single query string."""
                 embs = await self._create_embeddings_batch([q])
                 return embs[0]
 
-            searcher.embed = embed
+            searcher = HybridSearcher(
+                pinecone_index=self.index,
+                embedding_fn=embed_query,
+            )
 
             results = await searcher.search(
                 query=query,
@@ -568,6 +568,78 @@ class OptimizedCodeIndexer:
             logger.error("Search V2 failed", error=str(e))
             metrics.increment("search_v2_errors")
             return []
+
+    async def search_v3(
+        self,
+        query: str,
+        repo_id: str,
+        top_k: int = 10,
+        include_tests: bool = False,
+        use_reranking: bool = True,
+        pro_user: bool = False,
+    ) -> List[Dict]:
+        """
+        Search V3 - "Project Brain" search with:
+        - Voyage AI code-optimized embeddings (if available)
+        - Query understanding & intent classification
+        - Code graph importance ranking
+        - Test file filtering
+        - Cohere reranking (pro users only)
+        
+        Args:
+            pro_user: Enable Cohere reranking (costs money, pro tier only)
+        """
+        from services.search_v3.integration import get_search_v3
+        
+        start_time = time.time()
+        metrics.increment("search_v3_requests")
+        
+        try:
+            v3 = get_search_v3()
+            
+            # load file dependencies for code graph ranking
+            file_dependencies = None
+            try:
+                from services.dependency_analyzer import DependencyAnalyzer
+                analyzer = DependencyAnalyzer()
+                cached = analyzer.load_from_cache(repo_id)
+                if cached:
+                    file_dependencies = cached.get("dependencies", {})
+            except Exception as e:
+                logger.warning("Could not load dependencies for V3 search", error=str(e))
+            
+            results = await v3.search(
+                query=query,
+                repo_id=repo_id,
+                pinecone_index=self.index,
+                file_dependencies=file_dependencies,
+                include_tests=include_tests,
+                top_k=top_k,
+                use_reranking=use_reranking,
+                pro_user=pro_user
+            )
+            
+            elapsed = time.time() - start_time
+            logger.info("Search V3 complete", 
+                       repo_id=repo_id, 
+                       results=len(results), 
+                       duration_ms=round(elapsed*1000),
+                       voyage_enabled=v3.is_voyage_enabled)
+            metrics.timing("search_v3_latency_ms", elapsed * 1000)
+            
+            return results
+            
+        except Exception as e:
+            capture_exception(e, operation="search_v3", repo_id=repo_id, query=query[:100])
+            logger.error("Search V3 failed", error=str(e))
+            metrics.increment("search_v3_errors")
+            # fallback to V2
+            logger.info("Falling back to search_v2")
+            results = await self.search_v2(query, repo_id, top_k, use_reranking)
+            # apply test filtering to V2 results (V2 doesn't filter tests by default)
+            if not include_tests:
+                results = filter_test_files(results)
+            return results
 
     async def explain_code(
         self,

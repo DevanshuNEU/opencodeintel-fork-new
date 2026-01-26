@@ -1,5 +1,6 @@
 """Hybrid search with BM25 + semantic fusion and Cohere reranking."""
 import os
+import re
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 
@@ -18,6 +19,19 @@ class ScoredResult:
     bm25_score: float = 0.0
     rerank_score: float = 0.0
     fused_score: float = 0.0
+
+
+def _split_camel_case(text: str) -> str:
+    """Split CamelCase into separate words for better tokenization."""
+    # AuthenticationMiddleware -> Authentication Middleware
+    return re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
+
+
+def _tokenize(text: str) -> List[str]:
+    """Tokenize text with camelCase splitting."""
+    # split camelCase, then lowercase and split on whitespace/punctuation
+    expanded = _split_camel_case(text)
+    return re.findall(r'\w+', expanded.lower())
 
 
 class HybridSearcher:
@@ -57,26 +71,18 @@ class HybridSearcher:
         3. Fuse scores using RRF
         4. Rerank top results with Cohere
         """
-        # get semantic candidates
         candidates = await self._semantic_search(query, repo_id, top_k=50)
         if not candidates:
             return []
 
-        # apply bm25 on candidates
         candidates = self._apply_bm25(query, candidates)
-
-        # fuse scores
         candidates = self._rrf_fusion(candidates, semantic_weight, bm25_weight)
-
-        # sort by fused score
         candidates.sort(key=lambda x: x.fused_score, reverse=True)
 
-        # rerank top results
         top_candidates = candidates[:top_k * 2]
         if use_reranking and self.cohere:
             top_candidates = await self._rerank(query, top_candidates)
 
-        # convert to SearchResult
         return [self._to_search_result(c) for c in top_candidates[:top_k]]
 
     async def _semantic_search(self, query: str, repo_id: str, top_k: int) -> List[ScoredResult]:
@@ -99,23 +105,29 @@ class HybridSearcher:
         ]
 
     def _apply_bm25(self, query: str, candidates: List[ScoredResult]) -> List[ScoredResult]:
-        """Score candidates with BM25."""
+        """Score candidates with BM25 (with camelCase support)."""
         if not candidates:
             return candidates
 
-        # build corpus from candidates
         corpus = []
         for c in candidates:
-            text = f"{c.metadata.get('name', '')} {c.metadata.get('qualified_name', '')} "
-            text += f"{c.metadata.get('signature', '')} {c.metadata.get('docstring', '')} "
-            text += c.metadata.get('summary', '')
-            corpus.append(text.lower().split())
+            # build searchable text from all available metadata
+            parts = [
+                c.metadata.get('name', ''),
+                c.metadata.get('qualified_name', ''),
+                c.metadata.get('signature', ''),
+                c.metadata.get('docstring', ''),
+                c.metadata.get('summary', ''),
+                c.metadata.get('type', ''),
+            ]
+            text = ' '.join(filter(None, parts))
+            # tokenize with camelCase splitting
+            corpus.append(_tokenize(text))
 
         bm25 = BM25Okapi(corpus)
-        query_tokens = query.lower().split()
+        query_tokens = _tokenize(query)
         scores = bm25.get_scores(query_tokens)
 
-        # normalize scores
         max_score = max(scores) if max(scores) > 0 else 1
         for i, c in enumerate(candidates):
             c.bm25_score = scores[i] / max_score
@@ -130,12 +142,10 @@ class HybridSearcher:
         k: int = 60
     ) -> List[ScoredResult]:
         """Reciprocal Rank Fusion."""
-        # sort by semantic for ranking
         by_semantic = sorted(candidates, key=lambda x: x.semantic_score, reverse=True)
         for rank, c in enumerate(by_semantic):
             c.fused_score = semantic_weight / (k + rank + 1)
 
-        # sort by bm25 for ranking
         by_bm25 = sorted(candidates, key=lambda x: x.bm25_score, reverse=True)
         for rank, c in enumerate(by_bm25):
             c.fused_score += bm25_weight / (k + rank + 1)
@@ -143,15 +153,30 @@ class HybridSearcher:
         return candidates
 
     async def _rerank(self, query: str, candidates: List[ScoredResult]) -> List[ScoredResult]:
-        """Rerank with Cohere."""
+        """Rerank with Cohere (backward compatible with V1 indexed data)."""
         if not candidates:
             return candidates
 
         docs = []
         for c in candidates:
-            doc = f"{c.metadata.get('qualified_name', '')}: {c.metadata.get('summary', '')}"
-            if not c.metadata.get('summary'):
-                doc = f"{c.metadata.get('qualified_name', '')}: {c.metadata.get('signature', '')}"
+            # try V2 metadata first
+            qn = c.metadata.get('qualified_name') or c.metadata.get('name', '')
+            summary = c.metadata.get('summary', '')
+            sig = c.metadata.get('signature', '')
+
+            if summary:
+                doc = f"{qn}: {summary}"
+            elif sig:
+                doc = f"{qn}: {sig}"
+            else:
+                # fallback for V1 indexed data: use name + code snippet
+                code = c.metadata.get('code', '')[:200]
+                doc = f"{qn}: {code}" if code else qn
+
+            # ensure non-empty doc
+            if not doc.strip() or doc.strip() == ':':
+                doc = c.metadata.get('name', 'unknown')
+
             docs.append(doc)
 
         try:
@@ -179,7 +204,7 @@ class HybridSearcher:
         m = scored.metadata
         return SearchResult(
             name=m.get("name", ""),
-            qualified_name=m.get("qualified_name", ""),
+            qualified_name=m.get("qualified_name") or m.get("name", ""),
             file_path=m.get("file_path", ""),
             code=m.get("code", ""),
             signature=m.get("signature", ""),

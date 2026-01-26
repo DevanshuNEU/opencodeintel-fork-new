@@ -49,6 +49,9 @@ class PlaygroundSearchRequest(BaseModel):
     demo_repo: Optional[str] = None  # Keep for backward compat
     repo_id: Optional[str] = None    # Direct repo_id (user-indexed repos)
     max_results: int = 10
+    # V3 options
+    use_v3: bool = True              # Use Search V3 by default (better accuracy)
+    include_tests: bool = False      # Include test files in results
 
 
 class ValidateRepoRequest(BaseModel):
@@ -418,8 +421,9 @@ async def playground_search(
     try:
         sanitized_query = InputValidator.sanitize_string(request.query, max_length=200)
 
-        # Check cache
-        cached_results = cache.get_search_results(sanitized_query, repo_id)
+        # Check cache (include flags in key to avoid returning wrong results)
+        cache_key = f"{sanitized_query}:v3={request.use_v3}:tests={request.include_tests}"
+        cached_results = cache.get_search_results(cache_key, repo_id)
         if cached_results:
             return {
                 "results": cached_results,
@@ -429,17 +433,44 @@ async def playground_search(
                 "limit": limit_result.limit,
             }
 
-        # Search
-        results = await indexer.semantic_search(
-            query=sanitized_query,
-            repo_id=repo_id,
-            max_results=min(request.max_results, 10),
-            use_query_expansion=True,
-            use_reranking=True
-        )
+        # Search V3 (default) or V2 (fallback)
+        if request.use_v3:
+            search_results = await indexer.search_v3(
+                query=sanitized_query,
+                repo_id=repo_id,
+                top_k=min(request.max_results, 10),
+                include_tests=request.include_tests,
+                use_reranking=True
+            )
+        else:
+            search_results = await indexer.search_v2(
+                query=sanitized_query,
+                repo_id=repo_id,
+                top_k=min(request.max_results, 10),
+                use_reranking=True
+            )
 
-        # Cache results
-        cache.set_search_results(sanitized_query, repo_id, results, ttl=3600)
+        # Format results for frontend compatibility
+        results = []
+        for r in search_results:
+            results.append({
+                "name": r.get("name", ""),
+                "qualified_name": r.get("qualified_name", r.get("name", "")),
+                "file_path": r.get("file_path", ""),
+                "code": r.get("code", ""),
+                "signature": r.get("signature", ""),
+                "language": r.get("language", ""),
+                "score": r.get("score", 0),
+                "line_start": r.get("line_start", 0),
+                "line_end": r.get("line_end", 0),
+                "type": "function",  # backward compat with V1
+                "summary": r.get("summary"),
+                "class_name": r.get("class_name"),
+                "is_test_file": r.get("is_test_file", False),  # V3 feature
+            })
+
+        # Cache results (using same key that includes flags)
+        cache.set_search_results(cache_key, repo_id, results, ttl=3600)
 
         search_time = int((time.time() - start_time) * 1000)
 
@@ -450,6 +481,7 @@ async def playground_search(
             "remaining_searches": limit_result.remaining,
             "limit": limit_result.limit,
             "search_time_ms": search_time,
+            "search_version": "v3" if request.use_v3 else "v2",
         }
     except HTTPException:
         raise

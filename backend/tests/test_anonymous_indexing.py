@@ -712,8 +712,9 @@ class TestSearchUserRepos:
             }
         )
         mock_get_limiter.return_value = mock_limiter
-        mock_indexer.semantic_search = AsyncMock(return_value=[
-            {"file": "test.py", "score": 0.9}
+        # Mock search_v3 (the default search method)
+        mock_indexer.search_v3 = AsyncMock(return_value=[
+            {"name": "test_func", "file_path": "test.py", "code": "", "score": 0.9}
         ])
 
         response = client.post(
