@@ -81,6 +81,9 @@ export function useRepoIndexingWebSocket(
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectAttempts = useRef(0)
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Track phase in ref to avoid effect re-running when phase changes
+  const phaseRef = useRef<IndexingPhase>('idle')
+  phaseRef.current = phase
 
   const cleanup = useCallback(() => {
     wsRef.current?.close()
@@ -221,13 +224,15 @@ export function useRepoIndexingWebSocket(
   }, [session?.access_token, cleanup, handleMessage])
 
   // Connect when repoId changes
+  // Note: phase intentionally excluded from deps - we use phaseRef to check completion
+  // without triggering reconnects when phase changes to 'completed'
   useEffect(() => {
     if (repoId && session?.access_token) {
       connect(repoId)
     } else {
       cleanup()
-      // Only reset if not completed
-      if (phase !== 'completed') {
+      // Only reset if not completed (use ref to avoid dependency)
+      if (phaseRef.current !== 'completed') {
         setConnectionState('idle')
         setPhase('idle')
         setProgress(INITIAL_PROGRESS)
@@ -236,7 +241,8 @@ export function useRepoIndexingWebSocket(
       }
     }
     return cleanup
-  }, [repoId, session?.access_token, connect, cleanup, phase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoId, session?.access_token, connect, cleanup])
 
   const reset = useCallback(() => {
     cleanup()
