@@ -7,11 +7,7 @@ import {
   FileText, 
   TestTube2, 
   Settings, 
-  File,
-  AlertTriangle,
-  Flame,
-  CheckCircle2,
-  CircleAlert
+  File
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'

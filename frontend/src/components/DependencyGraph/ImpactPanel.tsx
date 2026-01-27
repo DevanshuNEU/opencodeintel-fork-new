@@ -25,7 +25,7 @@ interface ImpactPanelProps {
   onClose: () => void
   onFileClick: (fileId: string) => void
   onFileHover: (fileId: string | null) => void
-  onAnalyzeInSearch?: (fileId: string) => void
+  onAnalyzeInSearch?: (fullPath: string) => void
 }
 
 const RISK_CONFIG: Record<RiskLevel, { 
@@ -132,6 +132,7 @@ function CollapsibleSection({
     <div className="border-t border-zinc-200 dark:border-zinc-800 pt-3">
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
         className="w-full flex items-center gap-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/50 -mx-2 px-2 py-1 rounded transition-colors"
       >
         {isOpen ? (
