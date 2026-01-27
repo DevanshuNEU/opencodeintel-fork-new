@@ -33,10 +33,18 @@ class IndexingProgress:
     functions_found: int
     current_file: Optional[str] = None
     percent: int = 0
+    functions_total: int = 0  # Total functions to embed (set during embedding phase)
 
     def __post_init__(self):
-        if self.files_total > 0:
-            self.percent = int((self.files_processed / self.files_total) * 100)
+        # If we have functions_total, we're in embedding phase (slow) - weight it 80%
+        # File extraction is fast, weight it 20%
+        if self.functions_total > 0 and self.files_total > 0:
+            file_progress = (self.files_processed / self.files_total) * 20  # 0-20%
+            embed_progress = (self.functions_found / self.functions_total) * 80  # 0-80%
+            self.percent = int(file_progress + embed_progress)
+        elif self.files_total > 0:
+            # Still in file extraction phase (0-20%)
+            self.percent = int((self.files_processed / self.files_total) * 20)
 
 
 @dataclass
@@ -118,14 +126,16 @@ class IndexingEventPublisher:
         files_processed: int,
         files_total: int,
         functions_found: int,
-        current_file: Optional[str] = None
+        current_file: Optional[str] = None,
+        functions_total: int = 0
     ) -> bool:
         """Publish indexing progress update."""
         progress = IndexingProgress(
             files_processed=files_processed,
             files_total=files_total,
             functions_found=functions_found,
-            current_file=current_file
+            current_file=current_file,
+            functions_total=functions_total
         )
         
         return self._publish(entity_id, {

@@ -768,12 +768,23 @@ class OptimizedCodeIndexer:
         ]
         
         all_embeddings = []
+        total_to_embed = len(embedding_texts)
         for i in range(0, len(embedding_texts), self.EMBEDDING_BATCH_SIZE):
             batch_texts = embedding_texts[i:i + self.EMBEDDING_BATCH_SIZE]
             batch_embeddings = await self._create_embeddings_batch(batch_texts)
             all_embeddings.extend(batch_embeddings)
             
-            logger.debug("Embeddings generated", completed=len(all_embeddings), total=len(embedding_texts))
+            # Report embedding progress - this is where most time is spent
+            embedded_count = len(all_embeddings)
+            await progress_callback(
+                total_files,  # Files done
+                embedded_count,  # Functions embedded so far
+                total_files,
+                f"Embedding functions ({embedded_count}/{total_to_embed})...",
+                total_to_embed  # Total functions to embed
+            )
+            
+            logger.debug("Embeddings generated", completed=embedded_count, total=total_to_embed)
         
         # Prepare vectors for Pinecone
         logger.debug("Uploading to Pinecone")

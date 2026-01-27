@@ -292,7 +292,8 @@ async def _run_async_indexing(
                 files_processed: int,
                 functions_found: int,
                 total_files: int,
-                current_file: str = None
+                current_file: str = None,
+                functions_total: int = 0
             ):
                 nonlocal tracked_total_files
                 tracked_total_files = total_files
@@ -301,7 +302,7 @@ async def _run_async_indexing(
                         "Publishing progress event",
                         repo_id=repo_id,
                         files=f"{files_processed}/{total_files}",
-                        functions=functions_found,
+                        functions=f"{functions_found}/{functions_total}" if functions_total else str(functions_found),
                         file=current_file
                     )
                     publisher.publish_progress(
@@ -309,7 +310,8 @@ async def _run_async_indexing(
                         files_processed,
                         total_files,
                         functions_found,
-                        current_file
+                        current_file,
+                        functions_total
                     )
             
             total_functions = await indexer.index_repository_with_progress(
