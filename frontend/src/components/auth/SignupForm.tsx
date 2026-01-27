@@ -17,8 +17,32 @@ export function SignupForm() {
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState<'github' | 'google' | null>(null)
   const [emailSent, setEmailSent] = useState(false)
-  const { signUp, signInWithGitHub, signInWithGoogle } = useAuth()
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
+  const { signUp, signInWithGitHub, signInWithGoogle, resendVerification } = useAuth()
   const navigate = useNavigate()
+
+  const handleResend = async () => {
+    setResendLoading(true)
+    setResendSuccess(false)
+    try {
+      await resendVerification(email)
+      setResendSuccess(true)
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend verification email')
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
+  const handleGoBack = () => {
+    setEmail('')
+    setPassword('')
+    setConfirmPassword('')
+    setEmailSent(false)
+    setResendSuccess(false)
+    setError('')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -130,6 +154,9 @@ export function SignupForm() {
                   <Mail className="w-4 h-4 text-primary" />
                   <span className="font-mono text-sm text-foreground">{email}</span>
                 </div>
+                {error && (
+                  <p className="text-sm text-destructive mt-3">{error}</p>
+                )}
               </motion.div>
 
               {/* Instructions card */}
@@ -143,19 +170,38 @@ export function SignupForm() {
                   <div className="w-8 h-8 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                     <CheckCircle2 className="w-4 h-4 text-green-500" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-foreground font-medium mb-1">
                       Click the link in the email to verify your account
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      Didn't receive it? Check your spam folder or{' '}
-                      <button 
-                        onClick={() => setEmailSent(false)}
-                        className="text-primary hover:underline font-medium"
-                      >
-                        use a different email
-                      </button>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Didn't receive it? Check your spam folder.
                     </p>
+                    
+                    {/* Resend success message */}
+                    {resendSuccess && (
+                      <p className="text-sm text-green-500 mb-3">
+                        ✓ Verification email resent!
+                      </p>
+                    )}
+                    
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={handleResend}
+                        disabled={resendLoading}
+                        className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
+                      >
+                        {resendLoading ? 'Sending...' : 'Resend email'}
+                      </button>
+                      <span className="text-muted-foreground">·</span>
+                      <button 
+                        onClick={handleGoBack}
+                        className="text-sm text-muted-foreground hover:text-foreground"
+                      >
+                        Use different email
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>
