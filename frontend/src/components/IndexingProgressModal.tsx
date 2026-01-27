@@ -64,7 +64,7 @@ export function IndexingProgressModal({
       closeTimeoutRef.current = setTimeout(() => {
         onClose()
         reset()
-      }, 2000)
+      }, 3500)  // 3.5s to let user see completion stats
     }
     return () => {
       if (closeTimeoutRef.current) {
