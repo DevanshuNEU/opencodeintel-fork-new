@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Navbar } from '@/components/landing'
-import { Github, Loader2, Mail, Lock, CheckCircle2 } from 'lucide-react'
+import { Github, Loader2, Mail, Lock, CheckCircle2, Send, ArrowLeft } from 'lucide-react'
 
 export function SignupForm() {
   const [email, setEmail] = useState('')
@@ -76,38 +77,104 @@ export function SignupForm() {
         <div className="w-full max-w-sm">
           {/* Email Verification Sent */}
           {emailSent ? (
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8 text-green-500" />
-              </div>
-              <h1 className="text-2xl font-semibold text-foreground mb-2">
-                Check your email
-              </h1>
-              <p className="text-sm text-muted-foreground mb-6">
-                We sent a verification link to<br />
-                <span className="font-medium text-foreground">{email}</span>
-              </p>
-              <div className="bg-card rounded-lg border border-border p-4 text-sm text-muted-foreground">
-                <p className="mb-2">
-                  Click the link in the email to verify your account and get started.
-                </p>
-                <p>
-                  Didn't receive it? Check your spam folder or{' '}
-                  <button 
-                    onClick={() => setEmailSent(false)}
-                    className="text-primary hover:underline"
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center"
+            >
+              {/* Animated Icon */}
+              <div className="relative w-24 h-24 mx-auto mb-8">
+                {/* Outer glow ring */}
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.2, duration: 0.5 }}
+                  className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/20 to-purple-500/20 blur-xl"
+                />
+                {/* Icon container */}
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
+                  className="relative w-24 h-24 rounded-full bg-gradient-to-br from-primary/10 to-purple-500/10 border border-primary/30 flex items-center justify-center"
+                >
+                  <motion.div
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 12, delay: 0.3 }}
                   >
-                    try again
-                  </button>
-                </p>
+                    <Send className="w-10 h-10 text-primary" />
+                  </motion.div>
+                </motion.div>
               </div>
-              <Link 
-                to="/login" 
-                className="inline-block mt-6 text-sm text-muted-foreground hover:text-foreground"
+
+              {/* Title */}
+              <motion.h1 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="text-3xl font-bold text-foreground mb-3"
               >
-                ← Back to login
-              </Link>
-            </div>
+                Check your inbox
+              </motion.h1>
+
+              {/* Email display */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="mb-8"
+              >
+                <p className="text-muted-foreground mb-2">We sent a verification link to</p>
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/5 border border-primary/20">
+                  <Mail className="w-4 h-4 text-primary" />
+                  <span className="font-mono text-sm text-foreground">{email}</span>
+                </div>
+              </motion.div>
+
+              {/* Instructions card */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="bg-card/50 backdrop-blur-sm rounded-xl border border-border p-6 mb-6"
+              >
+                <div className="flex items-start gap-4 text-left">
+                  <div className="w-8 h-8 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-foreground font-medium mb-1">
+                      Click the link in the email to verify your account
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Didn't receive it? Check your spam folder or{' '}
+                      <button 
+                        onClick={() => setEmailSent(false)}
+                        className="text-primary hover:underline font-medium"
+                      >
+                        try again
+                      </button>
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Back link */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+              >
+                <Link 
+                  to="/login" 
+                  className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to login
+                </Link>
+              </motion.div>
+            </motion.div>
           ) : (
             <>
               <div className="text-center mb-8">
