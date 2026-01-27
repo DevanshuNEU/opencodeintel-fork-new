@@ -22,6 +22,7 @@ import { RepoOverview } from '../RepoOverview'
 import { StyleInsights } from '../StyleInsights'
 import { ImpactAnalyzer } from '../ImpactAnalyzer'
 import { DashboardStats } from './DashboardStats'
+import { IndexingProgressModal } from '../IndexingProgressModal'
 import type { Repository } from '../../types'
 import { API_URL } from '../../config/api'
 
@@ -35,6 +36,11 @@ export function DashboardHome() {
   const [loading, setLoading] = useState(false)
   const [reposLoading, setReposLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
+  
+  // Indexing progress modal state
+  const [indexingRepoId, setIndexingRepoId] = useState<string | null>(null)
+  const [indexingRepoName, setIndexingRepoName] = useState<string>('')
+  const [showIndexingModal, setShowIndexingModal] = useState(false)
 
   const fetchRepos = async () => {
     if (!session?.access_token) return
@@ -78,29 +84,79 @@ export function DashboardHome() {
       const data = await response.json()
       if (!data.repo_id) throw new Error('Missing repo_id in response')
       
-      await fetch(`${API_URL}/repos/${data.repo_id}/index`, {
+      // Trigger async indexing
+      const indexResponse = await fetch(`${API_URL}/repos/${data.repo_id}/index/async`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session?.access_token}` }
       })
+      
+      if (!indexResponse.ok) {
+        const err = await indexResponse.json().catch(() => ({}))
+        throw new Error(err.detail?.message || err.detail || 'Failed to start indexing')
+      }
+      
+      // Show indexing progress modal
+      setIndexingRepoId(data.repo_id)
+      setIndexingRepoName(name)
+      setShowIndexingModal(true)
+      setShowAddForm(false)
+      
       await fetchRepos()
-      toast.success('Repository added!', { description: `${name} is now being indexed` })
     } catch (error) {
       console.error('Error adding repo:', error)
-      toast.error('Failed to add repository', { description: 'Please check the Git URL and try again' })
+      toast.error('Failed to add repository', { description: error instanceof Error ? error.message : 'Please check the Git URL and try again' })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleReindex = async () => {
-    if (!selectedRepo) return
+  const handleIndexingComplete = async () => {
+    await fetchRepos()
+    toast.success('Indexing complete!', { description: `${indexingRepoName} is ready for search` })
+  }
+
+  const handleCloseIndexingModal = () => {
+    setShowIndexingModal(false)
+    setIndexingRepoId(null)
+    setIndexingRepoName('')
+  }
+
+  const handleRetryIndexing = async () => {
+    if (!indexingRepoId) return
+    
     try {
-      setLoading(true)
-      await fetch(`${API_URL}/repos/${selectedRepo}/index`, {
+      const response = await fetch(`${API_URL}/repos/${indexingRepoId}/index/async`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session?.access_token}` }
       })
-      await fetchRepos()
+      
+      if (!response.ok) {
+        throw new Error('Failed to restart indexing')
+      }
+      
+      // Modal will reconnect via WebSocket
+    } catch (error) {
+      toast.error('Failed to retry indexing')
+    }
+  }
+
+  const handleReindex = async () => {
+    if (!selectedRepo || !selectedRepoData) return
+    try {
+      setLoading(true)
+      const response = await fetch(`${API_URL}/repos/${selectedRepo}/index/async`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token}` }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to start re-indexing')
+      }
+      
+      // Show indexing progress modal
+      setIndexingRepoId(selectedRepo)
+      setIndexingRepoName(selectedRepoData.name)
+      setShowIndexingModal(true)
     } catch (error) {
       toast.error('Re-indexing failed', { description: 'Please check the console for details' })
     } finally {
@@ -274,6 +330,16 @@ export function DashboardHome() {
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Indexing Progress Modal */}
+      <IndexingProgressModal
+        repoId={indexingRepoId}
+        repoName={indexingRepoName}
+        isOpen={showIndexingModal}
+        onClose={handleCloseIndexingModal}
+        onCompleted={handleIndexingComplete}
+        onRetry={handleRetryIndexing}
+      />
     </div>
   )
 }

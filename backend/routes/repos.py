@@ -1,16 +1,18 @@
 """Repository management routes - CRUD and indexing."""
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
 import hashlib
 import time
+import asyncio
 import git
 
 from dependencies import (
-    indexer, repo_manager, metrics,
+    indexer, repo_manager, metrics, redis_client,
     get_repo_or_404, user_limits, repo_validator
 )
 from services.input_validator import InputValidator
+from services.indexing_events import get_event_publisher, IndexingStats
 from middleware.auth import require_auth, AuthContext
 from services.observability import logger, capture_exception
 
@@ -221,6 +223,189 @@ async def index_repository(
         logger.error("Indexing failed", repo_id=repo_id, error=str(e))
         capture_exception(e)
         repo_manager.update_status(repo_id, "error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _run_async_indexing(
+    repo_id: str,
+    repo: dict,
+    user_id: str,
+    incremental: bool = True
+):
+    """
+    Background task for async indexing with real-time progress.
+    
+    Publishes events to Redis pub/sub for WebSocket clients.
+    """
+    start_time = time.time()
+    publisher = get_event_publisher(redis_client)
+    
+    try:
+        repo_manager.update_status(repo_id, "indexing")
+        
+        # Check for incremental
+        last_commit = repo_manager.get_last_indexed_commit(repo_id)
+        
+        if incremental and last_commit:
+            logger.info("Async INCREMENTAL indexing", repo_id=repo_id, last_commit=last_commit[:8])
+            total_functions = await indexer.incremental_index_repository(
+                repo_id,
+                repo["local_path"],
+                last_commit
+            )
+            index_type = "incremental"
+        else:
+            logger.info("Async FULL indexing with progress", repo_id=repo_id)
+            
+            # Progress callback that publishes to Redis
+            async def progress_callback(
+                files_processed: int,
+                functions_found: int,
+                total_files: int,
+                current_file: str = None
+            ):
+                if publisher:
+                    publisher.publish_progress(
+                        repo_id,
+                        files_processed,
+                        total_files,
+                        functions_found,
+                        current_file
+                    )
+            
+            total_functions = await indexer.index_repository_with_progress(
+                repo_id,
+                repo["local_path"],
+                progress_callback
+            )
+            index_type = "full"
+        
+        # Update metadata
+        git_repo = git.Repo(repo["local_path"])
+        current_commit = git_repo.head.commit.hexsha
+        
+        repo_manager.update_status(repo_id, "indexed")
+        repo_manager.update_file_count(repo_id, total_functions)
+        repo_manager.update_last_commit(repo_id, current_commit)
+        
+        duration = time.time() - start_time
+        metrics.record_indexing(repo_id, duration, total_functions)
+        
+        # Publish completion event
+        if publisher:
+            publisher.publish_completed(
+                repo_id,
+                repo_id,
+                IndexingStats(
+                    files_processed=total_functions,
+                    functions_indexed=total_functions,
+                    indexing_time_seconds=duration
+                )
+            )
+        
+        logger.info(
+            "Async indexing complete",
+            repo_id=repo_id,
+            functions=total_functions,
+            duration=f"{duration:.2f}s",
+            index_type=index_type
+        )
+        
+    except Exception as e:
+        logger.error("Async indexing failed", repo_id=repo_id, error=str(e))
+        capture_exception(e)
+        repo_manager.update_status(repo_id, "error")
+        
+        # Publish error event
+        if publisher:
+            publisher.publish_error(
+                repo_id,
+                error="indexing_failed",
+                message=str(e),
+                recoverable=True
+            )
+
+
+@router.post("/{repo_id}/index/async")
+async def index_repository_async(
+    repo_id: str,
+    background_tasks: BackgroundTasks,
+    incremental: bool = True,
+    auth: AuthContext = Depends(require_auth)
+):
+    """
+    Trigger async indexing for a repository.
+    
+    Returns immediately with status 202. Connect to WebSocket at
+    /ws/repos/{repo_id}/indexing to receive real-time progress updates.
+    """
+    user_id = auth.user_id
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID required")
+    
+    try:
+        repo = get_repo_or_404(repo_id, user_id)
+        
+        # Check if already indexing
+        if repo.get("status") == "indexing":
+            raise HTTPException(
+                status_code=409,
+                detail="Repository is already being indexed"
+            )
+        
+        # Re-check size limits
+        analysis = repo_validator.analyze_repo(repo["local_path"])
+        
+        if not analysis.success:
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": "ANALYSIS_FAILED",
+                    "message": f"Cannot index: {analysis.error}"
+                }
+            )
+        
+        size_check = user_limits.check_repo_size(
+            user_id,
+            analysis.file_count,
+            analysis.estimated_functions
+        )
+        
+        if not size_check.allowed:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "REPO_TOO_LARGE",
+                    "limit_check": size_check.to_dict(),
+                    "message": size_check.message
+                }
+            )
+        
+        # Mark as indexing immediately
+        repo_manager.update_status(repo_id, "indexing")
+        
+        # Schedule background task
+        background_tasks.add_task(
+            _run_async_indexing,
+            repo_id,
+            repo,
+            user_id,
+            incremental
+        )
+        
+        return {
+            "status": "indexing",
+            "repo_id": repo_id,
+            "message": "Indexing started. Connect to WebSocket for progress.",
+            "websocket_url": f"/api/v1/ws/repos/{repo_id}/indexing"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to start async indexing", repo_id=repo_id, error=str(e))
+        capture_exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
