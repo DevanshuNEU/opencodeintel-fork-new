@@ -18,7 +18,9 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { 
-  useRepoIndexingWebSocket, 
+  useRepoIndexingWebSocket
+} from '@/hooks/useRepoIndexingWebSocket'
+import type { 
   IndexingPhase,
   IndexingStats 
 } from '@/hooks/useRepoIndexingWebSocket'
