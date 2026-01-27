@@ -46,10 +46,13 @@ class IndexingProgress:
         if self.functions_total > 0:
             file_progress = (self.files_processed / self.files_total) * 20  # 0-20%
             embed_progress = (self.functions_found / self.functions_total) * 80  # 0-80%
-            self.percent = int(file_progress + embed_progress)
+            raw_percent = file_progress + embed_progress
         else:
             # Still in file extraction phase (0-20%)
-            self.percent = int((self.files_processed / self.files_total) * 20)
+            raw_percent = (self.files_processed / self.files_total) * 20
+        
+        # Clamp to 0-100 range defensively
+        self.percent = max(0, min(100, int(raw_percent)))
 
 
 @dataclass
