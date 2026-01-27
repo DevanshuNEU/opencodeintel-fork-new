@@ -81,18 +81,24 @@ async def add_repository(
         # Fail CLOSED if analysis failed (security: don't allow unknown-size repos)
         if not analysis.success:
             logger.error(
-                "Repo analysis failed - blocking indexing",
+                "Repo analysis failed - removing repo",
                 user_id=user_id,
                 repo_id=repo["id"],
                 error=analysis.error
             )
-            return {
-                "repo_id": repo["id"],
-                "status": "added",
-                "indexing_blocked": True,
-                "analysis": analysis.to_dict(),
-                "message": f"Repository added but analysis failed: {analysis.error}. Please try re-indexing later."
-            }
+            # Clean up: delete the repo we just created
+            try:
+                repo_manager.delete_repo(repo["id"])
+            except Exception as del_err:
+                logger.warning("Failed to cleanup failed analysis repo", error=str(del_err))
+            
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": "ANALYSIS_FAILED",
+                    "message": f"Repository analysis failed: {analysis.error}"
+                }
+            )
         
         # Check repo size against tier limits
         size_check = user_limits.check_repo_size(
@@ -102,22 +108,30 @@ async def add_repository(
         )
         
         if not size_check.allowed:
-            # Repo added but too large - return warning with upgrade CTA
+            # Repo too large - delete the entry and return error
             logger.info(
-                "Repo too large for user tier",
+                "Repo too large for user tier - removing",
                 user_id=user_id,
                 repo_id=repo["id"],
                 file_count=analysis.file_count,
+                estimated_functions=analysis.estimated_functions,
                 tier=size_check.tier
             )
-            return {
-                "repo_id": repo["id"],
-                "status": "added",
-                "indexing_blocked": True,
-                "analysis": analysis.to_dict(),
-                "limit_check": size_check.to_dict(),
-                "message": size_check.message
-            }
+            # Clean up: delete the repo we just created
+            try:
+                repo_manager.delete_repo(repo["id"])
+            except Exception as del_err:
+                logger.warning("Failed to cleanup rejected repo", error=str(del_err))
+            
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "REPO_TOO_LARGE",
+                    "analysis": analysis.to_dict(),
+                    "limit_check": size_check.to_dict(),
+                    "message": size_check.message
+                }
+            )
         
         return {
             "repo_id": repo["id"],
