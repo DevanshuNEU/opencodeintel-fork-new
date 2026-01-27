@@ -1,8 +1,20 @@
 import { memo } from 'react'
 import { Handle, Position } from 'reactflow'
 import type { NodeProps } from 'reactflow'
-import { FileCode2, FileJson, FileText, TestTube2, Settings, File } from 'lucide-react'
+import { 
+  FileCode2, 
+  FileJson, 
+  FileText, 
+  TestTube2, 
+  Settings, 
+  File,
+  AlertTriangle,
+  Flame,
+  CheckCircle2,
+  CircleAlert
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 import type { RiskLevel } from './hooks/useImpactAnalysis'
 
 export interface GraphNodeData {
@@ -48,11 +60,11 @@ const STATE_STYLES: Record<GraphNodeData['state'], string> = {
   dimmed: 'border-zinc-200 bg-zinc-50/50 opacity-40 dark:border-zinc-800 dark:bg-zinc-900/50',
 }
 
-const RISK_BADGES: Record<RiskLevel, { bg: string; text: string; label: string }> = {
-  low: { bg: 'bg-emerald-100 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', label: 'Low' },
-  medium: { bg: 'bg-yellow-100 dark:bg-yellow-500/10', text: 'text-yellow-600 dark:text-yellow-400', label: 'Med' },
-  high: { bg: 'bg-orange-100 dark:bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', label: 'High' },
-  critical: { bg: 'bg-rose-100 dark:bg-rose-500/10', text: 'text-rose-600 dark:text-rose-400', label: 'Crit' },
+const RISK_CONFIG: Record<RiskLevel, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string; className: string }> = {
+  low: { variant: 'secondary', label: 'Low', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' },
+  medium: { variant: 'secondary', label: 'Med', className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400' },
+  high: { variant: 'secondary', label: 'High', className: 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400' },
+  critical: { variant: 'destructive', label: 'Crit', className: 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400' },
 }
 
 function getFileType(path: string, language: string): string {
@@ -75,7 +87,7 @@ function GraphNodeComponent({ data }: NodeProps<GraphNodeData>) {
   const Icon = FILE_ICONS[fileType] || FILE_ICONS.unknown
   const iconColor = LANGUAGE_COLORS[fileType] || LANGUAGE_COLORS.unknown
   const stateStyle = STATE_STYLES[data.state]
-  const risk = RISK_BADGES[data.riskLevel]
+  const risk = RISK_CONFIG[data.riskLevel]
 
   return (
     <>
@@ -93,7 +105,6 @@ function GraphNodeComponent({ data }: NodeProps<GraphNodeData>) {
           data.isEntryPoint && 'border-l-4 border-l-emerald-500'
         )}
       >
-        {/* Header row */}
         <div className="flex items-center gap-2 mb-1">
           <Icon className={cn('w-4 h-4 flex-shrink-0', iconColor)} />
           <span 
@@ -103,13 +114,12 @@ function GraphNodeComponent({ data }: NodeProps<GraphNodeData>) {
             {data.label}
           </span>
           {data.dependentCount > 0 && (
-            <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium', risk.bg, risk.text)}>
+            <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0 h-5', risk.className)}>
               {risk.label}
-            </span>
+            </Badge>
           )}
         </div>
 
-        {/* Stats row */}
         <div className="flex items-center gap-3 text-[11px] text-zinc-500 dark:text-zinc-400">
           <span className={cn(
             'font-medium',
@@ -121,12 +131,6 @@ function GraphNodeComponent({ data }: NodeProps<GraphNodeData>) {
           </span>
           <span>•</span>
           <span>{data.importCount} imports</span>
-          {data.loc && (
-            <>
-              <span>•</span>
-              <span>{data.loc} LOC</span>
-            </>
-          )}
         </div>
       </div>
 
