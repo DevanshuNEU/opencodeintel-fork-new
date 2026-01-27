@@ -255,7 +255,15 @@ async def _run_async_indexing(
     publisher = get_event_publisher(redis_client)
     
     try:
+        # Wait for WebSocket client to connect and subscribe
+        # Redis pub/sub doesn't buffer - events sent before subscription are lost
+        await asyncio.sleep(1.5)
+        
         repo_manager.update_status(repo_id, "indexing")
+        
+        # Publish initial progress to confirm connection
+        if publisher:
+            publisher.publish_progress(repo_id, 0, 1, 0, "Starting...")
         
         # Check for incremental
         last_commit = repo_manager.get_last_indexed_commit(repo_id)
@@ -289,6 +297,13 @@ async def _run_async_indexing(
                 nonlocal tracked_total_files
                 tracked_total_files = total_files
                 if publisher:
+                    logger.info(
+                        "Publishing progress event",
+                        repo_id=repo_id,
+                        files=f"{files_processed}/{total_files}",
+                        functions=functions_found,
+                        file=current_file
+                    )
                     publisher.publish_progress(
                         repo_id,
                         files_processed,

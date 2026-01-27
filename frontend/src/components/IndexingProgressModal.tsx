@@ -147,7 +147,7 @@ export function IndexingProgressModal({
                     className="h-full bg-gradient-to-r from-indigo-500 to-violet-500"
                     initial={{ width: 0 }}
                     animate={{ width: `${progress.percent}%` }}
-                    transition={{ duration: 0.3 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
                   />
                 </div>
               </div>

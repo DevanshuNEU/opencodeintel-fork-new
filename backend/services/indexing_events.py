@@ -74,7 +74,13 @@ class IndexingEventPublisher:
         
         try:
             channel = self._get_channel(entity_id)
-            self.redis.publish(channel, json.dumps(event))
+            result = self.redis.publish(channel, json.dumps(event))
+            logger.info(
+                "Published event to Redis",
+                channel=channel[:40],
+                event_type=event.get("type"),
+                subscribers=result
+            )
             return True
         except Exception as e:
             logger.warning(
