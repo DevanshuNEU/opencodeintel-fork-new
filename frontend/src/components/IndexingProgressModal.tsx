@@ -82,6 +82,25 @@ export function IndexingProgressModal({
     }
   }, [isOpen])
 
+  // Handle Escape key to close modal
+  useEffect(() => {
+    if (!isOpen) return
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (closeTimeoutRef.current) {
+          clearTimeout(closeTimeoutRef.current)
+          closeTimeoutRef.current = null
+        }
+        reset()
+        onClose()
+      }
+    }
+    
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose, reset])
+
   const handleClose = () => {
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current)
@@ -128,6 +147,7 @@ export function IndexingProgressModal({
             </h3>
             <button
               onClick={handleClose}
+              aria-label="Close dialog"
               className="p-1 text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-zinc-800"
             >
               <X className="w-5 h-5" />
@@ -171,7 +191,7 @@ export function IndexingProgressModal({
                 <div className="space-y-1 max-h-32 overflow-y-auto">
                   {recentFiles.slice(0, 5).map((file, i) => (
                     <motion.div
-                      key={file}
+                      key={`${file}-${i}`}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1 - i * 0.15, x: 0 }}
                       className="flex items-center gap-2 text-sm"

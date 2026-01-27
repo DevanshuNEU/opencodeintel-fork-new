@@ -257,6 +257,7 @@ async def _run_async_indexing(
     try:
         # Wait for WebSocket client to connect and subscribe
         # Redis pub/sub doesn't buffer - events sent before subscription are lost
+        # TODO: Consider Redis Streams or initial state fetch to avoid timing dependency
         await asyncio.sleep(1.5)
         
         repo_manager.update_status(repo_id, "indexing")

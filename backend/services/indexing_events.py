@@ -36,13 +36,18 @@ class IndexingProgress:
     functions_total: int = 0  # Total functions to embed (set during embedding phase)
 
     def __post_init__(self):
+        # Guard against division by zero
+        if self.files_total <= 0:
+            self.percent = 0
+            return
+            
         # If we have functions_total, we're in embedding phase (slow) - weight it 80%
         # File extraction is fast, weight it 20%
-        if self.functions_total > 0 and self.files_total > 0:
+        if self.functions_total > 0:
             file_progress = (self.files_processed / self.files_total) * 20  # 0-20%
             embed_progress = (self.functions_found / self.functions_total) * 80  # 0-80%
             self.percent = int(file_progress + embed_progress)
-        elif self.files_total > 0:
+        else:
             # Still in file extraction phase (0-20%)
             self.percent = int((self.files_processed / self.files_total) * 20)
 
@@ -85,7 +90,7 @@ class IndexingEventPublisher:
             result = self.redis.publish(channel, json.dumps(event))
             logger.info(
                 "Published event to Redis",
-                channel=channel[:40],
+                channel=channel,
                 event_type=event.get("type"),
                 subscribers=result
             )
