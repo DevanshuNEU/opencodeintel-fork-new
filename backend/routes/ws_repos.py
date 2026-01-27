@@ -174,7 +174,7 @@ async def websocket_repo_indexing(websocket: WebSocket, repo_id: str):
                         repo_id=repo_id[:12],
                         event_type=event_type
                     )
-                    await asyncio.sleep(0.2)  # Let client process message
+                    await asyncio.sleep(1.0)  # Give client time to process message
                     break
                     
             except json.JSONDecodeError:
