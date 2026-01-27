@@ -117,10 +117,13 @@ export function IndexingProgressModal({
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           className="relative w-full max-w-lg mx-4 bg-[#0d0d14] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
           onClick={e => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="indexing-progress-title"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-            <h3 className="text-lg font-semibold text-white">
+            <h3 id="indexing-progress-title" className="text-lg font-semibold text-white">
               Indexing {repoName}
             </h3>
             <button
