@@ -47,6 +47,7 @@ const LANGUAGE_COLORS: Record<string, string> = {
   typescript: 'text-blue-600 dark:text-blue-500',
   json: 'text-zinc-500 dark:text-zinc-400',
   yaml: 'text-zinc-500 dark:text-zinc-400',
+  markdown: 'text-zinc-500 dark:text-zinc-400',
   config: 'text-zinc-500 dark:text-zinc-400',
   test: 'text-purple-500 dark:text-purple-400',
   unknown: 'text-zinc-400 dark:text-zinc-500',
