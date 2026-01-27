@@ -45,8 +45,10 @@ function DirectoryNodeComponent({ data }: NodeProps<DirectoryNodeData>) {
       
       <div
         className={cn(
-          'px-3 py-2.5 rounded-lg border-2 transition-all duration-200 min-w-[180px]',
-          'hover:scale-[1.02] hover:shadow-md cursor-pointer',
+          'px-3 py-2.5 rounded-lg border-2 min-w-[180px]',
+          'transition-all duration-200 ease-out',
+          'hover:scale-[1.02] hover:shadow-md active:scale-[0.98]',
+          'cursor-pointer select-none',
           stateStyle
         )}
       >
@@ -59,7 +61,7 @@ function DirectoryNodeComponent({ data }: NodeProps<DirectoryNodeData>) {
             {data.label}/
           </span>
           <ChevronRight className={cn(
-            'w-3.5 h-3.5 text-zinc-400 transition-transform',
+            'w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ease-out',
             data.isExpanded && 'rotate-90'
           )} />
         </div>

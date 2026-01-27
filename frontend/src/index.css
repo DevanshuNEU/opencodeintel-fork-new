@@ -508,3 +508,47 @@ html {
   .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: var(--radius-full); }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
 }
+
+/* ReactFlow smooth animations - 60fps optimized */
+.react-flow {
+  --rf-node-transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.react-flow__node {
+  transition: transform 0.15s ease-out, opacity 0.15s ease-out, filter 0.15s ease-out;
+  will-change: transform;
+}
+
+.react-flow__node:hover {
+  filter: brightness(1.05);
+}
+
+.react-flow__edge path {
+  transition: stroke 0.15s ease-out, stroke-width 0.15s ease-out, opacity 0.15s ease-out;
+}
+
+.react-flow__viewport {
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.react-flow__pane {
+  cursor: grab;
+}
+
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+
+/* Smooth zoom controls */
+.react-flow__controls {
+  transition: opacity 0.2s ease-out;
+}
+
+.react-flow__controls button {
+  transition: background-color 0.15s ease-out, transform 0.1s ease-out;
+}
+
+.react-flow__controls button:active {
+  transform: scale(0.95);
+}

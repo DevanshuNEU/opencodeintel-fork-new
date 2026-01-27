@@ -63,10 +63,11 @@ function GraphToolbarComponent({
         </Button>
 
         <Button
-          variant="secondary"
+          variant={showTests ? 'secondary' : 'outline'}
           size="sm"
           onClick={onToggleTests}
-          className={cn('h-8', !showTests && 'opacity-60')}
+          className={cn('h-8', !showTests && 'opacity-70 line-through')}
+          title={showTests ? 'Click to hide test files' : 'Click to show test files'}
         >
           {showTests ? <Eye className="w-3.5 h-3.5 mr-1.5" /> : <EyeOff className="w-3.5 h-3.5 mr-1.5" />}
           Tests

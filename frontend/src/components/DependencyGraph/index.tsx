@@ -133,7 +133,15 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
     if (!showTests) {
       nodeIds = nodeIds.filter((id: string) => {
         const fileName = id.split('/').pop() || ''
-        return !fileName.includes('.test.') && !fileName.includes('_test.') && !fileName.includes('.spec.')
+        const pathLower = id.toLowerCase()
+        // Filter out test files by filename pattern OR by being in tests/ directory
+        const isTestFile = fileName.includes('.test.') || 
+                          fileName.includes('_test.') || 
+                          fileName.includes('.spec.') ||
+                          fileName.startsWith('test_') ||
+                          pathLower.includes('/tests/') ||
+                          pathLower.startsWith('tests/')
+        return !isTestFile
       })
     }
 
@@ -445,7 +453,7 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
       />
 
       <div className="flex overflow-hidden" style={{ height: '600px' }}>
-        <div style={{ flex: 1, height: '600px' }}>
+        <div className="relative" style={{ flex: 1, height: '600px' }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -458,6 +466,17 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
             minZoom={0.1}
             maxZoom={2}
             defaultEdgeOptions={{ type: 'smoothstep' }}
+            proOptions={{ hideAttribution: true }}
+            panOnScroll
+            selectionOnDrag
+            panOnDrag={[1, 2]}
+            zoomOnScroll
+            zoomOnPinch
+            zoomOnDoubleClick
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable
+            snapToGrid={false}
           >
             <Background color={isDark ? '#27272a' : '#d4d4d8'} gap={20} size={1} />
             <Controls 
@@ -466,8 +485,8 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
             />
           </ReactFlow>
 
-          {/* Legend */}
-          <Card className="absolute bottom-4 left-4 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm">
+          {/* Legend - positioned bottom-right to avoid Controls overlap */}
+          <Card className="absolute bottom-4 right-4 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm z-10 min-w-[180px]">
             <CardContent className="px-4 py-3 text-xs">
               <div className="font-medium text-zinc-700 dark:text-zinc-300 mb-2">Legend</div>
               <div className="space-y-1.5">
