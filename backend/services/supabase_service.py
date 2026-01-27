@@ -94,6 +94,21 @@ class SupabaseService:
         """Update repository status"""
         self.client.table("repositories").update({"status": status}).eq("id", repo_id).execute()
     
+    def try_set_indexing_status(self, repo_id: str) -> bool:
+        """
+        Atomically set status to 'indexing' only if not already indexing.
+        
+        Returns True if status was set, False if repo was already indexing.
+        This prevents TOCTOU race conditions where two requests could both
+        see status != 'indexing' and both start indexing.
+        """
+        result = self.client.table("repositories").update(
+            {"status": "indexing"}
+        ).eq("id", repo_id).neq("status", "indexing").execute()
+        
+        # If result.data is empty, no rows matched (already indexing)
+        return bool(result.data)
+    
     def update_file_count(self, repo_id: str, count: int) -> None:
         """Update repository file count"""
         self.client.table("repositories").update({"file_count": count}).eq("id", repo_id).execute()

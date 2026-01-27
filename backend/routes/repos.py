@@ -347,13 +347,6 @@ async def index_repository_async(
     try:
         repo = get_repo_or_404(repo_id, user_id)
         
-        # Check if already indexing
-        if repo.get("status") == "indexing":
-            raise HTTPException(
-                status_code=409,
-                detail="Repository is already being indexed"
-            )
-        
         # Re-check size limits
         analysis = repo_validator.analyze_repo(repo["local_path"])
         
@@ -382,8 +375,13 @@ async def index_repository_async(
                 }
             )
         
-        # Mark as indexing immediately
-        repo_manager.update_status(repo_id, "indexing")
+        # Atomic check-and-set: only set 'indexing' if not already indexing
+        # This prevents TOCTOU race where two requests both see status != 'indexing'
+        if not repo_manager.try_set_indexing(repo_id):
+            raise HTTPException(
+                status_code=409,
+                detail="Repository is already being indexed"
+            )
         
         # Schedule background task
         background_tasks.add_task(
