@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { RotateCcw, Maximize2, Filter, Eye, EyeOff } from 'lucide-react'
+import { RotateCcw, Maximize2, Filter, Eye, EyeOff, FolderTree } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
@@ -8,8 +8,10 @@ interface GraphToolbarProps {
   visibleFiles: number
   showAll: boolean
   showTests: boolean
+  clusterByDir: boolean
   onToggleShowAll: () => void
   onToggleTests: () => void
+  onToggleCluster: () => void
   onResetView: () => void
   onFullscreen?: () => void
 }
@@ -19,8 +21,10 @@ function GraphToolbarComponent({
   visibleFiles,
   showAll,
   showTests,
+  clusterByDir,
   onToggleShowAll,
   onToggleTests,
+  onToggleCluster,
   onResetView,
   onFullscreen,
 }: GraphToolbarProps) {
@@ -37,6 +41,17 @@ function GraphToolbarComponent({
       </div>
 
       <div className="flex items-center gap-2">
+        <Button
+          variant={clusterByDir ? 'default' : 'secondary'}
+          size="sm"
+          onClick={onToggleCluster}
+          className="h-8"
+          title="Group files by directory"
+        >
+          <FolderTree className="w-3.5 h-3.5 mr-1.5" />
+          Cluster
+        </Button>
+
         <Button
           variant={showAll ? 'default' : 'secondary'}
           size="sm"
