@@ -286,7 +286,7 @@ export function DashboardHome() {
             </div>
 
             {/* Tab Content */}
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="bg-card border border-border rounded-xl overflow-hidden min-h-[700px]">
               {activeTab === 'overview' && (
                 <RepoOverview 
                   repo={selectedRepoData} 

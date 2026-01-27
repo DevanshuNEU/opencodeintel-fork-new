@@ -1,5 +1,6 @@
 import { memo } from 'react'
-import { Handle, Position, NodeProps } from 'reactflow'
+import { Handle, Position } from 'reactflow'
+import type { NodeProps } from 'reactflow'
 import { FileCode2, FileJson, FileText, TestTube2, Settings, File } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { RiskLevel } from './hooks/useImpactAnalysis'

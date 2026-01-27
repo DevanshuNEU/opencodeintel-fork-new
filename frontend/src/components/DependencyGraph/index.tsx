@@ -286,9 +286,9 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
       />
 
       {/* Graph + Panel */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-[500px]">
         {/* Graph Canvas */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative h-full">
           <ReactFlow
             nodes={nodes}
             edges={edges}
