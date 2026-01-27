@@ -96,17 +96,30 @@ const RepoCard = ({ repo, index, onSelect }: {
 }
 
 export function RepoList({ repos, selectedRepo, onSelect, onAddClick, loading }: RepoListProps) {
+  // Hooks must be called before any conditional returns
+  const sortedRepos = useMemo(() => {
+    return [...repos].sort((a, b) => {
+      if (a.status === 'indexed' && b.status !== 'indexed') return -1
+      if (b.status === 'indexed' && a.status !== 'indexed') return 1
+      return (b.file_count || 0) - (a.file_count || 0)
+    })
+  }, [repos])
+
   if (loading) return <RepoGridSkeleton count={3} />
 
   if (repos.length === 0) {
+    const isClickable = !!onAddClick
     return (
       <motion.button
         onClick={onAddClick}
+        disabled={!isClickable}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
-        className="w-full bg-card border border-dashed border-border hover:border-primary/40 rounded-xl p-16 text-center transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
+        whileHover={isClickable ? { scale: 1.01 } : undefined}
+        whileTap={isClickable ? { scale: 0.99 } : undefined}
+        className={`w-full bg-card border border-dashed border-border rounded-xl p-16 text-center transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+          isClickable ? 'hover:border-primary/40 cursor-pointer' : 'cursor-default'
+        }`}
       >
         <div className="w-14 h-14 mx-auto mb-4 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
           <Plus className="w-6 h-6 text-primary" />
@@ -118,14 +131,6 @@ export function RepoList({ repos, selectedRepo, onSelect, onAddClick, loading }:
       </motion.button>
     )
   }
-
-  const sortedRepos = useMemo(() => {
-    return [...repos].sort((a, b) => {
-      if (a.status === 'indexed' && b.status !== 'indexed') return -1
-      if (b.status === 'indexed' && a.status !== 'indexed') return 1
-      return (b.file_count || 0) - (a.file_count || 0)
-    })
-  }, [repos])
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

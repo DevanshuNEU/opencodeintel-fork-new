@@ -9,9 +9,11 @@ import {
   Zap, 
   ArrowLeft,
   FolderGit2,
-  ExternalLink
+  ExternalLink,
+  Plus
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { Button } from '../ui/button'
 import { RepoList } from '../RepoList'
 import { AddRepoForm } from '../AddRepoForm'
 import { SearchPanel } from '../SearchPanel'
@@ -137,6 +139,14 @@ export function DashboardHome() {
                   Semantic code search powered by AI
                 </p>
               </div>
+              <Button
+                onClick={() => setShowAddForm(true)}
+                disabled={loading}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Repository
+              </Button>
               <AddRepoForm 
                 onAdd={handleAddRepo} 
                 loading={loading}

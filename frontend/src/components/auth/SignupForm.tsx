@@ -153,7 +153,7 @@ export function SignupForm() {
                         onClick={() => setEmailSent(false)}
                         className="text-primary hover:underline font-medium"
                       >
-                        try again
+                        use a different email
                       </button>
                     </p>
                   </div>

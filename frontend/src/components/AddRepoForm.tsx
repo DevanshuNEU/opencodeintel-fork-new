@@ -5,21 +5,30 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-interface AddRepoFormProps {
+// Discriminated union: if isOpen is provided, onOpenChange is required
+type UncontrolledProps = {
+  isOpen?: undefined
+  onOpenChange?: undefined
+}
+
+type ControlledProps = {
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+type AddRepoFormProps = {
   onAdd: (gitUrl: string, branch: string) => Promise<void>
   loading: boolean
-  isOpen?: boolean
-  onOpenChange?: (open: boolean) => void
-}
+} & (UncontrolledProps | ControlledProps)
 
 export function AddRepoForm({ onAdd, loading, isOpen, onOpenChange }: AddRepoFormProps) {
   const [gitUrl, setGitUrl] = useState('')
   const [branch, setBranch] = useState('main')
   const [internalOpen, setInternalOpen] = useState(false)
 
-  // Support both controlled and uncontrolled modes
-  const showForm = isOpen !== undefined ? isOpen : internalOpen
-  const setShowForm = onOpenChange || setInternalOpen
+  const isControlled = isOpen !== undefined
+  const showForm = isControlled ? isOpen : internalOpen
+  const setShowForm = isControlled ? onOpenChange : setInternalOpen
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,14 +41,17 @@ export function AddRepoForm({ onAdd, loading, isOpen, onOpenChange }: AddRepoFor
 
   return (
     <>
-      <Button
-        onClick={() => setShowForm(true)}
-        disabled={loading}
-        className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
-      >
-        <Plus className="w-4 h-4" />
-        Add Repository
-      </Button>
+      {/* Only show trigger button in uncontrolled mode */}
+      {!isControlled && (
+        <Button
+          onClick={() => setShowForm(true)}
+          disabled={loading}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Repository
+        </Button>
+      )}
 
       <AnimatePresence>
         {showForm && (
