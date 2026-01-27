@@ -348,7 +348,7 @@ async def index_repository_async(
     Trigger async indexing for a repository.
     
     Returns immediately with status 202. Connect to WebSocket at
-    /ws/repos/{repo_id}/indexing to receive real-time progress updates.
+    /api/v1/ws/repos/{repo_id}/indexing to receive real-time progress updates.
     """
     user_id = auth.user_id
     
