@@ -69,16 +69,33 @@ export function IndexingProgressModal({
     return () => {
       if (closeTimeoutRef.current) {
         clearTimeout(closeTimeoutRef.current)
+        closeTimeoutRef.current = null
       }
     }
   }, [phase, onClose, reset])
 
+  // Clear timeout when modal closes
+  useEffect(() => {
+    if (!isOpen && closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = null
+    }
+  }, [isOpen])
+
   const handleClose = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = null
+    }
     reset()
     onClose()
   }
 
   const handleRetry = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = null
+    }
     reset()
     onRetry?.()
   }
