@@ -231,6 +231,8 @@ export function useRepoIndexingWebSocket(
   // without triggering reconnects when phase changes to 'completed'
   useEffect(() => {
     if (repoId && session?.access_token) {
+      // Reset reconnect counter for fresh session
+      reconnectAttempts.current = 0
       connect(repoId)
     } else {
       cleanup()
@@ -249,6 +251,7 @@ export function useRepoIndexingWebSocket(
 
   const reset = useCallback(() => {
     cleanup()
+    reconnectAttempts.current = 0
     setConnectionState('idle')
     setPhase('idle')
     setProgress(INITIAL_PROGRESS)
