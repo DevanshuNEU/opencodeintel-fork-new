@@ -15,30 +15,30 @@ interface ImpactPanelProps {
 
 const RISK_CONFIG: Record<RiskLevel, { bg: string; border: string; text: string; icon: string; label: string }> = {
   low: { 
-    bg: 'bg-emerald-500/10', 
-    border: 'border-emerald-500/30',
-    text: 'text-emerald-400', 
+    bg: 'bg-emerald-50 dark:bg-emerald-500/10', 
+    border: 'border-emerald-200 dark:border-emerald-500/30',
+    text: 'text-emerald-600 dark:text-emerald-400', 
     icon: '✓',
     label: 'Low Risk'
   },
   medium: { 
-    bg: 'bg-yellow-500/10', 
-    border: 'border-yellow-500/30',
-    text: 'text-yellow-400', 
+    bg: 'bg-yellow-50 dark:bg-yellow-500/10', 
+    border: 'border-yellow-200 dark:border-yellow-500/30',
+    text: 'text-yellow-600 dark:text-yellow-400', 
     icon: '⚠',
     label: 'Medium Risk'
   },
   high: { 
-    bg: 'bg-orange-500/10', 
-    border: 'border-orange-500/30',
-    text: 'text-orange-400', 
+    bg: 'bg-orange-50 dark:bg-orange-500/10', 
+    border: 'border-orange-200 dark:border-orange-500/30',
+    text: 'text-orange-600 dark:text-orange-400', 
     icon: '⚠',
     label: 'High Risk'
   },
   critical: { 
-    bg: 'bg-rose-500/10', 
-    border: 'border-rose-500/30',
-    text: 'text-rose-400', 
+    bg: 'bg-rose-50 dark:bg-rose-500/10', 
+    border: 'border-rose-200 dark:border-rose-500/30',
+    text: 'text-rose-600 dark:text-rose-400', 
     icon: '🔥',
     label: 'Critical'
   },
@@ -61,15 +61,15 @@ function FileListItem({
       onClick={onClick}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
-      className="w-full text-left px-3 py-2 rounded-md hover:bg-zinc-800 transition-colors group"
+      className="w-full text-left px-3 py-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
     >
       <div className="flex items-center gap-2">
-        <FileCode2 className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
-        <span className="text-sm text-zinc-200 truncate font-medium">{fileName}</span>
-        <ExternalLink className="w-3 h-3 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
+        <FileCode2 className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 flex-shrink-0" />
+        <span className="text-sm text-zinc-700 dark:text-zinc-200 truncate font-medium">{fileName}</span>
+        <ExternalLink className="w-3 h-3 text-zinc-400 dark:text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
       </div>
       {dirPath && (
-        <div className="text-[10px] text-zinc-500 mt-0.5 truncate pl-5">{dirPath}</div>
+        <div className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5 truncate pl-5">{dirPath}</div>
       )}
     </button>
   )
@@ -95,26 +95,26 @@ function CollapsibleSection({
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
   const variantStyles = {
-    direct: 'text-rose-400',
-    transitive: 'text-amber-400',
-    default: 'text-zinc-300',
+    direct: 'text-rose-600 dark:text-rose-400',
+    transitive: 'text-amber-600 dark:text-amber-400',
+    default: 'text-zinc-700 dark:text-zinc-300',
   }
 
   if (count === 0) return null
 
   return (
-    <div className="border-t border-zinc-800 pt-3">
+    <div className="border-t border-zinc-200 dark:border-zinc-800 pt-3">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 text-left hover:bg-zinc-800/50 -mx-2 px-2 py-1 rounded transition-colors"
+        className="w-full flex items-center gap-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/50 -mx-2 px-2 py-1 rounded transition-colors"
       >
         {isOpen ? (
-          <ChevronDown className="w-4 h-4 text-zinc-500" />
+          <ChevronDown className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
         ) : (
-          <ChevronRight className="w-4 h-4 text-zinc-500" />
+          <ChevronRight className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
         )}
         <span className={cn('text-sm font-medium', variantStyles[variant])}>{title}</span>
-        <span className="text-xs text-zinc-500 ml-auto">{count}</span>
+        <span className="text-xs text-zinc-400 dark:text-zinc-500 ml-auto">{count}</span>
       </button>
 
       {isOpen && (
@@ -146,23 +146,23 @@ function ImpactPanelComponent({
   const totalDependents = impact.allDependents.length
 
   return (
-    <div className="w-80 bg-zinc-900 border-l border-zinc-800 h-full flex flex-col animate-in slide-in-from-right duration-200">
+    <div className="w-80 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 h-full flex flex-col animate-in slide-in-from-right duration-200">
       {/* Header */}
-      <div className="p-4 border-b border-zinc-800">
+      <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-zinc-100 truncate" title={fullPath}>
+            <h3 className="font-semibold text-zinc-800 dark:text-zinc-100 truncate" title={fullPath}>
               {fileName}
             </h3>
-            <p className="text-xs text-zinc-500 truncate mt-0.5" title={fullPath}>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 truncate mt-0.5" title={fullPath}>
               {fullPath}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-zinc-800 rounded transition-colors flex-shrink-0"
+            className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors flex-shrink-0"
           >
-            <X className="w-4 h-4 text-zinc-400" />
+            <X className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
           </button>
         </div>
 
@@ -174,7 +174,7 @@ function ImpactPanelComponent({
           <span className="text-lg">{risk.icon}</span>
           <div>
             <div className={cn('font-semibold text-sm', risk.text)}>{risk.label}</div>
-            <div className="text-xs text-zinc-400">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400">
               {totalDependents === 0 
                 ? 'No files depend on this'
                 : `${totalDependents} file${totalDependents === 1 ? '' : 's'} will be affected`
@@ -185,7 +185,7 @@ function ImpactPanelComponent({
 
         {/* Warning for critical files */}
         {impact.riskLevel === 'critical' && (
-          <div className="mt-2 flex items-start gap-2 text-xs text-rose-400 bg-rose-500/10 px-3 py-2 rounded-lg">
+          <div className="mt-2 flex items-start gap-2 text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 px-3 py-2 rounded-lg">
             <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
             <span>Changes to this file have high blast radius. Test thoroughly.</span>
           </div>
@@ -193,7 +193,7 @@ function ImpactPanelComponent({
 
         {/* Entry Point indicator */}
         {impact.isEntryPoint && (
-          <div className="mt-2 flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 px-3 py-2 rounded-lg">
+          <div className="mt-2 flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 rounded-lg">
             <span>📍</span>
             <span>Entry point - this file is a root of the dependency tree</span>
           </div>
@@ -225,7 +225,7 @@ function ImpactPanelComponent({
 
       {/* Actions Footer */}
       {onAnalyzeInSearch && (
-        <div className="p-4 border-t border-zinc-800">
+        <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
           <button
             onClick={() => onAnalyzeInSearch(fullPath)}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors"

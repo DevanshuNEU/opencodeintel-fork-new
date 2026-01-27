@@ -30,29 +30,29 @@ const FILE_ICONS: Record<string, typeof FileCode2> = {
 }
 
 const LANGUAGE_COLORS: Record<string, string> = {
-  python: 'text-blue-400',
-  javascript: 'text-yellow-400',
-  typescript: 'text-blue-500',
-  json: 'text-zinc-400',
-  yaml: 'text-zinc-400',
-  config: 'text-zinc-400',
-  test: 'text-purple-400',
-  unknown: 'text-zinc-500',
+  python: 'text-blue-500 dark:text-blue-400',
+  javascript: 'text-yellow-600 dark:text-yellow-400',
+  typescript: 'text-blue-600 dark:text-blue-500',
+  json: 'text-zinc-500 dark:text-zinc-400',
+  yaml: 'text-zinc-500 dark:text-zinc-400',
+  config: 'text-zinc-500 dark:text-zinc-400',
+  test: 'text-purple-500 dark:text-purple-400',
+  unknown: 'text-zinc-400 dark:text-zinc-500',
 }
 
 const STATE_STYLES: Record<GraphNodeData['state'], string> = {
-  default: 'border-zinc-700 bg-zinc-900/90',
-  selected: 'border-indigo-500 bg-zinc-900 ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/20',
-  direct: 'border-rose-500 bg-zinc-900 ring-1 ring-rose-500/30',
-  transitive: 'border-amber-500 bg-zinc-900 ring-1 ring-amber-500/30',
-  dimmed: 'border-zinc-800 bg-zinc-900/50 opacity-40',
+  default: 'border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900/90',
+  selected: 'border-indigo-500 bg-white dark:bg-zinc-900 ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/20',
+  direct: 'border-rose-500 bg-white dark:bg-zinc-900 ring-1 ring-rose-500/30',
+  transitive: 'border-amber-500 bg-white dark:bg-zinc-900 ring-1 ring-amber-500/30',
+  dimmed: 'border-zinc-200 bg-zinc-50/50 opacity-40 dark:border-zinc-800 dark:bg-zinc-900/50',
 }
 
 const RISK_BADGES: Record<RiskLevel, { bg: string; text: string; label: string }> = {
-  low: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'Low' },
-  medium: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', label: 'Med' },
-  high: { bg: 'bg-orange-500/10', text: 'text-orange-400', label: 'High' },
-  critical: { bg: 'bg-rose-500/10', text: 'text-rose-400', label: 'Crit' },
+  low: { bg: 'bg-emerald-100 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', label: 'Low' },
+  medium: { bg: 'bg-yellow-100 dark:bg-yellow-500/10', text: 'text-yellow-600 dark:text-yellow-400', label: 'Med' },
+  high: { bg: 'bg-orange-100 dark:bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', label: 'High' },
+  critical: { bg: 'bg-rose-100 dark:bg-rose-500/10', text: 'text-rose-600 dark:text-rose-400', label: 'Crit' },
 }
 
 function getFileType(path: string, language: string): string {
@@ -70,7 +70,7 @@ function getFileType(path: string, language: string): string {
   return 'unknown'
 }
 
-function GraphNodeComponent({ data, selected }: NodeProps<GraphNodeData>) {
+function GraphNodeComponent({ data }: NodeProps<GraphNodeData>) {
   const fileType = getFileType(data.fullPath, data.language)
   const Icon = FILE_ICONS[fileType] || FILE_ICONS.unknown
   const iconColor = LANGUAGE_COLORS[fileType] || LANGUAGE_COLORS.unknown
@@ -79,7 +79,11 @@ function GraphNodeComponent({ data, selected }: NodeProps<GraphNodeData>) {
 
   return (
     <>
-      <Handle type="target" position={Position.Left} className="!bg-zinc-600 !w-2 !h-2 !border-0" />
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        className="!bg-zinc-400 dark:!bg-zinc-600 !w-2 !h-2 !border-0" 
+      />
       
       <div
         className={cn(
@@ -89,10 +93,13 @@ function GraphNodeComponent({ data, selected }: NodeProps<GraphNodeData>) {
           data.isEntryPoint && 'border-l-4 border-l-emerald-500'
         )}
       >
-        {/* Header row: icon + filename + risk badge */}
+        {/* Header row */}
         <div className="flex items-center gap-2 mb-1">
           <Icon className={cn('w-4 h-4 flex-shrink-0', iconColor)} />
-          <span className="font-semibold text-sm text-zinc-100 truncate flex-1" title={data.fullPath}>
+          <span 
+            className="font-semibold text-sm text-zinc-800 dark:text-zinc-100 truncate flex-1" 
+            title={data.fullPath}
+          >
             {data.label}
           </span>
           {data.dependentCount > 0 && (
@@ -103,11 +110,12 @@ function GraphNodeComponent({ data, selected }: NodeProps<GraphNodeData>) {
         </div>
 
         {/* Stats row */}
-        <div className="flex items-center gap-3 text-[11px] text-zinc-400">
+        <div className="flex items-center gap-3 text-[11px] text-zinc-500 dark:text-zinc-400">
           <span className={cn(
             'font-medium',
-            data.dependentCount >= 15 ? 'text-rose-400' : 
-            data.dependentCount >= 5 ? 'text-amber-400' : 'text-zinc-400'
+            data.dependentCount >= 15 ? 'text-rose-600 dark:text-rose-400' : 
+            data.dependentCount >= 5 ? 'text-amber-600 dark:text-amber-400' : 
+            'text-zinc-500 dark:text-zinc-400'
           )}>
             {data.dependentCount} dependents
           </span>
@@ -122,7 +130,11 @@ function GraphNodeComponent({ data, selected }: NodeProps<GraphNodeData>) {
         </div>
       </div>
 
-      <Handle type="source" position={Position.Right} className="!bg-zinc-600 !w-2 !h-2 !border-0" />
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        className="!bg-zinc-400 dark:!bg-zinc-600 !w-2 !h-2 !border-0" 
+      />
     </>
   )
 }
