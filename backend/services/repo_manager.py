@@ -135,6 +135,15 @@ class RepositoryManager:
         """Update repository status"""
         self.db.update_repository_status(repo_id, status)
     
+    def try_set_indexing(self, repo_id: str) -> bool:
+        """
+        Atomically set status to 'indexing' only if not already indexing.
+        
+        Returns True if status was set, False if already indexing.
+        Use this instead of checking status then updating to prevent race conditions.
+        """
+        return self.db.try_set_indexing_status(repo_id)
+    
     def update_file_count(self, repo_id: str, count: int):
         """Update file count"""
         self.db.update_file_count(repo_id, count)
