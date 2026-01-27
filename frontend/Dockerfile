@@ -1,5 +1,5 @@
-# Frontend Dockerfile - Multi-stage build
-FROM node:20-alpine AS builder
+# Frontend Dockerfile - Multi-stage build with Bun
+FROM oven/bun:1 AS builder
 
 WORKDIR /app
 
@@ -14,16 +14,16 @@ ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 
 # Copy package files
-COPY package*.json ./
+COPY package.json bun.lock* ./
 
 # Install dependencies
-RUN npm ci
+RUN bun install --frozen-lockfile || bun install
 
 # Copy source code
 COPY . .
 
 # Build for production
-RUN npm run build
+RUN bun run build
 
 # Production image - nginx
 FROM nginx:alpine

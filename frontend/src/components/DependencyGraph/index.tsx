@@ -112,7 +112,7 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
   const visibleNodeIds = useMemo(() => {
     if (!rawGraphData || !impact.isReady) return new Set<string>()
 
-    let nodeIds = rawGraphData.nodes.map((n: any) => n.id)
+    let nodeIds: string[] = rawGraphData.nodes.map((n: any) => n.id)
 
     // Filter out tests if disabled
     if (!showTests) {
@@ -129,7 +129,7 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
     }
 
     return new Set(nodeIds)
-  }, [rawGraphData, impact, showAll, showTests])
+  }, [rawGraphData, impact.isReady, impact.fileMetrics, showAll, showTests])
 
   // Get impact result for selected node
   const selectedImpact = useMemo((): ImpactResult | null => {
@@ -210,12 +210,14 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(flowNodes, flowEdges)
     setNodes(layoutedNodes)
     setEdges(layoutedEdges)
-  }, [rawGraphData, impact, visibleNodeIds, selectedNodeId, selectedImpact, hoveredFileId])
+  }, [rawGraphData, impact.isReady, visibleNodeIds, selectedNodeId, selectedImpact, hoveredFileId])
 
   // Fit view when nodes change significantly
   useEffect(() => {
     if (nodes.length > 0) {
-      setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 100)
+      // Don't zoom out too much for large graphs
+      const minZoom = nodes.length > 20 ? 0.5 : 0.3
+      setTimeout(() => fitView({ padding: 0.2, duration: 300, minZoom }), 100)
     }
   }, [showAll, showTests])
 
@@ -239,8 +241,9 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
 
   const handleResetView = useCallback(() => {
     setSelectedNodeId(null)
-    fitView({ padding: 0.2, duration: 300 })
-  }, [fitView])
+    const minZoom = nodes.length > 20 ? 0.5 : 0.3
+    fitView({ padding: 0.2, duration: 300, minZoom })
+  }, [fitView, nodes.length])
 
   if (isLoading) {
     return <DependencyGraphSkeleton />
@@ -286,9 +289,9 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
       />
 
       {/* Graph + Panel */}
-      <div className="flex-1 flex overflow-hidden min-h-[500px]">
+      <div className="flex overflow-hidden" style={{ height: '600px' }}>
         {/* Graph Canvas */}
-        <div className="flex-1 relative h-full">
+        <div style={{ flex: 1, height: '600px' }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
