@@ -9,9 +9,11 @@ import {
   Zap, 
   ArrowLeft,
   FolderGit2,
-  ExternalLink
+  ExternalLink,
+  Plus
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { Button } from '../ui/button'
 import { RepoList } from '../RepoList'
 import { AddRepoForm } from '../AddRepoForm'
 import { SearchPanel } from '../SearchPanel'
@@ -32,6 +34,7 @@ export function DashboardHome() {
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
   const [loading, setLoading] = useState(false)
   const [reposLoading, setReposLoading] = useState(true)
+  const [showAddForm, setShowAddForm] = useState(false)
 
   const fetchRepos = async () => {
     if (!session?.access_token) return
@@ -136,7 +139,20 @@ export function DashboardHome() {
                   Semantic code search powered by AI
                 </p>
               </div>
-              <AddRepoForm onAdd={handleAddRepo} loading={loading} />
+              <Button
+                onClick={() => setShowAddForm(true)}
+                disabled={loading}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Repository
+              </Button>
+              <AddRepoForm 
+                onAdd={handleAddRepo} 
+                loading={loading}
+                isOpen={showAddForm}
+                onOpenChange={setShowAddForm}
+              />
             </div>
             
             {/* Stats */}
@@ -151,6 +167,7 @@ export function DashboardHome() {
                 setSelectedRepo(id)
                 setActiveTab('overview')
               }}
+              onAddClick={() => setShowAddForm(true)}
             />
           </motion.div>
         )}

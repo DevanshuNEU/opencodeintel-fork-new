@@ -26,7 +26,14 @@ export function LoginForm() {
       await signIn(email, password)
       navigate('/dashboard')
     } catch (err: any) {
-      setError(err.message || 'Login failed')
+      const message = err.message?.toLowerCase() || ''
+      if (message.includes('email not confirmed') || message.includes('not confirmed')) {
+        setError('Please verify your email before logging in. Check your inbox for the verification link.')
+      } else if (message.includes('invalid login credentials')) {
+        setError('Invalid email or password. Please try again.')
+      } else {
+        setError(err.message || 'Login failed')
+      }
     } finally {
       setLoading(false)
     }

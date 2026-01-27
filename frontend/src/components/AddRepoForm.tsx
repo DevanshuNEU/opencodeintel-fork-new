@@ -5,15 +5,30 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-interface AddRepoFormProps {
-  onAdd: (gitUrl: string, branch: string) => Promise<void>
-  loading: boolean
+// Discriminated union: if isOpen is provided, onOpenChange is required
+type UncontrolledProps = {
+  isOpen?: undefined
+  onOpenChange?: undefined
 }
 
-export function AddRepoForm({ onAdd, loading }: AddRepoFormProps) {
+type ControlledProps = {
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+type AddRepoFormProps = {
+  onAdd: (gitUrl: string, branch: string) => Promise<void>
+  loading: boolean
+} & (UncontrolledProps | ControlledProps)
+
+export function AddRepoForm({ onAdd, loading, isOpen, onOpenChange }: AddRepoFormProps) {
   const [gitUrl, setGitUrl] = useState('')
   const [branch, setBranch] = useState('main')
-  const [showForm, setShowForm] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const isControlled = isOpen !== undefined
+  const showForm = isControlled ? isOpen : internalOpen
+  const setShowForm = isControlled ? onOpenChange : setInternalOpen
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,14 +41,17 @@ export function AddRepoForm({ onAdd, loading }: AddRepoFormProps) {
 
   return (
     <>
-      <Button
-        onClick={() => setShowForm(true)}
-        disabled={loading}
-        className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
-      >
-        <Plus className="w-4 h-4" />
-        Add Repository
-      </Button>
+      {/* Only show trigger button in uncontrolled mode */}
+      {!isControlled && (
+        <Button
+          onClick={() => setShowForm(true)}
+          disabled={loading}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Repository
+        </Button>
+      )}
 
       <AnimatePresence>
         {showForm && (
