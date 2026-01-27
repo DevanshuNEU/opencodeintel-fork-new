@@ -23,11 +23,13 @@ export function SignupForm() {
   const navigate = useNavigate()
 
   const handleResend = async () => {
+    setError('')
     setResendLoading(true)
     setResendSuccess(false)
     try {
       await resendVerification(email)
       setResendSuccess(true)
+      setError('')
     } catch (err: any) {
       setError(err.message || 'Failed to resend verification email')
     } finally {
@@ -199,7 +201,8 @@ export function SignupForm() {
                       <span className="text-muted-foreground">·</span>
                       <button 
                         onClick={handleGoBack}
-                        className="text-sm text-muted-foreground hover:text-foreground"
+                        disabled={resendLoading}
+                        className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Use different email
                       </button>
@@ -216,7 +219,10 @@ export function SignupForm() {
               >
                 <Link 
                   to="/login" 
-                  className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className={`inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors ${
+                    resendLoading ? 'opacity-50 pointer-events-none' : 'hover:text-foreground'
+                  }`}
+                  onClick={(e) => resendLoading && e.preventDefault()}
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Back to login
