@@ -326,7 +326,7 @@ async def _run_async_indexing(
             )
 
 
-@router.post("/{repo_id}/index/async")
+@router.post("/{repo_id}/index/async", status_code=202)
 async def index_repository_async(
     repo_id: str,
     background_tasks: BackgroundTasks,
