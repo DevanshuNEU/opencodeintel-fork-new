@@ -166,20 +166,31 @@ export function useRepoIndexingWebSocket(
       wsRef.current = ws
 
       ws.onopen = () => {
+        // Guard against stale socket callbacks after cleanup/reconnect
+        if (ws !== wsRef.current) return
         console.log('[WS] Connected')
         reconnectAttempts.current = 0
         setConnectionState('connected')
       }
 
-      ws.onmessage = handleMessage
+      ws.onmessage = (event) => {
+        // Guard against stale socket callbacks
+        if (ws !== wsRef.current) return
+        handleMessage(event)
+      }
 
       ws.onerror = () => {
+        // Guard against stale socket callbacks
+        if (ws !== wsRef.current) return
         setConnectionState('error')
         setPhase('error')
         setError('WebSocket connection error')
       }
 
       ws.onclose = (event) => {
+        // Guard against stale socket callbacks after cleanup/reconnect
+        if (ws !== wsRef.current) return
+        
         console.log('[WS] Closed:', event.code, event.reason)
         
         // Normal closure or auth failure - don't reconnect
