@@ -13,11 +13,11 @@ ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 
-# Copy package files
-COPY package.json bun.lock* ./
+# Copy package files (lockfile required for deterministic builds)
+COPY package.json bun.lock ./
 
-# Install dependencies
-RUN bun install --frozen-lockfile || bun install
+# Install dependencies (fail if lockfile missing or outdated)
+RUN bun install --frozen-lockfile
 
 # Copy source code
 COPY . .
