@@ -254,8 +254,16 @@ async def _run_async_indexing(
                 last_commit
             )
             index_type = "incremental"
+            # For incremental, get file count from repo or analyze
+            total_files = repo.get("file_count", 0)
+            if not total_files:
+                analysis = repo_validator.analyze_repo(repo["local_path"])
+                total_files = analysis.file_count if analysis and analysis.success else 0
         else:
             logger.info("Async FULL indexing with progress", repo_id=repo_id)
+            
+            # Track total_files from progress callback
+            tracked_total_files = 0
             
             # Progress callback that publishes to Redis
             async def progress_callback(
@@ -264,6 +272,8 @@ async def _run_async_indexing(
                 total_files: int,
                 current_file: str = None
             ):
+                nonlocal tracked_total_files
+                tracked_total_files = total_files
                 if publisher:
                     publisher.publish_progress(
                         repo_id,
@@ -278,6 +288,7 @@ async def _run_async_indexing(
                 repo["local_path"],
                 progress_callback
             )
+            total_files = tracked_total_files
             index_type = "full"
         
         # Update metadata
@@ -285,7 +296,7 @@ async def _run_async_indexing(
         current_commit = git_repo.head.commit.hexsha
         
         repo_manager.update_status(repo_id, "indexed")
-        repo_manager.update_file_count(repo_id, total_functions)
+        repo_manager.update_file_count(repo_id, total_files)
         repo_manager.update_last_commit(repo_id, current_commit)
         
         duration = time.time() - start_time
@@ -297,7 +308,7 @@ async def _run_async_indexing(
                 repo_id,
                 repo_id,
                 IndexingStats(
-                    files_processed=total_functions,
+                    files_processed=total_files,
                     functions_indexed=total_functions,
                     indexing_time_seconds=duration
                 )
