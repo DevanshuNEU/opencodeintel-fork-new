@@ -1,4 +1,4 @@
-import { memo, useState } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { 
   X, 
   ChevronDown, 
@@ -114,6 +114,11 @@ function CollapsibleSection({
   onFileHover: (fileId: string | null) => void
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
+
+  // Reset collapse state when file selection changes
+  useEffect(() => {
+    setIsOpen(defaultOpen)
+  }, [defaultOpen, files])
 
   const variantStyles = {
     direct: 'text-rose-600 dark:text-rose-400',

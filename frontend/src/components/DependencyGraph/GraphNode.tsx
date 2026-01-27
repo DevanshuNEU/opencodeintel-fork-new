@@ -69,16 +69,17 @@ const RISK_CONFIG: Record<RiskLevel, { variant: 'default' | 'secondary' | 'destr
 
 function getFileType(path: string, language: string): string {
   const fileName = path.split('/').pop() || ''
-  
-  if (fileName.includes('.test.') || fileName.includes('_test.') || fileName.includes('.spec.')) {
+  const lower = fileName.toLowerCase()
+  const ext = lower.split('.').pop() || ''
+
+  if (lower.includes('.test.') || lower.includes('_test.') || lower.includes('.spec.')) {
     return 'test'
   }
-  if (fileName.includes('config') || fileName.endsWith('.json') || fileName.endsWith('.yaml') || fileName.endsWith('.yml')) {
-    return 'config'
-  }
-  if (['python', 'javascript', 'typescript'].includes(language)) {
-    return language
-  }
+  if (ext === 'json') return 'json'
+  if (ext === 'yaml' || ext === 'yml') return 'yaml'
+  if (ext === 'md' || ext === 'markdown') return 'markdown'
+  if (lower.includes('config')) return 'config'
+  if (['python', 'javascript', 'typescript'].includes(language)) return language
   return 'unknown'
 }
 
