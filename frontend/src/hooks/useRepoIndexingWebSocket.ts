@@ -148,6 +148,8 @@ export function useRepoIndexingWebSocket(
     if (!session?.access_token) {
       console.error('[WS] No auth token available')
       setConnectionState('error')
+      setPhase('error')
+      setError('Authentication required - no access token')
       return
     }
 
@@ -173,6 +175,8 @@ export function useRepoIndexingWebSocket(
 
       ws.onerror = () => {
         setConnectionState('error')
+        setPhase('error')
+        setError('WebSocket connection error')
       }
 
       ws.onclose = (event) => {
@@ -193,12 +197,15 @@ export function useRepoIndexingWebSocket(
           }, delay)
         } else {
           setConnectionState('error')
+          setPhase('error')
           setError('Connection failed after multiple attempts')
         }
       }
     } catch (err) {
       console.error('[WS] Connection error:', err)
       setConnectionState('error')
+      setPhase('error')
+      setError(err instanceof Error ? err.message : 'Failed to create WebSocket')
     }
   }, [session?.access_token, cleanup, handleMessage])
 
