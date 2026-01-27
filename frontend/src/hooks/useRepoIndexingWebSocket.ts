@@ -135,7 +135,7 @@ export function useRepoIndexingWebSocket(
           }
           break
           
-        case 'error':
+        case 'error': {
           setPhase('error')
           // Prefer data.error (server error code) over data.message (human-readable)
           const errorMessage = data.error || data.message || 'Unknown error'
@@ -143,6 +143,7 @@ export function useRepoIndexingWebSocket(
           setIsRecoverable(data.recoverable || false)
           onErrorRef.current?.(errorMessage, data.recoverable || false)
           break
+        }
       }
     } catch (err) {
       console.error('[WS] Parse error:', err)
