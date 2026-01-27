@@ -137,9 +137,11 @@ export function useRepoIndexingWebSocket(
           
         case 'error':
           setPhase('error')
-          setError(data.message || 'Unknown error')
+          // Prefer data.error (server error code) over data.message (human-readable)
+          const errorMessage = data.error || data.message || 'Unknown error'
+          setError(errorMessage)
           setIsRecoverable(data.recoverable || false)
-          onErrorRef.current?.(data.message || 'Unknown error', data.recoverable || false)
+          onErrorRef.current?.(errorMessage, data.recoverable || false)
           break
       }
     } catch (err) {
