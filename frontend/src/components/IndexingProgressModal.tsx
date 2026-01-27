@@ -188,18 +188,41 @@ export function IndexingProgressModal({
             {phase === 'indexing' && recentFiles.length > 0 && (
               <div className="mt-4">
                 <p className="text-sm text-zinc-400 mb-2">Processing</p>
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {recentFiles.slice(0, 5).map((file, i) => (
-                    <motion.div
-                      key={`${file}-${i}`}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1 - i * 0.15, x: 0 }}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      <FileCode2 className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
-                      <span className="text-zinc-300 truncate">{file}</span>
-                    </motion.div>
-                  ))}
+                <div className="space-y-1.5 overflow-hidden">
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    {recentFiles.slice(0, 5).map((file, i) => (
+                      <motion.div
+                        key={file}
+                        layout
+                        initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                        animate={{ 
+                          opacity: i === 0 ? 1 : 0.7 - i * 0.12,
+                          x: 0,
+                          scale: 1,
+                          transition: { 
+                            type: "spring",
+                            stiffness: 500,
+                            damping: 30,
+                            delay: i * 0.03
+                          }
+                        }}
+                        exit={{ 
+                          opacity: 0, 
+                          x: 20,
+                          scale: 0.95,
+                          transition: { duration: 0.2 }
+                        }}
+                        className={`flex items-center gap-2 text-sm ${
+                          i === 0 ? 'text-white' : 'text-zinc-400'
+                        }`}
+                      >
+                        <FileCode2 className={`w-3.5 h-3.5 flex-shrink-0 ${
+                          i === 0 ? 'text-indigo-400' : 'text-zinc-500'
+                        }`} />
+                        <span className="truncate">{file}</span>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                 </div>
               </div>
             )}
