@@ -62,6 +62,8 @@ export function SignupForm() {
     try {
       await signUp(email, password)
       setEmailSent(true)
+      setPassword('')
+      setConfirmPassword('')
     } catch (err: any) {
       setError(err.message || 'Signup failed')
     } finally {
