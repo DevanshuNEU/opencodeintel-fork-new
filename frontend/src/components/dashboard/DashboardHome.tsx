@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { 
@@ -10,12 +11,14 @@ import {
   ArrowLeft,
   FolderGit2,
   ExternalLink,
-  Plus
+  Plus,
+  Github
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/button'
 import { RepoList } from '../RepoList'
 import { AddRepoForm } from '../AddRepoForm'
+import { GitHubRepoSelector } from '../GitHubRepoSelector'
 import { SearchPanel } from '../SearchPanel'
 import { DependencyGraph } from '../DependencyGraph'
 import { RepoOverview } from '../RepoOverview'
@@ -24,23 +27,38 @@ import { ImpactAnalyzer } from '../ImpactAnalyzer'
 import { DashboardStats } from './DashboardStats'
 import { IndexingProgressModal } from '../IndexingProgressModal'
 import type { Repository } from '../../types'
+import type { GitHubRepo } from '../../hooks/useGitHubRepos'
 import { API_URL } from '../../config/api'
+
+const MAX_FREE_REPOS = 3
 
 type RepoTab = 'overview' | 'search' | 'dependencies' | 'insights' | 'impact'
 
 export function DashboardHome() {
   const { session } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [repos, setRepos] = useState<Repository[]>([])
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
   const [loading, setLoading] = useState(false)
   const [reposLoading, setReposLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showGitHubSelector, setShowGitHubSelector] = useState(false)
   
   // Indexing progress modal state
   const [indexingRepoId, setIndexingRepoId] = useState<string | null>(null)
   const [indexingRepoName, setIndexingRepoName] = useState<string>('')
   const [showIndexingModal, setShowIndexingModal] = useState(false)
+
+  // Auto-open GitHub import modal if redirected from OAuth callback
+  useEffect(() => {
+    if (searchParams.get('openGitHubImport') === 'true') {
+      setShowGitHubSelector(true)
+      // Clear the param from URL without triggering navigation
+      searchParams.delete('openGitHubImport')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   const fetchRepos = async () => {
     if (!session?.access_token) return
@@ -108,6 +126,67 @@ export function DashboardHome() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleGitHubImport = async (githubRepos: GitHubRepo[]) => {
+    if (githubRepos.length === 0) return
+    
+    // Import repos one at a time
+    for (const repo of githubRepos) {
+      try {
+        setLoading(true)
+        const response = await fetch(`${API_URL}/repos`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            name: repo.name, 
+            git_url: repo.clone_url, 
+            branch: repo.default_branch 
+          })
+        })
+        
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}))
+          throw new Error(err.detail || `Failed to add ${repo.name}`)
+        }
+        
+        const data = await response.json()
+        if (!data.repo_id) throw new Error('Missing repo_id in response')
+        
+        // Trigger async indexing
+        const indexResponse = await fetch(`${API_URL}/repos/${data.repo_id}/index/async`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${session?.access_token}` }
+        })
+        
+        if (!indexResponse.ok) {
+          const err = await indexResponse.json().catch(() => ({}))
+          const errMsg = err.detail?.message || err.detail || 'Indexing failed to start'
+          console.error(`Failed to start indexing for ${repo.name}:`, err)
+          toast.warning(`${repo.name} added but indexing failed`, { 
+            description: errMsg 
+          })
+        } else if (repo === githubRepos[githubRepos.length - 1]) {
+          // Only show progress modal for last repo if indexing started successfully
+          setIndexingRepoId(data.repo_id)
+          setIndexingRepoName(repo.name)
+          setShowIndexingModal(true)
+        }
+        
+        toast.success(`Added ${repo.name}`)
+      } catch (error) {
+        console.error(`Error importing ${repo.name}:`, error)
+        toast.error(`Failed to import ${repo.name}`, { 
+          description: error instanceof Error ? error.message : 'Please try again' 
+        })
+      }
+    }
+    
+    setLoading(false)
+    await fetchRepos()
   }
 
   const handleIndexingComplete = async () => {
@@ -195,14 +274,25 @@ export function DashboardHome() {
                   Semantic code search powered by AI
                 </p>
               </div>
-              <Button
-                onClick={() => setShowAddForm(true)}
-                disabled={loading}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Add Repository
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setShowGitHubSelector(true)}
+                  variant="outline"
+                  disabled={loading || repos.length >= MAX_FREE_REPOS}
+                  className="gap-2"
+                >
+                  <Github className="w-4 h-4" />
+                  Import from GitHub
+                </Button>
+                <Button
+                  onClick={() => setShowAddForm(true)}
+                  disabled={loading || repos.length >= MAX_FREE_REPOS}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Repository
+                </Button>
+              </div>
               <AddRepoForm 
                 onAdd={handleAddRepo} 
                 loading={loading}
@@ -339,6 +429,15 @@ export function DashboardHome() {
         onClose={handleCloseIndexingModal}
         onCompleted={handleIndexingComplete}
         onRetry={handleRetryIndexing}
+      />
+      
+      {/* GitHub Repo Selector */}
+      <GitHubRepoSelector
+        isOpen={showGitHubSelector}
+        onClose={() => setShowGitHubSelector(false)}
+        onImport={handleGitHubImport}
+        maxSelectable={MAX_FREE_REPOS}
+        currentRepoCount={repos.length}
       />
     </div>
   )
