@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Github, Search, Lock, Star, Loader2, X, Check, AlertCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ export function GitHubRepoSelector({
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [connecting, setConnecting] = useState(false);
+  const hasFetchedReposRef = useRef(false);
 
   const remainingSlots = maxSelectable - currentRepoCount;
 
@@ -33,11 +34,14 @@ export function GitHubRepoSelector({
       setSelected(new Set());
       setSearchQuery('');
       clearError();
+      hasFetchedReposRef.current = false;
     }
   }, [isOpen, checkStatus, clearError]);
 
   useEffect(() => {
-    if (isOpen && status?.connected) {
+    // Only fetch once per modal open, after status confirms connected
+    if (isOpen && status?.connected && !hasFetchedReposRef.current) {
+      hasFetchedReposRef.current = true;
       fetchRepos();
     }
   }, [isOpen, status?.connected, fetchRepos]);

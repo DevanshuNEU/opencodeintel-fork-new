@@ -16,13 +16,26 @@ export function GitHubCallbackPage() {
   useEffect(() => {
     // Prevent double-execution in React StrictMode
     if (callbackRanRef.current) return;
+    
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    
+    // Also check if we already processed this code (sessionStorage cleanup happens on success)
+    const storedState = sessionStorage.getItem('github_oauth_state');
+    if (!storedState) {
+      // State already cleared = already processed
+      setStatus('success');
+      timeoutRef.current = setTimeout(() => {
+        navigate('/dashboard?openGitHubImport=true', { replace: true });
+      }, 500);
+      return;
+    }
+    
     callbackRanRef.current = true;
     
     let mounted = true;
 
     const handleCallback = async () => {
-      const code = searchParams.get('code');
-      const state = searchParams.get('state');
       const error = searchParams.get('error');
       const errorDescription = searchParams.get('error_description');
 
@@ -53,7 +66,8 @@ export function GitHubCallbackPage() {
           setStatus('success');
           timeoutRef.current = setTimeout(() => {
             if (mounted) {
-              navigate('/dashboard', { replace: true });
+              // Navigate with param to auto-open import modal
+              navigate('/dashboard?openGitHubImport=true', { replace: true });
             }
           }, 1500);
         } else {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { 
@@ -35,6 +36,7 @@ type RepoTab = 'overview' | 'search' | 'dependencies' | 'insights' | 'impact'
 
 export function DashboardHome() {
   const { session } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [repos, setRepos] = useState<Repository[]>([])
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
@@ -47,6 +49,16 @@ export function DashboardHome() {
   const [indexingRepoId, setIndexingRepoId] = useState<string | null>(null)
   const [indexingRepoName, setIndexingRepoName] = useState<string>('')
   const [showIndexingModal, setShowIndexingModal] = useState(false)
+
+  // Auto-open GitHub import modal if redirected from OAuth callback
+  useEffect(() => {
+    if (searchParams.get('openGitHubImport') === 'true') {
+      setShowGitHubSelector(true)
+      // Clear the param from URL without triggering navigation
+      searchParams.delete('openGitHubImport')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   const fetchRepos = async () => {
     if (!session?.access_token) return
