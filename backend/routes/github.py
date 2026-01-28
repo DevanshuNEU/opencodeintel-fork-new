@@ -117,10 +117,11 @@ async def _delete_github_connection(user_id: str) -> bool:
 async def _update_last_used(user_id: str) -> None:
     """Update last_used_at timestamp"""
     try:
+        from datetime import datetime, timezone
         from services.supabase_service import get_supabase_service
         db = get_supabase_service().client
         db.table("github_connections").update(
-            {"last_used_at": "now()"}
+            {"last_used_at": datetime.now(timezone.utc).isoformat()}
         ).eq("user_id", user_id).execute()
     except Exception:
         pass
