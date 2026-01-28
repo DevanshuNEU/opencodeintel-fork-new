@@ -152,7 +152,11 @@ export function DashboardHome() {
         
         if (!indexResponse.ok) {
           const err = await indexResponse.json().catch(() => ({}))
+          const errMsg = err.detail?.message || err.detail || 'Indexing failed to start'
           console.error(`Failed to start indexing for ${repo.name}:`, err)
+          toast.warning(`${repo.name} added but indexing failed`, { 
+            description: errMsg 
+          })
         }
         
         // Show progress for last repo
