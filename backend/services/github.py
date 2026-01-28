@@ -181,7 +181,7 @@ class GitHubService:
                     "GitHub repo pagination stopped at limit",
                     max_pages=max_pages,
                     total_repos_fetched=len(all_repos),
-                    stopped_at_page=page
+                    last_page_fetched=page - 1
                 )
                 break
         return all_repos
