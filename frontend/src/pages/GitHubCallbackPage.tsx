@@ -44,20 +44,26 @@ export function GitHubCallbackPage() {
       }
 
       // Exchange code for token via backend
-      const success = await completeConnect(code, state);
-      
-      if (!mounted) return;
-      
-      if (success) {
-        setStatus('success');
-        timeoutRef.current = setTimeout(() => {
-          if (mounted) {
-            navigate('/dashboard', { replace: true });
-          }
-        }, 1500);
-      } else {
+      try {
+        const success = await completeConnect(code, state);
+        
+        if (!mounted) return;
+        
+        if (success) {
+          setStatus('success');
+          timeoutRef.current = setTimeout(() => {
+            if (mounted) {
+              navigate('/dashboard', { replace: true });
+            }
+          }, 1500);
+        } else {
+          setStatus('error');
+          setErrorMessage('Failed to connect GitHub account');
+        }
+      } catch (err) {
+        if (!mounted) return;
         setStatus('error');
-        setErrorMessage('Failed to connect GitHub account');
+        setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred');
       }
     };
 
