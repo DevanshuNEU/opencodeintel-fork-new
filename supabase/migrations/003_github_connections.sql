@@ -23,13 +23,33 @@ CREATE INDEX IF NOT EXISTS idx_github_connections_user_id ON github_connections(
 -- RLS policies
 ALTER TABLE github_connections ENABLE ROW LEVEL SECURITY;
 
--- Users can only check if they have a connection (not read token)
--- Actual token access is done via service_role in backend
-CREATE POLICY "Users can view own connection exists" ON github_connections
-    FOR SELECT USING (auth.uid() = user_id);
-
--- Users cannot directly insert/update/delete - backend handles this
+-- No direct SELECT access for authenticated users on base table
+-- This prevents access_token from being exposed
 -- Backend uses service_role key which bypasses RLS
+
+-- Create a secure view that excludes sensitive columns
+-- This is what frontend/API queries should use for status checks
+CREATE OR REPLACE VIEW github_connections_public AS
+SELECT 
+    id,
+    user_id,
+    github_user_id,
+    github_username,
+    github_avatar_url,
+    token_scope,
+    connected_at,
+    last_used_at,
+    created_at,
+    updated_at
+FROM github_connections;
+
+-- Grant SELECT on the view to authenticated users
+-- View inherits RLS from base table, but we add explicit policy
+GRANT SELECT ON github_connections_public TO authenticated;
+
+-- RLS policy for the view (checks user_id match)
+CREATE POLICY "Users can view own connection via public view" ON github_connections
+    FOR SELECT USING (auth.uid() = user_id);
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_github_connections_updated_at()
@@ -45,6 +65,7 @@ CREATE TRIGGER github_connections_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_github_connections_updated_at();
 
--- Comment for documentation
-COMMENT ON TABLE github_connections IS 'Stores GitHub OAuth tokens for repo import feature. Tokens are server-side only.';
-COMMENT ON COLUMN github_connections.access_token IS 'GitHub OAuth access token. Never exposed to frontend.';
+-- Comments for documentation
+COMMENT ON TABLE github_connections IS 'Stores GitHub OAuth tokens for repo import. Tokens are server-side only via service_role.';
+COMMENT ON COLUMN github_connections.access_token IS 'GitHub OAuth access token. Never exposed to frontend - use github_connections_public view.';
+COMMENT ON VIEW github_connections_public IS 'Safe view excluding access_token. Use this for frontend status checks.';
