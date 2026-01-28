@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -33,16 +33,18 @@ export function useGitHubRepos() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getHeaders = useCallback(() => {
-    if (!session?.access_token) return null;
+  // Extract access_token to stabilize dependencies
+  const accessToken = session?.access_token;
+
+  const headers = useMemo(() => {
+    if (!accessToken) return null;
     return {
-      'Authorization': `Bearer ${session.access_token}`,
+      'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     };
-  }, [session]);
+  }, [accessToken]);
 
   const checkStatus = useCallback(async () => {
-    const headers = getHeaders();
     if (!headers) {
       setStatus({ connected: false, username: null, avatar_url: null });
       return { connected: false, username: null, avatar_url: null };
@@ -68,10 +70,9 @@ export function useGitHubRepos() {
     } finally {
       setLoading(false);
     }
-  }, [getHeaders]);
+  }, [headers]);
 
   const initiateConnect = useCallback(async () => {
-    const headers = getHeaders();
     if (!headers) {
       setError('Not authenticated');
       return null;
@@ -88,7 +89,6 @@ export function useGitHubRepos() {
       }
       
       const data = await response.json();
-      // Store state in sessionStorage for callback verification
       sessionStorage.setItem('github_oauth_state', data.state);
       return data.auth_url;
     } catch (err) {
@@ -98,16 +98,14 @@ export function useGitHubRepos() {
     } finally {
       setLoading(false);
     }
-  }, [getHeaders]);
+  }, [headers]);
 
   const completeConnect = useCallback(async (code: string, state: string) => {
-    const headers = getHeaders();
     if (!headers) {
       setError('Not authenticated');
       return false;
     }
 
-    // Verify state matches what we stored
     const storedState = sessionStorage.getItem('github_oauth_state');
     if (state !== storedState) {
       setError('Invalid OAuth state - possible CSRF attack');
@@ -131,7 +129,6 @@ export function useGitHubRepos() {
       const data = await response.json();
       sessionStorage.removeItem('github_oauth_state');
       
-      // Update status
       setStatus({
         connected: true,
         username: data.username,
@@ -146,10 +143,9 @@ export function useGitHubRepos() {
     } finally {
       setLoading(false);
     }
-  }, [getHeaders]);
+  }, [headers]);
 
   const disconnect = useCallback(async () => {
-    const headers = getHeaders();
     if (!headers) return false;
 
     try {
@@ -174,10 +170,9 @@ export function useGitHubRepos() {
     } finally {
       setLoading(false);
     }
-  }, [getHeaders]);
+  }, [headers]);
 
   const fetchRepos = useCallback(async (page = 1, includeForks = false) => {
-    const headers = getHeaders();
     if (!headers) {
       setError('Not authenticated');
       return [];
@@ -200,7 +195,7 @@ export function useGitHubRepos() {
       }
       
       const data = await response.json();
-      setRepos(page === 1 ? data : [...repos, ...data]);
+      setRepos(prev => page === 1 ? data : [...prev, ...data]);
       return data;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -209,7 +204,7 @@ export function useGitHubRepos() {
     } finally {
       setLoading(false);
     }
-  }, [getHeaders, repos]);
+  }, [headers]);
 
   const clearError = useCallback(() => setError(null), []);
 
