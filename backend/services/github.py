@@ -33,7 +33,7 @@ class GitHubRepo:
 class GitHubUser:
     login: str
     id: int
-    avatar_url: str
+    avatar_url: Optional[str]
     name: Optional[str]
 
 
