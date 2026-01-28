@@ -357,4 +357,4 @@ async def list_github_repos(
                 detail="GitHub access revoked. Please reconnect your GitHub account."
             )
         
-        raise HTTPException(status_code=500, detail=f"Failed to fetch repositories: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch repositories")
