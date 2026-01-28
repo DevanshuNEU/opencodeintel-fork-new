@@ -157,10 +157,8 @@ export function DashboardHome() {
           toast.warning(`${repo.name} added but indexing failed`, { 
             description: errMsg 
           })
-        }
-        
-        // Show progress for last repo
-        if (repo === githubRepos[githubRepos.length - 1]) {
+        } else if (repo === githubRepos[githubRepos.length - 1]) {
+          // Only show progress modal for last repo if indexing started successfully
           setIndexingRepoId(data.repo_id)
           setIndexingRepoName(repo.name)
           setShowIndexingModal(true)
