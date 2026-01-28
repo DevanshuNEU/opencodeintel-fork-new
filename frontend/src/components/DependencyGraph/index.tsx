@@ -179,26 +179,28 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
     dirFiles.forEach((files, dirPath) => {
       const isExpanded = expandedDirs.has(dirPath)
       
+      // Calculate metrics for this directory
+      const metrics = files.map(f => impact.getFileMetrics(f)).filter(Boolean)
+      const totalDeps = metrics.reduce((sum, m) => sum + (m?.dependentCount || 0), 0)
+      const risks = metrics.map(m => m?.riskLevel || 'low') as Array<'low' | 'medium' | 'high' | 'critical'>
+      
+      // Always create directory node so user can collapse
+      dirNodes.push({
+        id: `dir:${dirPath}`,
+        data: {
+          label: dirPath.split('/').pop() || dirPath,
+          fullPath: dirPath,
+          fileCount: files.length,
+          totalDependents: totalDeps,
+          maxRisk: getMaxRisk(risks),
+          isExpanded,
+          state: 'default',
+        }
+      })
+      
+      // When expanded, also show individual files
       if (isExpanded) {
         files.forEach(f => visibleFiles.add(f))
-      } else {
-        // Create directory node
-        const metrics = files.map(f => impact.getFileMetrics(f)).filter(Boolean)
-        const totalDeps = metrics.reduce((sum, m) => sum + (m?.dependentCount || 0), 0)
-        const risks = metrics.map(m => m?.riskLevel || 'low') as Array<'low' | 'medium' | 'high' | 'critical'>
-        
-        dirNodes.push({
-          id: `dir:${dirPath}`,
-          data: {
-            label: dirPath.split('/').pop() || dirPath,
-            fullPath: dirPath,
-            fileCount: files.length,
-            totalDependents: totalDeps,
-            maxRisk: getMaxRisk(risks),
-            isExpanded: false,
-            state: 'default',
-          }
-        })
       }
     })
 

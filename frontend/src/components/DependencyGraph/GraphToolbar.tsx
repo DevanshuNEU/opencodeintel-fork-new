@@ -46,7 +46,8 @@ function GraphToolbarComponent({
           size="sm"
           onClick={onToggleCluster}
           className="h-8"
-          title="Group files by directory"
+          aria-pressed={clusterByDir}
+          title={clusterByDir ? 'Click to show flat view' : 'Group files by directory'}
         >
           <FolderTree className="w-3.5 h-3.5 mr-1.5" />
           Cluster
@@ -57,6 +58,8 @@ function GraphToolbarComponent({
           size="sm"
           onClick={onToggleShowAll}
           className="h-8"
+          aria-pressed={showAll}
+          title={showAll ? 'Show top 15 files' : 'Show all files'}
         >
           <Filter className="w-3.5 h-3.5 mr-1.5" />
           {showAll ? 'Show Top 15' : 'Show All'}
@@ -67,6 +70,7 @@ function GraphToolbarComponent({
           size="sm"
           onClick={onToggleTests}
           className={cn('h-8', !showTests && 'opacity-70 line-through')}
+          aria-pressed={showTests}
           title={showTests ? 'Click to hide test files' : 'Click to show test files'}
         >
           {showTests ? <Eye className="w-3.5 h-3.5 mr-1.5" /> : <EyeOff className="w-3.5 h-3.5 mr-1.5" />}

@@ -48,6 +48,9 @@ export function useDirectoryClustering(
   const clusters = useMemo(() => {
     const clusterMap = new Map<string, DirectoryCluster>()
     
+    // Build node lookup map for O(1) access
+    const nodeMap = new Map(nodes.map(n => [n.id, n]))
+    
     // Group files by directory
     const dirFiles = new Map<string, string[]>()
     nodes.forEach(node => {
@@ -61,7 +64,7 @@ export function useDirectoryClustering(
     // Create clusters for each directory
     dirFiles.forEach((files, dirPath) => {
       const dirName = dirPath.split('/').pop() || dirPath
-      const nodeData = files.map(f => nodes.find(n => n.id === f)!).filter(Boolean)
+      const nodeData = files.map(f => nodeMap.get(f)!).filter(Boolean)
       
       clusterMap.set(dirPath, {
         path: dirPath,
