@@ -252,6 +252,9 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
           else if (selectedImpact?.directDependents.includes(node.id)) state = 'direct'
           else if (selectedImpact?.transitiveDependents.includes(node.id)) state = 'transitive'
           else if (selectedNodeId && !selectedNodeId.startsWith('dir:')) state = 'dimmed'
+          
+          // Hover highlighting in clustered mode
+          if (hoveredFileId === node.id && state === 'dimmed') state = 'direct'
 
           flowNodes.push({
             id: node.id,
