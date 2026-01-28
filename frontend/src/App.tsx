@@ -8,6 +8,7 @@ import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './components/Dashboard';
 import { DocsHomePage } from './pages/DocsHomePage';
 import { MCPSetupPage } from './pages/MCPSetupPage';
+import { GitHubCallbackPage } from './pages/GitHubCallbackPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -66,6 +67,16 @@ function AppRoutes() {
       {/* Documentation Routes - Public, no auth required */}
       <Route path="/docs" element={<DocsHomePage />} />
       <Route path="/docs/mcp-setup" element={<MCPSetupPage />} />
+      
+      {/* GitHub OAuth Callback - Protected, user must be logged in */}
+      <Route
+        path="/github/callback"
+        element={
+          <ProtectedRoute>
+            <GitHubCallbackPage />
+          </ProtectedRoute>
+        }
+      />
       
       {/* Placeholder routes for future docs pages */}
       <Route path="/docs/quickstart" element={<DocsHomePage />} />

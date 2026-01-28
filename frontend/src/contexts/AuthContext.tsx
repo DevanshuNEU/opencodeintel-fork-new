@@ -22,6 +22,9 @@ const supabase: SupabaseClient = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 );
 
+// Export for direct access when needed
+export { supabase };
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
