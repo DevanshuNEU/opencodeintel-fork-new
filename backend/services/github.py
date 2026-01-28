@@ -95,6 +95,8 @@ class GitHubService:
         
         Uses /user/repos which returns repos the user has explicit access to,
         including personal repos and org repos where user is a member
+        
+        Raises exceptions on failure so callers can distinguish errors from empty results.
         """
         try:
             async with httpx.AsyncClient() as client:
@@ -118,7 +120,7 @@ class GitHubService:
                         status_code=response.status_code,
                         page=page
                     )
-                    return []
+                    raise RuntimeError(f"GitHub API error: {response.status_code}")
 
                 repos = []
                 for repo in response.json():
@@ -144,15 +146,16 @@ class GitHubService:
                 return repos
         except (httpx.RequestError, httpx.TimeoutException) as e:
             logger.error("Network error fetching GitHub repos", error=str(e), page=page)
-            return []
+            raise
         except (KeyError, ValueError, TypeError) as e:
             logger.error("Failed to parse GitHub repos response", error=str(e), page=page)
-            return []
+            raise
 
     async def get_all_repos(
         self, 
         include_forks: bool = False,
-        max_pages: Optional[int] = 10
+        max_pages: Optional[int] = 10,
+        per_page: int = 100
     ) -> list[GitHubRepo]:
         """
         Fetch all repos with pagination
@@ -160,20 +163,24 @@ class GitHubService:
         Args:
             include_forks: Whether to include forked repos
             max_pages: Maximum pages to fetch (None for no limit, default 10)
+            per_page: Results per page (default 100)
+            
+        Raises exceptions on failure - does not mask errors as empty results.
         """
         all_repos = []
         page = 1
         while True:
             repos = await self.get_repos(
                 include_forks=include_forks,
-                per_page=100,
+                per_page=per_page,
                 page=page
             )
-            if not repos:
-                break
             all_repos.extend(repos)
-            if len(repos) < 100:
+            
+            # Stop when we get fewer results than requested (last page)
+            if len(repos) < per_page:
                 break
+                
             page += 1
             
             if max_pages is not None and page > max_pages:
