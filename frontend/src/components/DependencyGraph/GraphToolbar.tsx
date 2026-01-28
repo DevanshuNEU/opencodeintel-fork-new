@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { RotateCcw, Maximize2, Filter, Eye, EyeOff } from 'lucide-react'
+import { RotateCcw, Maximize2, Filter, Eye, EyeOff, FolderTree } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
@@ -8,8 +8,10 @@ interface GraphToolbarProps {
   visibleFiles: number
   showAll: boolean
   showTests: boolean
+  clusterByDir: boolean
   onToggleShowAll: () => void
   onToggleTests: () => void
+  onToggleCluster: () => void
   onResetView: () => void
   onFullscreen?: () => void
 }
@@ -19,8 +21,10 @@ function GraphToolbarComponent({
   visibleFiles,
   showAll,
   showTests,
+  clusterByDir,
   onToggleShowAll,
   onToggleTests,
+  onToggleCluster,
   onResetView,
   onFullscreen,
 }: GraphToolbarProps) {
@@ -38,20 +42,36 @@ function GraphToolbarComponent({
 
       <div className="flex items-center gap-2">
         <Button
+          variant={clusterByDir ? 'default' : 'secondary'}
+          size="sm"
+          onClick={onToggleCluster}
+          className="h-8"
+          aria-pressed={clusterByDir}
+          title={clusterByDir ? 'Click to show flat view' : 'Group files by directory'}
+        >
+          <FolderTree className="w-3.5 h-3.5 mr-1.5" />
+          Cluster
+        </Button>
+
+        <Button
           variant={showAll ? 'default' : 'secondary'}
           size="sm"
           onClick={onToggleShowAll}
           className="h-8"
+          aria-pressed={showAll}
+          title={showAll ? 'Show top 15 files' : 'Show all files'}
         >
           <Filter className="w-3.5 h-3.5 mr-1.5" />
           {showAll ? 'Show Top 15' : 'Show All'}
         </Button>
 
         <Button
-          variant="secondary"
+          variant={showTests ? 'secondary' : 'outline'}
           size="sm"
           onClick={onToggleTests}
-          className={cn('h-8', !showTests && 'opacity-60')}
+          className={cn('h-8', !showTests && 'opacity-70 line-through')}
+          aria-pressed={showTests}
+          title={showTests ? 'Click to hide test files' : 'Click to show test files'}
         >
           {showTests ? <Eye className="w-3.5 h-3.5 mr-1.5" /> : <EyeOff className="w-3.5 h-3.5 mr-1.5" />}
           Tests

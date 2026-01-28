@@ -10,7 +10,7 @@ import ReactFlow, {
 import type { Node, Edge } from 'reactflow'
 import dagre from 'dagre'
 import { useTheme } from 'next-themes'
-import { FileCode2, GitBranch, Navigation, AlertTriangle } from 'lucide-react'
+import { FileCode2, GitBranch, Navigation, AlertTriangle, FolderTree } from 'lucide-react'
 import 'reactflow/dist/style.css'
 
 import { useDependencyGraph } from '../../hooks/useCachedQuery'
@@ -18,6 +18,7 @@ import { DependencyGraphSkeleton } from '../ui/Skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { useImpactAnalysis, type ImpactResult } from './hooks/useImpactAnalysis'
 import { GraphNode, type GraphNodeData } from './GraphNode'
+import { DirectoryNode, type DirectoryNodeData } from './DirectoryNode'
 import { ImpactPanel } from './ImpactPanel'
 import { GraphToolbar } from './GraphToolbar'
 
@@ -27,7 +28,10 @@ interface DependencyGraphProps {
   apiKey: string
 }
 
-const nodeTypes = { custom: GraphNode }
+const nodeTypes = { 
+  custom: GraphNode,
+  directory: DirectoryNode,
+}
 
 const LAYOUT_CONFIG = {
   rankdir: 'LR',
@@ -86,6 +90,19 @@ const getEdgeStyle = (state: 'default' | 'highlighted' | 'dimmed' | 'incoming' |
   return styles[state]
 }
 
+// Get directory path from file path
+function getDirPath(filePath: string): string {
+  const parts = filePath.split('/')
+  parts.pop()
+  return parts.join('/') || '/'
+}
+
+// Get max risk from array
+function getMaxRisk(risks: Array<'low' | 'medium' | 'high' | 'critical'>): 'low' | 'medium' | 'high' | 'critical' {
+  const priority = { critical: 4, high: 3, medium: 2, low: 1 }
+  return risks.reduce((max, risk) => priority[risk] > priority[max] ? risk : max, 'low' as const)
+}
+
 function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
@@ -93,6 +110,8 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
   const [hoveredFileId, setHoveredFileId] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
   const [showTests, setShowTests] = useState(true)
+  const [clusterByDir, setClusterByDir] = useState(false)
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set())
   const [rawGraphData, setRawGraphData] = useState<any>(null)
 
   const { fitView } = useReactFlow()
@@ -114,7 +133,15 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
     if (!showTests) {
       nodeIds = nodeIds.filter((id: string) => {
         const fileName = id.split('/').pop() || ''
-        return !fileName.includes('.test.') && !fileName.includes('_test.') && !fileName.includes('.spec.')
+        const pathLower = id.toLowerCase()
+        // Filter out test files by filename pattern OR by being in tests/ directory
+        const isTestFile = fileName.includes('.test.') || 
+                          fileName.includes('_test.') || 
+                          fileName.includes('.spec.') ||
+                          fileName.startsWith('test_') ||
+                          pathLower.includes('/tests/') ||
+                          pathLower.startsWith('tests/')
+        return !isTestFile
       })
     }
 
@@ -128,88 +155,212 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
 
   const selectedImpact = useMemo((): ImpactResult | null => {
     if (!selectedNodeId || !impact.isReady) return null
+    // For directory nodes, we don't show impact panel
+    if (selectedNodeId.startsWith('dir:')) return null
     return impact.getDependents(selectedNodeId)
   }, [selectedNodeId, impact])
+
+  // Build clustered graph data
+  const clusteredData = useMemo(() => {
+    if (!clusterByDir || !rawGraphData || !impact.isReady) return null
+
+    // Group files by directory
+    const dirFiles = new Map<string, string[]>()
+    visibleNodeIds.forEach(fileId => {
+      const dirPath = getDirPath(fileId)
+      if (!dirFiles.has(dirPath)) dirFiles.set(dirPath, [])
+      dirFiles.get(dirPath)!.push(fileId)
+    })
+
+    // Create directory nodes for collapsed dirs
+    const dirNodes: Array<{ id: string; data: DirectoryNodeData }> = []
+    const visibleFiles = new Set<string>()
+
+    dirFiles.forEach((files, dirPath) => {
+      const isExpanded = expandedDirs.has(dirPath)
+      
+      // Calculate metrics for this directory
+      const metrics = files.map(f => impact.getFileMetrics(f)).filter(Boolean)
+      const totalDeps = metrics.reduce((sum, m) => sum + (m?.dependentCount || 0), 0)
+      const risks = metrics.map(m => m?.riskLevel || 'low') as Array<'low' | 'medium' | 'high' | 'critical'>
+      
+      // Always create directory node so user can collapse
+      dirNodes.push({
+        id: `dir:${dirPath}`,
+        data: {
+          label: dirPath.split('/').pop() || dirPath,
+          fullPath: dirPath,
+          fileCount: files.length,
+          totalDependents: totalDeps,
+          maxRisk: getMaxRisk(risks),
+          isExpanded,
+          state: 'default',
+        }
+      })
+      
+      // When expanded, also show individual files
+      if (isExpanded) {
+        files.forEach(f => visibleFiles.add(f))
+      }
+    })
+
+    // Build edges between dirs or files
+    const edgeSet = new Set<string>()
+    rawGraphData.edges.forEach((edge: any) => {
+      const sourceVisible = visibleFiles.has(edge.source)
+      const targetVisible = visibleFiles.has(edge.target)
+      const sourceDirId = `dir:${getDirPath(edge.source)}`
+      const targetDirId = `dir:${getDirPath(edge.target)}`
+
+      let source = sourceVisible ? edge.source : (visibleNodeIds.has(edge.source) ? sourceDirId : null)
+      let target = targetVisible ? edge.target : (visibleNodeIds.has(edge.target) ? targetDirId : null)
+
+      if (source && target && source !== target) {
+        edgeSet.add(`${source}|${target}`)
+      }
+    })
+
+    return { dirNodes, visibleFiles, edges: Array.from(edgeSet).map(e => e.split('|')) }
+  }, [clusterByDir, rawGraphData, impact.isReady, visibleNodeIds, expandedDirs])
 
   useEffect(() => {
     if (!rawGraphData || !impact.isReady) return
 
-    const flowNodes: Node<GraphNodeData>[] = rawGraphData.nodes
-      .filter((node: any) => visibleNodeIds.has(node.id))
-      .map((node: any) => {
-        const fileName = node.label || node.id.split('/').pop()
-        const metrics = impact.getFileMetrics(node.id)
-        
-        let state: GraphNodeData['state'] = 'default'
-        if (selectedNodeId) {
-          if (node.id === selectedNodeId) {
-            state = 'selected'
-          } else if (selectedImpact?.directDependents.includes(node.id)) {
-            state = 'direct'
-          } else if (selectedImpact?.transitiveDependents.includes(node.id)) {
-            state = 'transitive'
-          } else {
-            state = 'dimmed'
-          }
-        }
+    let flowNodes: Node[] = []
+    let flowEdges: Edge[] = []
 
-        if (hoveredFileId === node.id && state === 'dimmed') {
-          state = 'direct'
-        }
-
-        return {
-          id: node.id,
-          type: 'custom',
-          data: {
-            label: fileName,
-            fullPath: node.id,
-            language: node.language || 'unknown',
-            dependentCount: metrics?.dependentCount || 0,
-            importCount: metrics?.importCount || 0,
-            riskLevel: metrics?.riskLevel || 'low',
-            isEntryPoint: metrics?.isEntryPoint || false,
-            state,
-          },
+    if (clusterByDir && clusteredData) {
+      // Add directory nodes
+      clusteredData.dirNodes.forEach(dir => {
+        flowNodes.push({
+          id: dir.id,
+          type: 'directory',
+          data: dir.data,
           position: { x: 0, y: 0 },
-        }
+        })
       })
 
-    const flowEdges: Edge[] = rawGraphData.edges
-      .filter((edge: any) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
-      .map((edge: any) => {
-        let edgeState: 'default' | 'highlighted' | 'dimmed' | 'incoming' | 'outgoing' = 'default'
-        if (selectedNodeId) {
-          if (edge.source === selectedNodeId) {
-            edgeState = 'outgoing'
-          } else if (edge.target === selectedNodeId) {
-            edgeState = 'incoming'
-          } else {
-            edgeState = 'dimmed'
+      // Add visible file nodes
+      rawGraphData.nodes
+        .filter((node: any) => clusteredData.visibleFiles.has(node.id))
+        .forEach((node: any) => {
+          const fileName = node.label || node.id.split('/').pop()
+          const metrics = impact.getFileMetrics(node.id)
+          
+          let state: GraphNodeData['state'] = 'default'
+          if (selectedNodeId === node.id) state = 'selected'
+          else if (selectedImpact?.directDependents.includes(node.id)) state = 'direct'
+          else if (selectedImpact?.transitiveDependents.includes(node.id)) state = 'transitive'
+          else if (selectedNodeId && !selectedNodeId.startsWith('dir:')) state = 'dimmed'
+          
+          // Hover highlighting in clustered mode
+          if (hoveredFileId === node.id && state === 'dimmed') state = 'direct'
+
+          flowNodes.push({
+            id: node.id,
+            type: 'custom',
+            data: {
+              label: fileName,
+              fullPath: node.id,
+              language: node.language || 'unknown',
+              dependentCount: metrics?.dependentCount || 0,
+              importCount: metrics?.importCount || 0,
+              riskLevel: metrics?.riskLevel || 'low',
+              isEntryPoint: metrics?.isEntryPoint || false,
+              state,
+            },
+            position: { x: 0, y: 0 },
+          })
+        })
+
+      // Add edges
+      clusteredData.edges.forEach(([source, target]) => {
+        flowEdges.push({
+          id: `${source}-${target}`,
+          source,
+          target,
+          style: getEdgeStyle('default', isDark),
+        })
+      })
+    } else {
+      // Non-clustered mode (original logic)
+      flowNodes = rawGraphData.nodes
+        .filter((node: any) => visibleNodeIds.has(node.id))
+        .map((node: any) => {
+          const fileName = node.label || node.id.split('/').pop()
+          const metrics = impact.getFileMetrics(node.id)
+          
+          let state: GraphNodeData['state'] = 'default'
+          if (selectedNodeId) {
+            if (node.id === selectedNodeId) state = 'selected'
+            else if (selectedImpact?.directDependents.includes(node.id)) state = 'direct'
+            else if (selectedImpact?.transitiveDependents.includes(node.id)) state = 'transitive'
+            else state = 'dimmed'
           }
-        }
 
-        return {
-          id: `${edge.source}-${edge.target}`,
-          source: edge.source,
-          target: edge.target,
-          style: getEdgeStyle(edgeState, isDark),
-          animated: edgeState === 'incoming',
-        }
-      })
+          if (hoveredFileId === node.id && state === 'dimmed') state = 'direct'
+
+          return {
+            id: node.id,
+            type: 'custom',
+            data: {
+              label: fileName,
+              fullPath: node.id,
+              language: node.language || 'unknown',
+              dependentCount: metrics?.dependentCount || 0,
+              importCount: metrics?.importCount || 0,
+              riskLevel: metrics?.riskLevel || 'low',
+              isEntryPoint: metrics?.isEntryPoint || false,
+              state,
+            },
+            position: { x: 0, y: 0 },
+          }
+        })
+
+      flowEdges = rawGraphData.edges
+        .filter((edge: any) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
+        .map((edge: any) => {
+          let edgeState: 'default' | 'highlighted' | 'dimmed' | 'incoming' | 'outgoing' = 'default'
+          if (selectedNodeId) {
+            if (edge.source === selectedNodeId) edgeState = 'outgoing'
+            else if (edge.target === selectedNodeId) edgeState = 'incoming'
+            else edgeState = 'dimmed'
+          }
+
+          return {
+            id: `${edge.source}-${edge.target}`,
+            source: edge.source,
+            target: edge.target,
+            style: getEdgeStyle(edgeState, isDark),
+            animated: edgeState === 'incoming',
+          }
+        })
+    }
 
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(flowNodes, flowEdges)
     setNodes(layoutedNodes)
     setEdges(layoutedEdges)
-  }, [rawGraphData, impact.isReady, visibleNodeIds, selectedNodeId, selectedImpact, hoveredFileId, isDark])
+  }, [rawGraphData, impact.isReady, visibleNodeIds, selectedNodeId, selectedImpact, hoveredFileId, isDark, clusterByDir, clusteredData])
 
   useEffect(() => {
     if (nodes.length > 0) {
       const minZoom = nodes.length > 20 ? 0.5 : 0.3
       setTimeout(() => fitView({ padding: 0.2, duration: 300, minZoom }), 100)
     }
-  }, [showAll, showTests])
+  }, [showAll, showTests, clusterByDir, expandedDirs])
 
   const handleNodeClick = useCallback((_: any, node: Node) => {
+    // Toggle directory expansion
+    if (node.id.startsWith('dir:')) {
+      const dirPath = node.id.replace('dir:', '')
+      setExpandedDirs(prev => {
+        const next = new Set(prev)
+        if (next.has(dirPath)) next.delete(dirPath)
+        else next.add(dirPath)
+        return next
+      })
+      return
+    }
     setSelectedNodeId(prev => prev === node.id ? null : node.id)
   }, [])
 
@@ -227,6 +378,7 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
 
   const handleResetView = useCallback(() => {
     setSelectedNodeId(null)
+    setExpandedDirs(new Set())
     const minZoom = nodes.length > 20 ? 0.5 : 0.3
     fitView({ padding: 0.2, duration: 300, minZoom })
   }, [fitView, nodes.length])
@@ -238,6 +390,7 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
   const selectedNode = rawGraphData?.nodes.find((n: any) => n.id === selectedNodeId)
   const selectedFileName = selectedNode?.label || selectedNodeId?.split('/').pop() || ''
   const criticalCount = impact.fileMetrics.filter(f => f.riskLevel === 'critical' || f.riskLevel === 'high').length
+  const dirCount = clusterByDir && clusteredData ? clusteredData.dirNodes.length : 0
 
   return (
     <div className="h-full flex flex-col bg-zinc-50 dark:bg-zinc-950">
@@ -268,11 +421,11 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1">
-              <Navigation className="w-3.5 h-3.5" />
-              Entry Points
+              {clusterByDir ? <FolderTree className="w-3.5 h-3.5" /> : <Navigation className="w-3.5 h-3.5" />}
+              {clusterByDir ? 'Directories' : 'Entry Points'}
             </div>
             <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              {impact.entryPoints.length}
+              {clusterByDir ? dirCount : impact.entryPoints.length}
             </div>
           </CardContent>
         </Card>
@@ -294,13 +447,18 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
         visibleFiles={visibleNodeIds.size}
         showAll={showAll}
         showTests={showTests}
+        clusterByDir={clusterByDir}
         onToggleShowAll={() => setShowAll(prev => !prev)}
         onToggleTests={() => setShowTests(prev => !prev)}
+        onToggleCluster={() => {
+          setClusterByDir(prev => !prev)
+          setExpandedDirs(new Set())
+        }}
         onResetView={handleResetView}
       />
 
       <div className="flex overflow-hidden" style={{ height: '600px' }}>
-        <div style={{ flex: 1, height: '600px' }}>
+        <div className="relative" style={{ flex: 1, height: '600px' }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -313,6 +471,17 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
             minZoom={0.1}
             maxZoom={2}
             defaultEdgeOptions={{ type: 'smoothstep' }}
+            proOptions={{ hideAttribution: true }}
+            panOnScroll
+            selectionOnDrag
+            panOnDrag={[1, 2]}
+            zoomOnScroll
+            zoomOnPinch
+            zoomOnDoubleClick
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable
+            snapToGrid={false}
           >
             <Background color={isDark ? '#27272a' : '#d4d4d8'} gap={20} size={1} />
             <Controls 
@@ -321,11 +490,17 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
             />
           </ReactFlow>
 
-          {/* Legend */}
-          <Card className="absolute bottom-4 left-4 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm">
+          {/* Legend - positioned bottom-right to avoid Controls overlap */}
+          <Card className="absolute bottom-4 right-4 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm z-10 min-w-[180px]">
             <CardContent className="px-4 py-3 text-xs">
               <div className="font-medium text-zinc-700 dark:text-zinc-300 mb-2">Legend</div>
               <div className="space-y-1.5">
+                {clusterByDir && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded bg-zinc-100 border-2 border-zinc-300 dark:bg-zinc-800 dark:border-zinc-700" />
+                    <span className="text-zinc-500 dark:text-zinc-400">Directory (click to expand)</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded border-2 border-indigo-500 bg-white dark:bg-zinc-900" />
                   <span className="text-zinc-500 dark:text-zinc-400">Selected</span>
@@ -344,13 +519,13 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
                 </div>
               </div>
               <div className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800 text-zinc-400 dark:text-zinc-500">
-                Click node to analyze impact
+                {clusterByDir ? 'Click folder to expand' : 'Click node to analyze impact'}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {selectedNodeId && selectedImpact && (
+        {selectedNodeId && selectedImpact && !selectedNodeId.startsWith('dir:') && (
           <ImpactPanel
             fileName={selectedFileName}
             fullPath={selectedNodeId}
