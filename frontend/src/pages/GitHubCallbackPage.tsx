@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useGitHubRepos } from '@/hooks/useGitHubRepos';
@@ -9,8 +9,17 @@ export function GitHubCallbackPage() {
   const { completeConnect } = useGitHubRepos();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  
+  const callbackRanRef = useRef(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Prevent double-execution in React StrictMode
+    if (callbackRanRef.current) return;
+    callbackRanRef.current = true;
+    
+    let mounted = true;
+
     const handleCallback = async () => {
       const code = searchParams.get('code');
       const state = searchParams.get('state');
@@ -19,25 +28,32 @@ export function GitHubCallbackPage() {
 
       // Handle GitHub OAuth errors
       if (error) {
-        setStatus('error');
-        setErrorMessage(errorDescription || error || 'GitHub authorization failed');
+        if (mounted) {
+          setStatus('error');
+          setErrorMessage(errorDescription || error || 'GitHub authorization failed');
+        }
         return;
       }
 
       if (!code || !state) {
-        setStatus('error');
-        setErrorMessage('Missing authorization code or state');
+        if (mounted) {
+          setStatus('error');
+          setErrorMessage('Missing authorization code or state');
+        }
         return;
       }
 
       // Exchange code for token via backend
       const success = await completeConnect(code, state);
       
+      if (!mounted) return;
+      
       if (success) {
         setStatus('success');
-        // Redirect to dashboard after brief success message
-        setTimeout(() => {
-          navigate('/dashboard', { replace: true });
+        timeoutRef.current = setTimeout(() => {
+          if (mounted) {
+            navigate('/dashboard', { replace: true });
+          }
         }, 1500);
       } else {
         setStatus('error');
@@ -46,6 +62,13 @@ export function GitHubCallbackPage() {
     };
 
     handleCallback();
+    
+    return () => {
+      mounted = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, [searchParams, completeConnect, navigate]);
 
   return (
