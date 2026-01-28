@@ -96,49 +96,71 @@ class GitHubService:
         Uses /user/repos which returns repos the user has explicit access to,
         including personal repos and org repos where user is a member
         """
-        async with httpx.AsyncClient() as client:
-            params = {
-                "visibility": "all" if include_private else "public",
-                "affiliation": "owner,organization_member",
-                "sort": "updated",
-                "direction": "desc",
-                "per_page": per_page,
-                "page": page
-            }
-            response = await client.get(
-                f"{GITHUB_API_BASE}/user/repos",
-                headers=self.headers,
-                params=params,
-                timeout=30.0
-            )
-            if response.status_code != 200:
-                raise Exception(f"GitHub API error: {response.status_code}")
+        try:
+            async with httpx.AsyncClient() as client:
+                params = {
+                    "visibility": "all" if include_private else "public",
+                    "affiliation": "owner,organization_member",
+                    "sort": "updated",
+                    "direction": "desc",
+                    "per_page": per_page,
+                    "page": page
+                }
+                response = await client.get(
+                    f"{GITHUB_API_BASE}/user/repos",
+                    headers=self.headers,
+                    params=params,
+                    timeout=30.0
+                )
+                if response.status_code != 200:
+                    logger.error(
+                        "GitHub API error fetching repos",
+                        status_code=response.status_code,
+                        page=page
+                    )
+                    return []
 
-            repos = []
-            for repo in response.json():
-                if not include_forks and repo.get("fork", False):
-                    continue
-                repos.append(GitHubRepo(
-                    id=repo["id"],
-                    name=repo["name"],
-                    full_name=repo["full_name"],
-                    description=repo.get("description"),
-                    html_url=repo["html_url"],
-                    clone_url=repo["clone_url"],
-                    ssh_url=repo["ssh_url"],
-                    default_branch=repo.get("default_branch", "main"),
-                    private=repo["private"],
-                    fork=repo.get("fork", False),
-                    stargazers_count=repo.get("stargazers_count", 0),
-                    language=repo.get("language"),
-                    size=repo.get("size", 0),
-                    owner_login=repo["owner"]["login"],
-                    owner_avatar=repo["owner"]["avatar_url"]
-                ))
-            return repos
+                repos = []
+                for repo in response.json():
+                    if not include_forks and repo.get("fork", False):
+                        continue
+                    repos.append(GitHubRepo(
+                        id=repo.get("id", 0),
+                        name=repo.get("name", ""),
+                        full_name=repo.get("full_name", ""),
+                        description=repo.get("description"),
+                        html_url=repo.get("html_url", ""),
+                        clone_url=repo.get("clone_url", ""),
+                        ssh_url=repo.get("ssh_url", ""),
+                        default_branch=repo.get("default_branch", "main"),
+                        private=repo.get("private", False),
+                        fork=repo.get("fork", False),
+                        stargazers_count=repo.get("stargazers_count", 0),
+                        language=repo.get("language"),
+                        size=repo.get("size", 0),
+                        owner_login=repo.get("owner", {}).get("login", ""),
+                        owner_avatar=repo.get("owner", {}).get("avatar_url", "")
+                    ))
+                return repos
+        except (httpx.RequestError, httpx.TimeoutException) as e:
+            logger.error("Network error fetching GitHub repos", error=str(e), page=page)
+            return []
+        except (KeyError, ValueError, TypeError) as e:
+            logger.error("Failed to parse GitHub repos response", error=str(e), page=page)
+            return []
 
-    async def get_all_repos(self, include_forks: bool = False) -> list[GitHubRepo]:
-        """Fetch all repos with pagination"""
+    async def get_all_repos(
+        self, 
+        include_forks: bool = False,
+        max_pages: Optional[int] = 10
+    ) -> list[GitHubRepo]:
+        """
+        Fetch all repos with pagination
+        
+        Args:
+            include_forks: Whether to include forked repos
+            max_pages: Maximum pages to fetch (None for no limit, default 10)
+        """
         all_repos = []
         page = 1
         while True:
@@ -153,7 +175,13 @@ class GitHubService:
             if len(repos) < 100:
                 break
             page += 1
-            # Safety limit to prevent infinite loops
-            if page > 10:
+            
+            if max_pages is not None and page > max_pages:
+                logger.warning(
+                    "GitHub repo pagination stopped at limit",
+                    max_pages=max_pages,
+                    total_repos_fetched=len(all_repos),
+                    stopped_at_page=page
+                )
                 break
         return all_repos
