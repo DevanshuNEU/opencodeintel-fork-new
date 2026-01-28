@@ -6,6 +6,7 @@ SECURITY: Token exchange and storage happens server-side only.
 Frontend never sees the GitHub access token.
 """
 import os
+import re
 import secrets
 import httpx
 from fastapi import APIRouter, HTTPException, Depends, Query
@@ -205,9 +206,23 @@ async def github_oauth_callback(
     if not GITHUB_CLIENT_ID or not GITHUB_CLIENT_SECRET:
         raise HTTPException(status_code=500, detail="GitHub OAuth not configured")
 
-    # Verify state contains user_id (basic CSRF protection)
-    if not request.state.startswith(auth.user_id):
-        raise HTTPException(status_code=400, detail="Invalid state parameter")
+    # Verify state format and user_id match
+    # State format: user_id:random_token (where random_token is base64url from token_urlsafe)
+    state_parts = request.state.split(":", 1)
+    if len(state_parts) != 2:
+        raise HTTPException(status_code=400, detail="Invalid state format")
+    
+    state_user_id, state_token = state_parts
+    if state_user_id != auth.user_id:
+        raise HTTPException(status_code=400, detail="State user mismatch")
+    
+    # Validate token portion: token_urlsafe(32) produces 43 chars of URL-safe base64
+    if len(state_token) != 43:
+        raise HTTPException(status_code=400, detail="Invalid state token length")
+    
+    # Validate charset (URL-safe base64: A-Z, a-z, 0-9, -, _)
+    if not re.match(r'^[A-Za-z0-9_-]+$', state_token):
+        raise HTTPException(status_code=400, detail="Invalid state token charset")
 
     # Exchange code for access token
     async with httpx.AsyncClient() as client:
