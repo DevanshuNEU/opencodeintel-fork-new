@@ -5,6 +5,7 @@ Handles fetching user repositories and validating tokens
 import httpx
 from typing import Optional
 from dataclasses import dataclass
+from services.observability import logger
 
 GITHUB_API_BASE = "https://api.github.com"
 
@@ -62,21 +63,25 @@ class GitHubService:
 
     async def get_user(self) -> Optional[GitHubUser]:
         """Get authenticated user info"""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{GITHUB_API_BASE}/user",
-                headers=self.headers,
-                timeout=10.0
-            )
-            if response.status_code != 200:
-                return None
-            data = response.json()
-            return GitHubUser(
-                login=data["login"],
-                id=data["id"],
-                avatar_url=data["avatar_url"],
-                name=data.get("name")
-            )
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{GITHUB_API_BASE}/user",
+                    headers=self.headers,
+                    timeout=10.0
+                )
+                if response.status_code != 200:
+                    return None
+                data = response.json()
+                return GitHubUser(
+                    login=data.get("login", ""),
+                    id=data.get("id", 0),
+                    avatar_url=data.get("avatar_url"),
+                    name=data.get("name")
+                )
+        except (httpx.RequestError, httpx.TimeoutException, KeyError, ValueError) as e:
+            logger.error("Failed to fetch GitHub user", error=str(e))
+            return None
 
     async def get_repos(
         self,
