@@ -99,7 +99,7 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
     <form onSubmit={submit} className="w-full">
       <motion.div
         className={cn(
-          'relative bg-zinc-900/90 backdrop-blur-sm rounded-2xl border border-zinc-800/50 overflow-hidden transition-shadow duration-300',
+          'relative bg-zinc-900 dark:bg-zinc-900/90 backdrop-blur-sm rounded-2xl border border-zinc-700 dark:border-zinc-800/50 overflow-hidden transition-shadow duration-300',
           glowStyles[state]
         )}
         animate={searching ? { scale: [1, 1.005, 1] } : {}}
@@ -140,11 +140,12 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               placeholder={focused ? 'Search for anything...' : ''}
-              className="w-full bg-transparent text-white text-lg placeholder:text-zinc-500 focus:outline-none"
+              className="w-full bg-transparent text-white text-lg placeholder:text-zinc-500 focus:outline-none caret-white"
+              style={{ color: 'white' }}
             />
             {showAnimatedPlaceholder && (
               <div className="absolute inset-0 flex items-center pointer-events-none">
-                <span className="text-zinc-500 text-lg">
+                <span className="text-zinc-400 text-lg">
                   {animatedPlaceholder}
                   <span className="animate-pulse">|</span>
                 </span>
