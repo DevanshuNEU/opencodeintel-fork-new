@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageSquarePlus, X, Send, Loader2, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,7 @@ export function FeedbackWidget() {
   const [email, setEmail] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const userEmail = session?.user?.email || ''
 
@@ -30,6 +32,7 @@ export function FeedbackWidget() {
     if (!mood && !message.trim()) return
     
     setSending(true)
+    setError(null)
     
     try {
       const response = await fetch(`${API_URL}/api/v1/feedback`, {
@@ -53,9 +56,11 @@ export function FeedbackWidget() {
         setMood(null)
         setMessage('')
         setEmail('')
+        setError(null)
       }, 2000)
-    } catch (error) {
-      console.error('Failed to send feedback:', error)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to send feedback'
+      setError(message)
     } finally {
       setSending(false)
     }
@@ -67,7 +72,7 @@ export function FeedbackWidget() {
     <>
       {/* Floating Button */}
       <motion.button
-        onClick={() => setIsOpen(true)}
+        onClick={() => { setIsOpen(true); setError(null) }}
         className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl transition-shadow"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -184,6 +189,10 @@ export function FeedbackWidget() {
                           className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                         />
                       </div>
+                    )}
+
+                    {error && (
+                      <p className="text-sm text-red-500">{error}</p>
                     )}
                   </>
                 )}
