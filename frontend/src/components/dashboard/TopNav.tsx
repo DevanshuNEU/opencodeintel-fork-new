@@ -1,19 +1,16 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { useState } from 'react'
-import { 
-  Menu, 
-  Search, 
-  Github, 
-  Sun, 
-  Moon, 
-  LogOut, 
-  Settings, 
-  BookOpen, 
-  ExternalLink 
-} from 'lucide-react'
+import { Menu, Search, Github, Sun, Moon, LogOut, Settings, BookOpen, ExternalLink } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface TopNavProps {
   onToggleSidebar: () => void
@@ -24,7 +21,6 @@ interface TopNavProps {
 export function TopNav({ onToggleSidebar, sidebarCollapsed, onOpenCommandPalette }: TopNavProps) {
   const { session, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
-  const [showUserMenu, setShowUserMenu] = useState(false)
 
   const userEmail = session?.user?.email || 'User'
   const userInitial = userEmail.charAt(0).toUpperCase()
@@ -55,7 +51,7 @@ export function TopNav({ onToggleSidebar, sidebarCollapsed, onOpenCommandPalette
         </div>
 
         {/* Center - Command Palette Trigger */}
-        <button 
+        <button
           className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-muted border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all max-w-xs"
           onClick={onOpenCommandPalette}
         >
@@ -84,72 +80,49 @@ export function TopNav({ onToggleSidebar, sidebarCollapsed, onOpenCommandPalette
             className="text-muted-foreground hover:text-foreground"
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {theme === 'dark' ? (
-              <Sun className="w-5 h-5" />
-            ) : (
-              <Moon className="w-5 h-5" />
-            )}
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </Button>
 
-          {/* User Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 p-1 rounded-lg hover:bg-muted transition-colors"
-            >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
-                <span className="text-primary-foreground text-sm font-medium">{userInitial}</span>
-              </div>
-            </button>
-
-            {showUserMenu && (
-              <>
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setShowUserMenu(false)}
-                />
-                <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-lg z-50 py-2">
-                  <div className="px-4 py-2 border-b border-border">
-                    <p className="text-sm text-foreground font-medium truncate">{userEmail}</p>
-                    <p className="text-xs text-muted-foreground">Free Plan</p>
-                  </div>
-                  <div className="py-1">
-                    <Link
-                      to="/dashboard/settings"
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <Settings className="w-4 h-4" />
-                      Settings
-                    </Link>
-                    <a
-                      href="/docs"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <BookOpen className="w-4 h-4" />
-                      Documentation
-                      <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
-                    </a>
-                  </div>
-                  <div className="border-t border-border py-1">
-                    <button
-                      onClick={() => {
-                        signOut()
-                        setShowUserMenu(false)
-                      }}
-                      className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-destructive hover:bg-muted transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Sign out
-                    </button>
-                  </div>
+          {/* User Menu - using shadcn DropdownMenu for proper click-outside handling */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 p-1 rounded-lg hover:bg-muted transition-colors focus:outline-none">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
+                  <span className="text-primary-foreground text-sm font-medium">{userInitial}</span>
                 </div>
-              </>
-            )}
-          </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium truncate">{userEmail}</p>
+                  <p className="text-xs text-muted-foreground">Free Plan</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/dashboard/settings" className="cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href="/docs" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Documentation
+                  <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => signOut()}
+                className="text-destructive focus:text-destructive cursor-pointer"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </nav>
