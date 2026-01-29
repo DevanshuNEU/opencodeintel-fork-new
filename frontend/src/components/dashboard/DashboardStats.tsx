@@ -1,10 +1,28 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FolderGit2, CheckCircle, Code2 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/Skeleton'
 import type { Repository } from '../../types'
 
 interface DashboardStatsProps {
   repos: Repository[]
+  loading?: boolean
+}
+
+function StatsGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="rounded-xl bg-card border border-border p-6">
+          <div className="flex items-start justify-between mb-3">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-5 w-5 rounded" />
+          </div>
+          <Skeleton className="h-10 w-20" />
+        </div>
+      ))}
+    </div>
+  )
 }
 
 const useAnimatedCounter = (end: number, duration: number = 1200) => {
@@ -26,7 +44,7 @@ const useAnimatedCounter = (end: number, duration: number = 1200) => {
   return count
 }
 
-export function DashboardStats({ repos }: DashboardStatsProps) {
+export function DashboardStats({ repos, loading }: DashboardStatsProps) {
   const totalRepos = repos.length
   const indexedRepos = repos.filter(r => r.status === 'indexed').length
   const totalFiles = repos.reduce((acc, r) => acc + (r.file_count || 0), 0)
@@ -35,6 +53,8 @@ export function DashboardStats({ repos }: DashboardStatsProps) {
   const animatedTotal = useAnimatedCounter(totalRepos)
   const animatedIndexed = useAnimatedCounter(indexedRepos)
   const animatedFiles = useAnimatedCounter(totalFiles)
+
+  if (loading) return <StatsGridSkeleton />
 
   const stats = [
     {

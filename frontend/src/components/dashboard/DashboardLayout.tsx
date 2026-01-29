@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar'
 import { TopNav } from './TopNav'
 import { CommandPalette } from './CommandPalette'
 import { Toaster } from '@/components/ui/sonner'
+import { FeedbackWidget } from '@/components/FeedbackWidget'
 import { useKeyboardShortcut, SHORTCUTS } from '../../hooks/useKeyboardShortcut'
 import { useTheme } from 'next-themes'
 
@@ -129,6 +130,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         theme={theme === 'dark' ? 'dark' : 'light'}
         position="bottom-right"
       />
+
+      <FeedbackWidget />
     </div>
   )
 }
