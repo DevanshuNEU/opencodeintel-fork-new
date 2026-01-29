@@ -51,6 +51,13 @@ export function SettingsPage() {
       const response = await fetch(`${API_URL}/repos`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
+
+      if (!response.ok) {
+        const errorBody = await response.text()
+        console.error('Failed to fetch repos:', response.status, errorBody)
+        return
+      }
+
       const data = await response.json()
       setRepos(data.repositories || [])
     } catch (error) {
@@ -75,18 +82,34 @@ export function SettingsPage() {
     if (deleteConfirmation !== DELETE_CONFIRMATION_TEXT) return
 
     setDeleteReposLoading(true)
+    const failedRepos: string[] = []
+
     try {
       for (const repo of repos) {
-        await fetch(`${API_URL}/repos/${repo.id}`, {
+        const response = await fetch(`${API_URL}/repos/${repo.id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${session?.access_token}` },
         })
+
+        if (!response.ok) {
+          failedRepos.push(repo.name)
+        }
       }
-      setRepos([])
-      setDeleteReposDialog(false)
-      setDeleteConfirmation('')
-      toast.success('All repositories deleted')
+
+      if (failedRepos.length > 0) {
+        // Partial failure - refetch to get accurate state
+        await fetchRepos()
+        toast.error(`Failed to delete ${failedRepos.length} repo(s): ${failedRepos.join(', ')}`)
+      } else {
+        // All succeeded
+        setRepos([])
+        setDeleteReposDialog(false)
+        setDeleteConfirmation('')
+        toast.success('All repositories deleted')
+      }
     } catch (error) {
+      // Network or unexpected error - refetch to reconcile state
+      await fetchRepos()
       toast.error('Failed to delete repositories')
     } finally {
       setDeleteReposLoading(false)
