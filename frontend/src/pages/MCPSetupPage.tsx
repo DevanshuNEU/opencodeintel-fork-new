@@ -130,7 +130,7 @@ export function MCPSetupPage() {
               Clone the MCP Server
             </h3>
             <p className="text-gray-300 mb-3">If you haven't already, grab the OpenCodeIntel repo:</p>
-            <CodeBlock language="bash">{`git clone https://github.com/OpenOpenCodeIntel/opencodeintel.git
+            <CodeBlock language="bash">{`git clone https://github.com/OpenCodeIntel/opencodeintel.git
 cd opencodeintel/mcp-server`}</CodeBlock>
           </div>
 
@@ -405,7 +405,7 @@ python main.py`}</CodeBlock>
             <li>3. <strong className="text-white">Try impact analysis</strong> before your next refactor</li>
           </ol>
           <p className="text-gray-400 mt-4 text-sm">
-            Questions? Issues? <a href="https://github.com/OpenOpenCodeIntel/opencodeintel/issues" className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">Open a GitHub issue</a> or reach out.
+            Questions? Issues? <a href="https://github.com/OpenCodeIntel/opencodeintel/issues" className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">Open a GitHub issue</a> or reach out.
           </p>
         </section>
 

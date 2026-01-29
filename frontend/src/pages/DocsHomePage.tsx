@@ -146,7 +146,7 @@ export function DocsHomePage() {
           <h2 className="text-2xl font-semibold text-white mb-4">Resources</h2>
           <div className="flex flex-wrap gap-4">
             <a 
-              href="https://github.com/OpenOpenCodeIntel/opencodeintel" 
+              href="https://github.com/OpenCodeIntel/opencodeintel" 
               className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
               target="_blank"
               rel="noopener noreferrer"
@@ -157,7 +157,7 @@ export function DocsHomePage() {
               GitHub
             </a>
             <a 
-              href="https://github.com/OpenOpenCodeIntel/opencodeintel/issues" 
+              href="https://github.com/OpenCodeIntel/opencodeintel/issues" 
               className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
               target="_blank"
               rel="noopener noreferrer"
