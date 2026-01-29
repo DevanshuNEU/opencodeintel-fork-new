@@ -89,12 +89,12 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
     : focused ? 'focused' 
     : 'idle'
 
+  const canSearch = value.trim() && !autoTyping && !searching
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (value.trim() && !autoTyping) onSubmit()
+    if (canSearch) onSubmit()
   }
-
-  const canSearch = value.trim() && !autoTyping && !searching
   const showAnimatedPlaceholder = !value && !focused
 
   return (

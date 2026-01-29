@@ -4,12 +4,12 @@ import { MessageSquarePlus, X, Send, Loader2, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
 
-const DISCORD_WEBHOOK = import.meta.env.VITE_DISCORD_FEEDBACK_WEBHOOK
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-type Mood = 'angry' | 'meh' | 'good' | 'love' | null
+type Mood = 'frustrated' | 'meh' | 'good' | 'love' | null
 
 const moods: { value: Mood; emoji: string; label: string; color: string }[] = [
-  { value: 'angry', emoji: '😠', label: 'Frustrated', color: 'hover:bg-red-500/20' },
+  { value: 'frustrated', emoji: '😠', label: 'Frustrated', color: 'hover:bg-red-500/20' },
   { value: 'meh', emoji: '😐', label: 'Meh', color: 'hover:bg-yellow-500/20' },
   { value: 'good', emoji: '😊', label: 'Good', color: 'hover:bg-green-500/20' },
   { value: 'love', emoji: '🤩', label: 'Love it!', color: 'hover:bg-purple-500/20' },
@@ -32,28 +32,18 @@ export function FeedbackWidget() {
     setSending(true)
     
     try {
-      const moodInfo = moods.find(m => m.value === mood)
-      
-      const embed = {
-        title: '💬 New Feedback',
-        color: mood === 'love' ? 0x9333ea : mood === 'good' ? 0x22c55e : mood === 'meh' ? 0xeab308 : mood === 'angry' ? 0xef4444 : 0x6b7280,
-        fields: [
-          { name: 'Mood', value: moodInfo ? `${moodInfo.emoji} ${moodInfo.label}` : 'Not selected', inline: true },
-          { name: 'User', value: userEmail || email || 'Anonymous', inline: true },
-          ...(message.trim() ? [{ name: 'Message', value: message.slice(0, 1000) }] : []),
-        ],
-        timestamp: new Date().toISOString(),
-        footer: { text: 'OpenCodeIntel Feedback' },
-      }
+      const response = await fetch(`${API_URL}/api/v1/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mood: mood || 'good',
+          message: message.trim() || undefined,
+          email: userEmail || email || undefined,
+        }),
+      })
 
-      if (DISCORD_WEBHOOK) {
-        await fetch(DISCORD_WEBHOOK, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ embeds: [embed] }),
-        })
-      } else {
-        console.log('Feedback (no webhook configured):', { mood, message, email: email || userEmail })
+      if (!response.ok) {
+        throw new Error('Failed to submit feedback')
       }
       
       setSent(true)
@@ -131,7 +121,7 @@ export function FeedbackWidget() {
                   >
                     <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
                     <p className="text-lg font-medium text-foreground">Thank you!</p>
-                    <p className="text-sm text-muted-foreground">Your feedback means a lot to us 💜</p>
+                    <p className="text-sm text-muted-foreground">Your feedback means a lot to us</p>
                   </motion.div>
                 ) : (
                   <>
