@@ -61,6 +61,7 @@ services:
         - VITE_API_URL=http://localhost:8000
         - VITE_SUPABASE_URL=${SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY}
+        - VITE_DISCORD_FEEDBACK_WEBHOOK=${VITE_DISCORD_FEEDBACK_WEBHOOK}
     container_name: codeintel-frontend
     ports:
       - "3000:80"
