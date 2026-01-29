@@ -43,10 +43,14 @@ export function SettingsPage() {
   useEffect(() => {
     checkStatus()
     fetchRepos()
-  }, [checkStatus])
+  }, [checkStatus, session?.access_token])
 
   const fetchRepos = async () => {
-    if (!session?.access_token) return
+    if (!session?.access_token) {
+      setReposLoading(false)
+      return
+    }
+    setReposLoading(true)
     try {
       const response = await fetch(`${API_URL}/repos`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -131,6 +135,7 @@ export function SettingsPage() {
   }
 
   const isDeleteEnabled = deleteConfirmation === DELETE_CONFIRMATION_TEXT
+  const availableSlots = Math.max(0, MAX_REPOS - repos.length)
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -246,7 +251,7 @@ export function SettingsPage() {
                     <span className="text-lg font-normal text-muted-foreground"> / {MAX_REPOS}</span>
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {MAX_REPOS - repos.length} slot{MAX_REPOS - repos.length !== 1 ? 's' : ''} available
+                    {availableSlots} slot{availableSlots !== 1 ? 's' : ''} available
                   </p>
                 </>
               )}
