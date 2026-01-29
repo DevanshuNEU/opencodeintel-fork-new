@@ -196,6 +196,7 @@ export function Hero({ onResultsReady }: Props) {
               onSubmit={() => { setIsTyping(false); search() }}
               searching={loading}
               repoName={repo.name}
+              autoTyping={isTyping}
             />
           </div>
         </motion.div>

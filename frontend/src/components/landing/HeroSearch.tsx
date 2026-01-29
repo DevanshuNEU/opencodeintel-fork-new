@@ -57,6 +57,7 @@ interface Props {
   onSubmit: () => void
   searching?: boolean
   repoName?: string
+  autoTyping?: boolean
 }
 
 export interface HeroSearchHandle {
@@ -64,7 +65,7 @@ export interface HeroSearchHandle {
 }
 
 export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearch(
-  { value, onChange, onSubmit, searching = false, repoName = 'flask' },
+  { value, onChange, onSubmit, searching = false, repoName = 'flask', autoTyping = false },
   ref
 ) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -90,9 +91,10 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (value.trim()) onSubmit()
+    if (value.trim() && !autoTyping) onSubmit()
   }
 
+  const canSearch = value.trim() && !autoTyping && !searching
   const showAnimatedPlaceholder = !value && !focused
 
   return (
@@ -169,10 +171,10 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
 
           <button
             type="submit"
-            disabled={searching || !value.trim()}
+            disabled={!canSearch}
             className={cn(
               'px-5 py-2 rounded-xl font-medium transition-all',
-              value.trim() && !searching
+              canSearch
                 ? 'bg-[var(--python-blue)] text-white hover:opacity-90'
                 : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500 cursor-not-allowed'
             )}
