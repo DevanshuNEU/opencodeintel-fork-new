@@ -23,11 +23,18 @@ def rate_limit(requests_per_minute: int = 60):
     Simple rate limit decorator for FastAPI routes.
     Uses in-memory storage - suitable for single-instance deployments.
     For production, use Redis-backed RateLimiter class instead.
+    
+    IMPORTANT: Routes using this decorator MUST include `request: Request` as
+    a parameter. For correct client IP detection behind a reverse proxy, 
+    configure Uvicorn with:
+        --proxy-headers --forwarded-allow-ips="<your-proxy-ips>"
+    This ensures request.client.host reflects the real client IP from 
+    X-Forwarded-For header, not the proxy's IP.
     """
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            # Try to get request from kwargs or args
+            # Get Request from kwargs (FastAPI injects it by parameter name)
             request = kwargs.get('request')
             if not request:
                 for arg in args:
@@ -35,11 +42,14 @@ def rate_limit(requests_per_minute: int = 60):
                         request = arg
                         break
             
-            # Get client identifier (IP or fallback)
-            if request:
-                client_id = request.client.host if request.client else "unknown"
-            else:
-                client_id = "unknown"
+            if not request or not isinstance(request, Request):
+                raise HTTPException(
+                    status_code=500,
+                    detail="Rate limiting requires Request parameter in route"
+                )
+            
+            # Get client IP (relies on Uvicorn proxy-headers config for real IP)
+            client_id = request.client.host if request.client else "unknown"
             
             key = f"{func.__name__}:{client_id}"
             now = time.time()
