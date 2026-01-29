@@ -1,20 +1,14 @@
-import { Github, Twitter } from 'lucide-react'
+import { Github } from 'lucide-react'
 
 const LINKS = {
   product: [
     { label: 'Features', href: '#features' },
     { label: 'Pricing', href: '#pricing' },
     { label: 'Docs', href: '/docs' },
-    { label: 'Changelog', href: '/changelog' },
   ],
-  company: [
-    { label: 'About', href: '/about' },
-    { label: 'Blog', href: '/blog' },
-    { label: 'Careers', href: '/careers' },
-  ],
-  legal: [
-    { label: 'Privacy', href: '/privacy' },
-    { label: 'Terms', href: '/terms' },
+  resources: [
+    { label: 'GitHub', href: 'https://github.com/OpenCodeIntel/opencodeintel', external: true },
+    { label: 'MCP Setup', href: '/docs/mcp-setup' },
   ],
 }
 
@@ -22,7 +16,7 @@ export function Footer() {
   return (
     <footer className="border-t border-border py-12 px-6">
       <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mb-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
@@ -34,24 +28,15 @@ export function Footer() {
             <p className="text-sm text-muted-foreground mb-4">
               Semantic code search that actually understands your codebase.
             </p>
-            <div className="flex gap-4">
-              <a
-                href="https://github.com/OpenCodeIntel/opencodeintel"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Github className="w-5 h-5" />
-              </a>
-              <a
-                href="https://twitter.com/codeintel"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Twitter className="w-5 h-5" />
-              </a>
-            </div>
+            <a
+              href="https://github.com/OpenCodeIntel/opencodeintel"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Github className="w-5 h-5" />
+              <span className="text-sm">Star on GitHub</span>
+            </a>
           </div>
 
           {/* Product */}
@@ -68,27 +53,17 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Company */}
+          {/* Resources */}
           <div>
-            <h4 className="text-sm font-semibold text-foreground mb-4">Company</h4>
+            <h4 className="text-sm font-semibold text-foreground mb-4">Resources</h4>
             <ul className="space-y-3">
-              {LINKS.company.map((link) => (
+              {LINKS.resources.map((link) => (
                 <li key={link.href}>
-                  <a href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h4 className="text-sm font-semibold text-foreground mb-4">Legal</h4>
-            <ul className="space-y-3">
-              {LINKS.legal.map((link) => (
-                <li key={link.href}>
-                  <a href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <a 
+                    href={link.href} 
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  >
                     {link.label}
                   </a>
                 </li>
@@ -103,7 +78,7 @@ export function Footer() {
             © {new Date().getFullYear()} CodeIntel. Open source under MIT.
           </p>
           <p className="text-sm text-muted-foreground/60">
-            Built with ❤️ by <a href="https://github.com/DevanshuNEU" className="hover:text-foreground transition-colors">Devanshu</a>
+            Built with ❤️ by <a href="https://devanshu.dev" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Devanshu</a>
           </p>
         </div>
       </div>
