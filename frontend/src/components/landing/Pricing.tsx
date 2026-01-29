@@ -32,7 +32,7 @@ const PLANS = [
     description: 'For teams that need control',
     features: ['Self-hosted deployment', 'SSO / SAML authentication', 'Dedicated support', 'Custom integrations', 'SLA guarantee', 'On-premise option'],
     cta: 'Contact Sales',
-    ctaHref: 'mailto:devanshurajesh@gmail.com?subject=OpenCodeIntel%20Enterprise',
+    ctaHref: '/contact',
     popular: false,
   },
 ]
@@ -130,9 +130,9 @@ export function Pricing() {
                 ))}
               </ul>
 
-              {plan.ctaHref === '/waitlist' ? (
+              {(plan.ctaHref === '/waitlist' || plan.ctaHref === '/contact') ? (
                 <motion.button
-                  onClick={() => handleWaitlistClick(plan.name, `${plan.price}${plan.period}`)}
+                  onClick={() => handleWaitlistClick(plan.name, plan.price === 'Custom' ? 'Custom pricing' : `${plan.price}${plan.period}`)}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className={`block w-full py-3 px-4 rounded-lg text-center text-sm font-medium transition-all ${

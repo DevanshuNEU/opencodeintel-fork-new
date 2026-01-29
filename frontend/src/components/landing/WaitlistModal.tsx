@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Loader2, CheckCircle2, Rocket, Sparkles } from 'lucide-react'
+import { X, Loader2, CheckCircle2, Rocket, Sparkles, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const DISCORD_WEBHOOK = import.meta.env.VITE_DISCORD_FEEDBACK_WEBHOOK
@@ -18,6 +18,7 @@ export function WaitlistModal({ isOpen, onClose, planName = 'Pro', planPrice = '
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
 
+  const isEnterprise = planName === 'Enterprise'
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +29,16 @@ export function WaitlistModal({ isOpen, onClose, planName = 'Pro', planPrice = '
     setError('')
 
     try {
-      const embed = {
+      const embed = isEnterprise ? {
+        title: '🏢 Enterprise Inquiry',
+        color: 0x8b5cf6,
+        fields: [
+          { name: 'Email', value: email, inline: true },
+          { name: 'Plan', value: 'Enterprise (Custom)', inline: true },
+        ],
+        timestamp: new Date().toISOString(),
+        footer: { text: 'OpenCodeIntel Sales' },
+      } : {
         title: '🚀 New Waitlist Signup',
         color: 0x3b82f6,
         fields: [
@@ -48,7 +58,7 @@ export function WaitlistModal({ isOpen, onClose, planName = 'Pro', planPrice = '
 
         if (!response.ok) throw new Error('Failed to submit')
       } else {
-        console.log('Waitlist signup (no webhook):', { email, planName, planPrice })
+        console.log('Signup (no webhook):', { email, planName, planPrice, isEnterprise })
       }
 
       setSent(true)
@@ -74,6 +84,8 @@ export function WaitlistModal({ isOpen, onClose, planName = 'Pro', planPrice = '
   }
 
   if (!isOpen) return null
+
+  const Icon = isEnterprise ? Building2 : Rocket
 
   return (
     <AnimatePresence>
@@ -102,12 +114,20 @@ export function WaitlistModal({ isOpen, onClose, planName = 'Pro', planPrice = '
             </button>
             
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-accent/20 border border-accent/30 flex items-center justify-center">
-                <Rocket className="w-5 h-5 text-accent" />
+              <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${
+                isEnterprise 
+                  ? 'bg-violet-500/20 border-violet-500/30' 
+                  : 'bg-accent/20 border-accent/30'
+              }`}>
+                <Icon className={`w-5 h-5 ${isEnterprise ? 'text-violet-400' : 'text-accent'}`} />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-foreground">Join the Waitlist</h3>
-                <p className="text-sm text-muted-foreground">Be first to access {planName}</p>
+                <h3 className="text-lg font-semibold text-foreground">
+                  {isEnterprise ? 'Contact Sales' : 'Join the Waitlist'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {isEnterprise ? "Let's discuss your team's needs" : `Be first to access ${planName}`}
+                </p>
               </div>
             </div>
           </div>
@@ -121,14 +141,20 @@ export function WaitlistModal({ isOpen, onClose, planName = 'Pro', planPrice = '
                 className="py-6 text-center"
               >
                 <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                <p className="text-lg font-medium text-foreground">You're on the list!</p>
-                <p className="text-sm text-muted-foreground mt-1">We'll notify you when {planName} is ready 🎉</p>
+                <p className="text-lg font-medium text-foreground">
+                  {isEnterprise ? "We'll be in touch!" : "You're on the list!"}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isEnterprise 
+                    ? "Our team will reach out within 24 hours 🤝" 
+                    : `We'll notify you when ${planName} is ready 🎉`}
+                </p>
               </motion.div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    Email address
+                    {isEnterprise ? 'Work email' : 'Email address'}
                   </label>
                   <input
                     type="email"
@@ -145,12 +171,23 @@ export function WaitlistModal({ isOpen, onClose, planName = 'Pro', planPrice = '
                   <p className="text-sm text-red-500">{error}</p>
                 )}
 
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-accent/5 border border-accent/20">
-                  <Sparkles className="w-4 h-4 text-accent shrink-0" />
-                  <p className="text-xs text-muted-foreground">
-                    Early access members get <span className="text-foreground font-medium">30% off</span> for the first year
-                  </p>
-                </div>
+                {!isEnterprise && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-accent/5 border border-accent/20">
+                    <Sparkles className="w-4 h-4 text-accent shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                      Early access members get <span className="text-foreground font-medium">30% off</span> for the first year
+                    </p>
+                  </div>
+                )}
+
+                {isEnterprise && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/5 border border-violet-500/20">
+                    <Building2 className="w-4 h-4 text-violet-400 shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                      Custom pricing based on team size and requirements
+                    </p>
+                  </div>
+                )}
 
                 <Button
                   type="submit"
@@ -160,9 +197,11 @@ export function WaitlistModal({ isOpen, onClose, planName = 'Pro', planPrice = '
                   {sending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Rocket className="w-4 h-4" />
+                    <Icon className="w-4 h-4" />
                   )}
-                  {sending ? 'Joining...' : 'Join Waitlist'}
+                  {sending 
+                    ? (isEnterprise ? 'Sending...' : 'Joining...') 
+                    : (isEnterprise ? 'Get in Touch' : 'Join Waitlist')}
                 </Button>
 
                 <p className="text-xs text-center text-muted-foreground">
