@@ -36,9 +36,9 @@ export function Navbar({ minimal }: NavbarProps) {
         {/* Logo */}
         <a href="/" className="flex items-center gap-2.5 group">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-blue-600 flex items-center justify-center shadow-lg shadow-accent/20">
-            <span className="text-white font-bold text-sm">CI</span>
+            <span className="text-white font-bold text-xs">OCI</span>
           </div>
-          <span className="font-semibold text-foreground">CodeIntel</span>
+          <span className="font-semibold text-foreground">OpenCodeIntel</span>
         </a>
 
         {/* Desktop nav */}

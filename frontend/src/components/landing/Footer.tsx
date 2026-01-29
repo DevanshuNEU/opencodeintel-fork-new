@@ -20,10 +20,10 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-indigo-500 flex items-center justify-center text-white text-sm font-bold">
-                CI
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
+                OCI
               </div>
-              <span className="font-semibold text-foreground">CodeIntel</span>
+              <span className="font-semibold text-foreground">OpenCodeIntel</span>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               Semantic code search that actually understands your codebase.
@@ -75,7 +75,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground/60">
-            © {new Date().getFullYear()} CodeIntel. Open source under MIT.
+            © {new Date().getFullYear()} OpenCodeIntel. Open source under MIT.
           </p>
           <p className="text-sm text-muted-foreground/60">
             Built with ❤️ by <a href="https://devanshu.dev" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Devanshu</a>

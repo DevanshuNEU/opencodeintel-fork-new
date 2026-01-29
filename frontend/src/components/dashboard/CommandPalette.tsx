@@ -103,7 +103,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     items.push({ id: 'action-refresh', type: 'action', title: 'Refresh Repositories', subtitle: 'Reload the repository list', icon: '🔄', action: () => window.location.reload() })
     items.push({ id: 'nav-dashboard', type: 'navigation', title: 'Go to Dashboard', subtitle: 'View all repositories', icon: '🏠', action: () => navigate('/dashboard') })
     items.push({ id: 'nav-settings', type: 'navigation', title: 'Settings', subtitle: 'Account and preferences', icon: '⚙️', action: () => navigate('/dashboard/settings') })
-    items.push({ id: 'nav-docs', type: 'navigation', title: 'Documentation', subtitle: 'Learn how to use CodeIntel', icon: '📚', action: () => window.open('/docs', '_blank') })
+    items.push({ id: 'nav-docs', type: 'navigation', title: 'Documentation', subtitle: 'Learn how to use OpenCodeIntel', icon: '📚', action: () => window.open('/docs', '_blank') })
     items.push({ id: 'action-signout', type: 'action', title: 'Sign Out', subtitle: 'Log out of your account', icon: '🚪', action: () => signOut() })
     return items
   }, [repos, navigate, signOut])
@@ -186,7 +186,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-muted border border-border rounded">↑↓</kbd>navigate</span>
             <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-muted border border-border rounded">↵</kbd>select</span>
           </div>
-          <span className="text-muted-foreground/60">CodeIntel</span>
+          <span className="text-muted-foreground/60">OpenCodeIntel</span>
         </div>
       </div>
     </div>

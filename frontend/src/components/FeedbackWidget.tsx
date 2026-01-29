@@ -43,7 +43,7 @@ export function FeedbackWidget() {
           ...(message.trim() ? [{ name: 'Message', value: message.slice(0, 1000) }] : []),
         ],
         timestamp: new Date().toISOString(),
-        footer: { text: 'CodeIntel Feedback' },
+        footer: { text: 'OpenCodeIntel Feedback' },
       }
 
       if (DISCORD_WEBHOOK) {
@@ -110,7 +110,7 @@ export function FeedbackWidget() {
               <div className="flex items-center justify-between p-5 border-b border-border">
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">Send Feedback</h3>
-                  <p className="text-sm text-muted-foreground">Help us make CodeIntel better</p>
+                  <p className="text-sm text-muted-foreground">Help us make OpenCodeIntel better</p>
                 </div>
                 <button
                   onClick={() => !sending && setIsOpen(false)}

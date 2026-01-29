@@ -32,7 +32,7 @@ const PLANS = [
     description: 'For teams that need control',
     features: ['Self-hosted deployment', 'SSO / SAML authentication', 'Dedicated support', 'Custom integrations', 'SLA guarantee', 'On-premise option'],
     cta: 'Contact Sales',
-    ctaHref: 'mailto:devanshurajesh@gmail.com?subject=CodeIntel%20Enterprise',
+    ctaHref: 'mailto:devanshurajesh@gmail.com?subject=OpenCodeIntel%20Enterprise',
     popular: false,
   },
 ]

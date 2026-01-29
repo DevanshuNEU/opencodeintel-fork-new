@@ -62,7 +62,7 @@ export function MCPSetupPage() {
           </div>
           <h1 className="text-4xl font-bold text-white mb-4">MCP Setup Guide</h1>
           <p className="text-xl text-gray-400">
-            Connect CodeIntel to Claude Desktop in under 5 minutes. Give your AI assistant 
+            Connect OpenCodeIntel to Claude Desktop in under 5 minutes. Give your AI assistant 
             persistent memory of your entire codebase.
           </p>
         </div>
@@ -75,7 +75,7 @@ export function MCPSetupPage() {
             has no idea what you're talking about.
           </p>
           <p className="text-gray-300 text-lg leading-relaxed mt-4">
-            CodeIntel fixes this. It's an MCP server that gives Claude (or any MCP-compatible AI) 
+            OpenCodeIntel fixes this. It's an MCP server that gives Claude (or any MCP-compatible AI) 
             persistent access to your codebase - semantic search, dependency graphs, impact analysis, 
             the works.
           </p>
@@ -106,7 +106,7 @@ export function MCPSetupPage() {
             </li>
             <li className="flex items-center gap-2">
               <span className="text-green-400">✓</span>
-              <span><strong className="text-white">CodeIntel backend</strong> running (local or hosted)</span>
+              <span><strong className="text-white">OpenCodeIntel backend</strong> running (local or hosted)</span>
             </li>
             <li className="flex items-center gap-2">
               <span className="text-green-400">✓</span>
@@ -129,8 +129,8 @@ export function MCPSetupPage() {
               <span className="flex items-center justify-center w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 text-sm font-bold">1</span>
               Clone the MCP Server
             </h3>
-            <p className="text-gray-300 mb-3">If you haven't already, grab the CodeIntel repo:</p>
-            <CodeBlock language="bash">{`git clone https://github.com/OpenCodeIntel/opencodeintel.git
+            <p className="text-gray-300 mb-3">If you haven't already, grab the OpenCodeIntel repo:</p>
+            <CodeBlock language="bash">{`git clone https://github.com/OpenOpenCodeIntel/opencodeintel.git
 cd opencodeintel/mcp-server`}</CodeBlock>
           </div>
 
@@ -153,13 +153,13 @@ cd opencodeintel/mcp-server`}</CodeBlock>
             <p className="text-gray-300 mb-3">Create your <code className="bg-white/10 px-1.5 py-0.5 rounded text-sm">.env</code> file:</p>
             <CodeBlock language="bash">{`cp .env.example .env`}</CodeBlock>
             <p className="text-gray-300 mb-3 mt-4">Edit <code className="bg-white/10 px-1.5 py-0.5 rounded text-sm">.env</code> with your settings:</p>
-            <CodeBlock language="env">{`# Where's your CodeIntel backend running?
+            <CodeBlock language="env">{`# Where's your OpenCodeIntel backend running?
 BACKEND_API_URL=http://localhost:8000
 
-# Your API key (get this from the CodeIntel dashboard)
+# Your API key (get this from the OpenCodeIntel dashboard)
 API_KEY=your-api-key-here`}</CodeBlock>
             <Callout type="tip">
-              Using hosted CodeIntel? Replace <code className="bg-white/10 px-1 rounded text-sm">localhost:8000</code> with your hosted URL.
+              Using hosted OpenCodeIntel? Replace <code className="bg-white/10 px-1 rounded text-sm">localhost:8000</code> with your hosted URL.
             </Callout>
           </div>
 
@@ -197,7 +197,7 @@ API_KEY=your-api-key-here`}</CodeBlock>
               </table>
             </div>
 
-            <p className="text-gray-300 mb-3"><strong className="text-white">Add CodeIntel to your config:</strong></p>
+            <p className="text-gray-300 mb-3"><strong className="text-white">Add OpenCodeIntel to your config:</strong></p>
             <CodeBlock language="json">{`{
   "mcpServers": {
     "codeintel": {
@@ -316,7 +316,7 @@ API_KEY=your-api-key-here`}</CodeBlock>
         {/* Example Prompts */}
         <section className="mb-12">
           <h2 className="text-2xl font-semibold text-white mb-6">Example Prompts</h2>
-          <p className="text-gray-300 mb-6">Here's how to actually use CodeIntel with Claude:</p>
+          <p className="text-gray-300 mb-6">Here's how to actually use OpenCodeIntel with Claude:</p>
 
           <div className="space-y-4">
             <div className="p-4 bg-gradient-to-r from-blue-500/10 to-transparent border-l-2 border-blue-500 rounded-r-lg">
@@ -363,7 +363,7 @@ API_KEY=your-api-key-here`}</CodeBlock>
 
             <div>
               <h3 className="text-lg font-medium text-white mb-2">"Connection refused" errors</h3>
-              <p className="text-gray-300 mb-2">Your CodeIntel backend isn't running. Start it:</p>
+              <p className="text-gray-300 mb-2">Your OpenCodeIntel backend isn't running. Start it:</p>
               <CodeBlock language="bash">{`cd opencodeintel/backend
 python main.py`}</CodeBlock>
             </div>
@@ -380,7 +380,7 @@ python main.py`}</CodeBlock>
             <div>
               <h3 className="text-lg font-medium text-white mb-2">Tools work but return no results</h3>
               <p className="text-gray-300">
-                You probably haven't indexed any repositories yet. Open the CodeIntel dashboard and add a repo first.
+                You probably haven't indexed any repositories yet. Open the OpenCodeIntel dashboard and add a repo first.
               </p>
             </div>
 
@@ -400,12 +400,12 @@ python main.py`}</CodeBlock>
           <h2 className="text-2xl font-semibold text-white mb-4">What's Next?</h2>
           <p className="text-gray-300 mb-4">Once you're set up:</p>
           <ol className="text-gray-300 space-y-2 ml-4">
-            <li>1. <strong className="text-white">Index a repository</strong> through the CodeIntel dashboard</li>
+            <li>1. <strong className="text-white">Index a repository</strong> through the OpenCodeIntel dashboard</li>
             <li>2. <strong className="text-white">Start chatting</strong> with Claude about your code</li>
             <li>3. <strong className="text-white">Try impact analysis</strong> before your next refactor</li>
           </ol>
           <p className="text-gray-400 mt-4 text-sm">
-            Questions? Issues? <a href="https://github.com/OpenCodeIntel/opencodeintel/issues" className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">Open a GitHub issue</a> or reach out.
+            Questions? Issues? <a href="https://github.com/OpenOpenCodeIntel/opencodeintel/issues" className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">Open a GitHub issue</a> or reach out.
           </p>
         </section>
 

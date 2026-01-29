@@ -36,7 +36,7 @@ export function WaitlistModal({ isOpen, onClose, planName = 'Pro', planPrice = '
           { name: 'Plan Interest', value: `${planName} (${planPrice})`, inline: true },
         ],
         timestamp: new Date().toISOString(),
-        footer: { text: 'CodeIntel Waitlist' },
+        footer: { text: 'OpenCodeIntel Waitlist' },
       }
 
       if (DISCORD_WEBHOOK) {
