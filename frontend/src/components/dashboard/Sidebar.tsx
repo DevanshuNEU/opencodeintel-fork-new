@@ -1,8 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { 
   FolderGit2, 
-  Search, 
-  Settings, 
   BookOpen, 
   ChevronLeft, 
   ChevronRight,
@@ -26,12 +24,10 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { name: 'Repositories', href: '/dashboard', icon: <FolderGit2 className="w-5 h-5" /> },
-  { name: 'Global Search', href: '/dashboard/search', icon: <Search className="w-5 h-5" /> },
 ]
 
 const bottomNavItems: NavItem[] = [
   { name: 'Documentation', href: '/docs', icon: <BookOpen className="w-5 h-5" />, external: true },
-  { name: 'Settings', href: '/dashboard/settings', icon: <Settings className="w-5 h-5" /> },
 ]
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {

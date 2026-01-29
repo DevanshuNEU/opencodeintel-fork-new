@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -25,18 +27,18 @@ interface Repository {
 }
 
 const MAX_REPOS = 3
+const DELETE_CONFIRMATION_TEXT = 'delete all'
 
 export function SettingsPage() {
-  const { user, session, signOut } = useAuth()
+  const { user, session } = useAuth()
   const { status, checkStatus, disconnect, loading: githubLoading } = useGitHubRepos()
 
   const [repos, setRepos] = useState<Repository[]>([])
   const [reposLoading, setReposLoading] = useState(true)
   const [disconnectLoading, setDisconnectLoading] = useState(false)
   const [deleteReposDialog, setDeleteReposDialog] = useState(false)
-  const [deleteAccountDialog, setDeleteAccountDialog] = useState(false)
   const [deleteReposLoading, setDeleteReposLoading] = useState(false)
-  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
 
   useEffect(() => {
     checkStatus()
@@ -70,6 +72,8 @@ export function SettingsPage() {
   }
 
   const handleDeleteAllRepos = async () => {
+    if (deleteConfirmation !== DELETE_CONFIRMATION_TEXT) return
+
     setDeleteReposLoading(true)
     try {
       for (const repo of repos) {
@@ -80,6 +84,7 @@ export function SettingsPage() {
       }
       setRepos([])
       setDeleteReposDialog(false)
+      setDeleteConfirmation('')
       toast.success('All repositories deleted')
     } catch (error) {
       toast.error('Failed to delete repositories')
@@ -88,17 +93,9 @@ export function SettingsPage() {
     }
   }
 
-  const handleDeleteAccount = async () => {
-    setDeleteAccountLoading(true)
-    try {
-      toast.info('Account deletion coming soon. Signing you out for now.')
-      await signOut()
-    } catch (error) {
-      toast.error('Failed to delete account')
-    } finally {
-      setDeleteAccountLoading(false)
-      setDeleteAccountDialog(false)
-    }
+  const handleCloseDeleteDialog = () => {
+    setDeleteReposDialog(false)
+    setDeleteConfirmation('')
   }
 
   const formatDate = (dateString: string | undefined) => {
@@ -109,6 +106,8 @@ export function SettingsPage() {
       day: 'numeric',
     })
   }
+
+  const isDeleteEnabled = deleteConfirmation === DELETE_CONFIRMATION_TEXT
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -237,7 +236,7 @@ export function SettingsPage() {
       <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
         <AlertTriangle className="h-5 w-5" />
         <AlertTitle className="text-lg font-semibold">Danger Zone</AlertTitle>
-        <AlertDescription className="mt-4 space-y-4">
+        <AlertDescription className="mt-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium text-foreground">Delete all repositories</p>
@@ -253,26 +252,11 @@ export function SettingsPage() {
               Delete All
             </Button>
           </div>
-          <Separator className="bg-destructive/20" />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-foreground">Delete account</p>
-              <p className="text-sm text-muted-foreground">Permanently delete your account and all data</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-              onClick={() => setDeleteAccountDialog(true)}
-            >
-              Delete Account
-            </Button>
-          </div>
         </AlertDescription>
       </Alert>
 
-      {/* Delete Repos Dialog */}
-      <Dialog open={deleteReposDialog} onOpenChange={setDeleteReposDialog}>
+      {/* Delete Repos Dialog with typing confirmation */}
+      <Dialog open={deleteReposDialog} onOpenChange={handleCloseDeleteDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete all repositories?</DialogTitle>
@@ -281,35 +265,30 @@ export function SettingsPage() {
               all indexed data. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Label htmlFor="delete-confirmation">
+              To confirm, type <span className="font-mono font-semibold text-destructive">{DELETE_CONFIRMATION_TEXT}</span> below:
+            </Label>
+            <Input
+              id="delete-confirmation"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              placeholder={DELETE_CONFIRMATION_TEXT}
+              className="font-mono"
+              autoComplete="off"
+            />
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteReposDialog(false)}>
+            <Button variant="outline" onClick={handleCloseDeleteDialog}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteAllRepos} disabled={deleteReposLoading}>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAllRepos}
+              disabled={!isDeleteEnabled || deleteReposLoading}
+            >
               {deleteReposLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Delete All Repositories
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Account Dialog */}
-      <Dialog open={deleteAccountDialog} onOpenChange={setDeleteAccountDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete your account?</DialogTitle>
-            <DialogDescription>
-              This will permanently delete your account, all repositories, and all associated data. This
-              action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteAccountDialog(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleteAccountLoading}>
-              {deleteAccountLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete Account
             </Button>
           </DialogFooter>
         </DialogContent>
