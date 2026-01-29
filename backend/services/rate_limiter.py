@@ -3,11 +3,63 @@ Rate Limiting & API Key Management
 Prevents abuse and manages request quotas
 """
 import time
-from typing import Optional, Dict
+from typing import Optional, Dict, Callable
 from datetime import datetime, timedelta
+from functools import wraps
 import hashlib
 import secrets
 from dataclasses import dataclass
+from fastapi import HTTPException, Request
+
+
+# In-memory rate limit storage (per-process, resets on restart)
+_rate_limit_store: Dict[str, list] = {}
+
+
+def rate_limit(requests_per_minute: int = 60):
+    """
+    Simple rate limit decorator for FastAPI routes.
+    Uses in-memory storage - suitable for single-instance deployments.
+    For production, use Redis-backed RateLimiter class instead.
+    """
+    def decorator(func: Callable):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Try to get request from kwargs or args
+            request = kwargs.get('request')
+            if not request:
+                for arg in args:
+                    if isinstance(arg, Request):
+                        request = arg
+                        break
+            
+            # Get client identifier (IP or fallback)
+            if request:
+                client_id = request.client.host if request.client else "unknown"
+            else:
+                client_id = "unknown"
+            
+            key = f"{func.__name__}:{client_id}"
+            now = time.time()
+            window_start = now - 60
+            
+            # Clean old entries and get current count
+            if key not in _rate_limit_store:
+                _rate_limit_store[key] = []
+            
+            _rate_limit_store[key] = [t for t in _rate_limit_store[key] if t > window_start]
+            
+            if len(_rate_limit_store[key]) >= requests_per_minute:
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded. Max {requests_per_minute} requests per minute."
+                )
+            
+            _rate_limit_store[key].append(now)
+            return await func(*args, **kwargs)
+        
+        return wrapper
+    return decorator
 
 
 @dataclass
