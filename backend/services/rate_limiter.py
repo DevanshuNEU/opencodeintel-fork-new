@@ -14,6 +14,8 @@ from fastapi import HTTPException, Request
 
 # In-memory rate limit storage (per-process, resets on restart)
 _rate_limit_store: Dict[str, list] = {}
+_last_cleanup: float = 0.0
+_CLEANUP_INTERVAL_SEC = 60
 
 
 def rate_limit(requests_per_minute: int = 60):
@@ -42,6 +44,15 @@ def rate_limit(requests_per_minute: int = 60):
             key = f"{func.__name__}:{client_id}"
             now = time.time()
             window_start = now - 60
+            
+            # Periodic cleanup of stale keys to prevent unbounded memory growth
+            global _last_cleanup
+            if now - _last_cleanup > _CLEANUP_INTERVAL_SEC:
+                for k in list(_rate_limit_store.keys()):
+                    timestamps = _rate_limit_store.get(k, [])
+                    if not timestamps or timestamps[-1] <= window_start:
+                        _rate_limit_store.pop(k, None)
+                _last_cleanup = now
             
             # Clean old entries and get current count
             if key not in _rate_limit_store:
