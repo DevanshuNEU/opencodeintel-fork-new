@@ -43,7 +43,7 @@ export function SettingsPage() {
   useEffect(() => {
     checkStatus()
     fetchRepos()
-  }, [])
+  }, [checkStatus])
 
   const fetchRepos = async () => {
     if (!session?.access_token) return
