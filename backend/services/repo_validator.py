@@ -100,6 +100,7 @@ class RepoValidator:
         '.ruff_cache',
         'egg-info',
         '.eggs',
+        'repos',        # Cloned repositories (CodeIntel internal)
     }
     
     # Average functions per file by language (rough estimates)

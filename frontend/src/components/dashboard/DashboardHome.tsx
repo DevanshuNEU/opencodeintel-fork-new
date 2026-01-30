@@ -26,11 +26,26 @@ import { StyleInsights } from '../StyleInsights'
 import { ImpactAnalyzer } from '../ImpactAnalyzer'
 import { DashboardStats } from './DashboardStats'
 import { IndexingProgressModal } from '../IndexingProgressModal'
+import { WaitlistModal } from '../landing/WaitlistModal'
 import type { Repository } from '../../types'
 import type { GitHubRepo } from '../../hooks/useGitHubRepos'
 import { API_URL } from '../../config/api'
 
 const MAX_FREE_REPOS = 3
+
+// Extract error message from API response (handles nested detail objects)
+function extractErrorMessage(err: any, fallback: string): string {
+  if (typeof err?.detail === 'string') return err.detail
+  if (err?.detail?.message) return err.detail.message
+  if (err?.message) return err.message
+  return fallback
+}
+
+// Check if error is a limit/upgrade error
+function isUpgradeError(err: any): boolean {
+  const code = err?.detail?.error || err?.detail?.error_code
+  return ['REPO_TOO_LARGE', 'REPO_LIMIT_REACHED'].includes(code)
+}
 
 type RepoTab = 'overview' | 'search' | 'dependencies' | 'insights' | 'impact'
 
@@ -49,6 +64,9 @@ export function DashboardHome() {
   const [indexingRepoId, setIndexingRepoId] = useState<string | null>(null)
   const [indexingRepoName, setIndexingRepoName] = useState<string>('')
   const [showIndexingModal, setShowIndexingModal] = useState(false)
+  
+  // Upgrade prompt modal state
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   // Auto-open GitHub import modal if redirected from OAuth callback
   useEffect(() => {
@@ -96,7 +114,14 @@ export function DashboardHome() {
       
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
-        throw new Error(err.detail || 'Failed to add repository')
+        if (isUpgradeError(err)) {
+          toast.error(extractErrorMessage(err, 'Repository too large'), {
+            description: 'Join the Pro waitlist for higher limits',
+            action: { label: 'Join Waitlist', onClick: () => setShowUpgradeModal(true) }
+          })
+          return
+        }
+        throw new Error(extractErrorMessage(err, 'Failed to add repository'))
       }
       
       const data = await response.json()
@@ -110,7 +135,14 @@ export function DashboardHome() {
       
       if (!indexResponse.ok) {
         const err = await indexResponse.json().catch(() => ({}))
-        throw new Error(err.detail?.message || err.detail || 'Failed to start indexing')
+        if (isUpgradeError(err)) {
+          toast.error(extractErrorMessage(err, 'Repository too large'), {
+            description: 'Join the Pro waitlist for higher limits',
+            action: { label: 'Join Waitlist', onClick: () => setShowUpgradeModal(true) }
+          })
+          return
+        }
+        throw new Error(extractErrorMessage(err, 'Failed to start indexing'))
       }
       
       // Show indexing progress modal
@@ -150,7 +182,14 @@ export function DashboardHome() {
         
         if (!response.ok) {
           const err = await response.json().catch(() => ({}))
-          throw new Error(err.detail || `Failed to add ${repo.name}`)
+          if (isUpgradeError(err)) {
+            toast.error(extractErrorMessage(err, `${repo.name} too large`), {
+              description: 'Join the Pro waitlist for higher limits',
+              action: { label: 'Join Waitlist', onClick: () => setShowUpgradeModal(true) }
+            })
+            continue
+          }
+          throw new Error(extractErrorMessage(err, `Failed to add ${repo.name}`))
         }
         
         const data = await response.json()
@@ -164,7 +203,14 @@ export function DashboardHome() {
         
         if (!indexResponse.ok) {
           const err = await indexResponse.json().catch(() => ({}))
-          const errMsg = err.detail?.message || err.detail || 'Indexing failed to start'
+          if (isUpgradeError(err)) {
+            toast.error(extractErrorMessage(err, `${repo.name} too large`), {
+              description: 'Join the Pro waitlist for higher limits',
+              action: { label: 'Join Waitlist', onClick: () => setShowUpgradeModal(true) }
+            })
+            continue
+          }
+          const errMsg = extractErrorMessage(err, 'Indexing failed to start')
           console.error(`Failed to start indexing for ${repo.name}:`, err)
           toast.warning(`${repo.name} added but indexing failed`, { 
             description: errMsg 
@@ -438,6 +484,14 @@ export function DashboardHome() {
         onImport={handleGitHubImport}
         maxSelectable={MAX_FREE_REPOS}
         currentRepoCount={repos.length}
+      />
+      
+      {/* Upgrade/Waitlist Modal */}
+      <WaitlistModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        planName="Pro"
+        planPrice="$19/mo"
       />
     </div>
   )
