@@ -26,11 +26,46 @@ import { StyleInsights } from '../StyleInsights'
 import { ImpactAnalyzer } from '../ImpactAnalyzer'
 import { DashboardStats } from './DashboardStats'
 import { IndexingProgressModal } from '../IndexingProgressModal'
+import { UpgradeLimitModal } from '../UpgradeLimitModal'
 import type { Repository } from '../../types'
 import type { GitHubRepo } from '../../hooks/useGitHubRepos'
 import { API_URL } from '../../config/api'
 
 const MAX_FREE_REPOS = 3
+
+// Safe stringify that won't crash on circular refs
+function safeStringify(obj: unknown, maxLen = 200): string {
+  try {
+    return JSON.stringify(obj).slice(0, maxLen)
+  } catch {
+    return String(obj).slice(0, maxLen)
+  }
+}
+
+// Extract error message from API response (handles nested detail objects)
+function extractErrorMessage(err: any, fallback: string): string {
+  // FastAPI wraps in detail, but handle both cases
+  const detail = err?.detail || err
+  
+  if (typeof detail === 'string') return detail
+  if (typeof detail?.message === 'string') return detail.message
+  if (typeof err?.message === 'string') return err.message
+  
+  // Last resort: stringify (but keep it short, safe from circular refs)
+  if (detail && typeof detail === 'object') {
+    const msg = detail.message || detail.error
+    if (msg) return String(msg)
+    return safeStringify(detail)
+  }
+  return fallback
+}
+
+// Check if error is a limit/upgrade error (handles both wrapped and unwrapped)
+function isUpgradeError(err: any): boolean {
+  const detail = err?.detail || err
+  const code = detail?.error || detail?.error_code
+  return ['REPO_TOO_LARGE', 'REPO_LIMIT_REACHED'].includes(code)
+}
 
 type RepoTab = 'overview' | 'search' | 'dependencies' | 'insights' | 'impact'
 
@@ -49,6 +84,14 @@ export function DashboardHome() {
   const [indexingRepoId, setIndexingRepoId] = useState<string | null>(null)
   const [indexingRepoName, setIndexingRepoName] = useState<string>('')
   const [showIndexingModal, setShowIndexingModal] = useState(false)
+  
+  // Upgrade prompt modal state
+  const [upgradeModal, setUpgradeModal] = useState<{ show: boolean; message: string; repoName?: string }>({ show: false, message: '' })
+
+  // Helper to show upgrade modal with context
+  const showUpgradeModal = (err: any, repoName?: string) => {
+    setUpgradeModal({ show: true, message: extractErrorMessage(err, 'Repository exceeds free tier limits'), repoName })
+  }
 
   // Auto-open GitHub import modal if redirected from OAuth callback
   useEffect(() => {
@@ -96,7 +139,11 @@ export function DashboardHome() {
       
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
-        throw new Error(err.detail || 'Failed to add repository')
+        if (isUpgradeError(err)) {
+          showUpgradeModal(err, name)
+          return
+        }
+        throw new Error(extractErrorMessage(err, 'Failed to add repository'))
       }
       
       const data = await response.json()
@@ -110,7 +157,11 @@ export function DashboardHome() {
       
       if (!indexResponse.ok) {
         const err = await indexResponse.json().catch(() => ({}))
-        throw new Error(err.detail?.message || err.detail || 'Failed to start indexing')
+        if (isUpgradeError(err)) {
+          showUpgradeModal(err, name)
+          return
+        }
+        throw new Error(extractErrorMessage(err, 'Failed to start indexing'))
       }
       
       // Show indexing progress modal
@@ -150,7 +201,11 @@ export function DashboardHome() {
         
         if (!response.ok) {
           const err = await response.json().catch(() => ({}))
-          throw new Error(err.detail || `Failed to add ${repo.name}`)
+          if (isUpgradeError(err)) {
+            showUpgradeModal(err, repo.name)
+            continue
+          }
+          throw new Error(extractErrorMessage(err, `Failed to add ${repo.name}`))
         }
         
         const data = await response.json()
@@ -164,7 +219,11 @@ export function DashboardHome() {
         
         if (!indexResponse.ok) {
           const err = await indexResponse.json().catch(() => ({}))
-          const errMsg = err.detail?.message || err.detail || 'Indexing failed to start'
+          if (isUpgradeError(err)) {
+            showUpgradeModal(err, repo.name)
+            continue
+          }
+          const errMsg = extractErrorMessage(err, 'Indexing failed to start')
           console.error(`Failed to start indexing for ${repo.name}:`, err)
           toast.warning(`${repo.name} added but indexing failed`, { 
             description: errMsg 
@@ -438,6 +497,14 @@ export function DashboardHome() {
         onImport={handleGitHubImport}
         maxSelectable={MAX_FREE_REPOS}
         currentRepoCount={repos.length}
+      />
+      
+      {/* Upgrade Limit Modal */}
+      <UpgradeLimitModal
+        isOpen={upgradeModal.show}
+        onClose={() => setUpgradeModal({ show: false, message: '' })}
+        errorMessage={upgradeModal.message}
+        repoName={upgradeModal.repoName}
       />
     </div>
   )
