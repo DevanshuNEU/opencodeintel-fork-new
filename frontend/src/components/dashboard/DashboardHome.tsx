@@ -35,19 +35,26 @@ const MAX_FREE_REPOS = 3
 
 // Extract error message from API response (handles nested detail objects)
 function extractErrorMessage(err: any, fallback: string): string {
-  if (typeof err?.detail === 'string') return err.detail
-  if (typeof err?.detail?.message === 'string') return err.detail.message
+  // FastAPI wraps in detail, but handle both cases
+  const detail = err?.detail || err
+  
+  if (typeof detail === 'string') return detail
+  if (typeof detail?.message === 'string') return detail.message
   if (typeof err?.message === 'string') return err.message
-  // Last resort: try to stringify if it's an object
-  if (err?.detail && typeof err.detail === 'object') {
-    return JSON.stringify(err.detail)
+  
+  // Last resort: stringify (but keep it short)
+  if (detail && typeof detail === 'object') {
+    const msg = detail.message || detail.error
+    if (msg) return String(msg)
+    return JSON.stringify(detail).slice(0, 200)
   }
   return fallback
 }
 
-// Check if error is a limit/upgrade error
+// Check if error is a limit/upgrade error (handles both wrapped and unwrapped)
 function isUpgradeError(err: any): boolean {
-  const code = err?.detail?.error || err?.detail?.error_code
+  const detail = err?.detail || err
+  const code = detail?.error || detail?.error_code
   return ['REPO_TOO_LARGE', 'REPO_LIMIT_REACHED'].includes(code)
 }
 
