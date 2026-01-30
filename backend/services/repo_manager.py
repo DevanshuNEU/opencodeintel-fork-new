@@ -165,10 +165,7 @@ class RepositoryManager:
         if not repo:
             return False
         
-        # Delete from database (cascades to embeddings, dependencies, etc.)
-        self.db.delete_repository(repo_id)
-        
-        # Clean up local clone if it exists
+        # Clean up local clone first (before DB delete)
         local_path = repo.get("local_path")
         if local_path and Path(local_path).exists():
             try:
@@ -177,9 +174,8 @@ class RepositoryManager:
             except Exception as e:
                 logger.warning("Failed to delete local files", repo_id=repo_id, error=str(e))
         
-        # Remove from in-memory cache
-        if repo_id in self.repos:
-            del self.repos[repo_id]
+        # Delete from database (cascades to embeddings, dependencies, etc.)
+        self.db.delete_repository(repo_id)
         
         logger.info("Deleted repository", repo_id=repo_id)
         return True
