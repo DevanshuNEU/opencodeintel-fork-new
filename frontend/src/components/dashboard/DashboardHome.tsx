@@ -302,7 +302,7 @@ export function DashboardHome() {
             </div>
             
             {/* Stats */}
-            {repos.length > 0 && <DashboardStats repos={repos} />}
+            {(reposLoading || repos.length > 0) && <DashboardStats repos={repos} loading={reposLoading} />}
             
             {/* Repo Grid */}
             <RepoList 

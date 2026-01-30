@@ -101,7 +101,7 @@ export function Playground({ onSignupClick }: PlaygroundProps) {
             <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
               <span className="text-white font-bold text-xs">CI</span>
             </div>
-            <span className="font-semibold text-gray-900">CodeIntel</span>
+            <span className="font-semibold text-gray-900">OpenCodeIntel</span>
           </div>
           <div className="flex items-center gap-3">
             <a href="/login" className="text-sm text-gray-600 hover:text-gray-900">

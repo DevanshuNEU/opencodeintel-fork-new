@@ -45,7 +45,7 @@ const FEATURES = [
   {
     icon: Lock,
     title: 'Self-Host Option',
-    description: 'Keep your code private. Run CodeIntel on your own infrastructure with full control.',
+    description: 'Keep your code private. Run OpenCodeIntel on your own infrastructure with full control.',
     color: 'text-rose-400',
     bg: 'bg-rose-500/10',
     glow: 'group-hover:shadow-rose-500/20',
@@ -89,7 +89,7 @@ export function Features() {
             Built for how developers actually work
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Not another code search tool. CodeIntel understands your codebase the way you do.
+            Not another code search tool. OpenCodeIntel understands your codebase the way you do.
           </p>
         </motion.div>
 

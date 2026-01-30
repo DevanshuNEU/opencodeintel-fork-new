@@ -36,6 +36,8 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - API_KEY=${API_KEY}
       - BACKEND_API_URL=http://backend:8000
+      - DISCORD_FEEDBACK_WEBHOOK=${DISCORD_FEEDBACK_WEBHOOK}
+      - FORWARDED_ALLOW_IPS=*
     volumes:
       - ./backend/repos:/app/repos
       - ./backend:/app

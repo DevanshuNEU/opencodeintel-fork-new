@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, Sparkles } from 'lucide-react'
+import { Loader2, Sparkles, Github } from 'lucide-react'
 import { HeroSearch, type HeroSearchHandle } from './HeroSearch'
 import { useDemoSearch, DEMO_REPOS, type DemoRepo } from '@/hooks/useDemoSearch'
 import type { SearchResult } from '@/types'
@@ -140,7 +140,7 @@ export function Hero({ onResultsReady }: Props) {
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-accent/30 bg-accent/5 text-sm backdrop-blur-sm">
             <Sparkles className="w-3.5 h-3.5 text-accent" />
             <span className="text-accent font-medium">Now in beta</span>
-            <span className="text-muted-foreground">• Free for open source</span>
+            <span className="text-muted-foreground">• One-click GitHub import</span>
           </div>
         </motion.div>
 
@@ -173,9 +173,9 @@ export function Hero({ onResultsReady }: Props) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
           >
-            Describe what you're looking for in plain English.
+            Import any GitHub repo in one click.
             <br className="hidden sm:block" />
-            Get the exact function, class, or pattern. Instantly.
+            Search code with plain English. Find anything, instantly.
           </motion.p>
         </div>
 
@@ -196,6 +196,7 @@ export function Hero({ onResultsReady }: Props) {
               onSubmit={() => { setIsTyping(false); search() }}
               searching={loading}
               repoName={repo.name}
+              autoTyping={isTyping}
             />
           </div>
         </motion.div>
@@ -312,7 +313,8 @@ export function Hero({ onResultsReady }: Props) {
               whileTap={{ scale: 0.98 }}
               className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-white rounded-lg bg-accent hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20"
             >
-              Index your first repo free
+              <Github className="w-4 h-4" />
+              Import from GitHub
               <span className="text-white/60">→</span>
             </motion.a>
             <motion.a
@@ -329,7 +331,7 @@ export function Hero({ onResultsReady }: Props) {
               View on GitHub
             </motion.a>
           </div>
-          <p className="text-xs text-muted-foreground/60">Works with any Python repository • Self-host or cloud</p>
+          <p className="text-xs text-muted-foreground/60">Connect GitHub in seconds • Free for 3 repos • Self-host available</p>
         </motion.div>
       </div>
     </section>

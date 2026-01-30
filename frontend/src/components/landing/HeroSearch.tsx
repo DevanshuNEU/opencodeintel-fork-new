@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils'
 type VisualState = 'idle' | 'focused' | 'searching' | 'done'
 
 const glowStyles: Record<VisualState, string> = {
-  idle: 'shadow-[0_0_0_1px_rgba(75,139,190,0.3)]',
-  focused: 'shadow-[0_0_0_2px_var(--python-blue),0_0_20px_rgba(75,139,190,0.4)]',
-  searching: 'shadow-[0_0_0_2px_var(--python-yellow),0_0_30px_rgba(255,212,59,0.3)]',
-  done: 'shadow-[0_0_0_2px_#34D399,0_0_20px_rgba(52,211,153,0.4)]',
+  idle: 'shadow-[0_0_0_1px_rgba(75,139,190,0.2)] dark:shadow-[0_0_0_1px_rgba(75,139,190,0.3)]',
+  focused: 'shadow-[0_0_0_2px_var(--python-blue),0_0_20px_rgba(75,139,190,0.2)] dark:shadow-[0_0_0_2px_var(--python-blue),0_0_20px_rgba(75,139,190,0.4)]',
+  searching: 'shadow-[0_0_0_2px_var(--python-yellow),0_0_30px_rgba(255,212,59,0.15)] dark:shadow-[0_0_0_2px_var(--python-yellow),0_0_30px_rgba(255,212,59,0.3)]',
+  done: 'shadow-[0_0_0_2px_#34D399,0_0_20px_rgba(52,211,153,0.2)] dark:shadow-[0_0_0_2px_#34D399,0_0_20px_rgba(52,211,153,0.4)]',
 }
 
 const EXAMPLE_QUERIES = [
@@ -57,6 +57,7 @@ interface Props {
   onSubmit: () => void
   searching?: boolean
   repoName?: string
+  autoTyping?: boolean
 }
 
 export interface HeroSearchHandle {
@@ -64,7 +65,7 @@ export interface HeroSearchHandle {
 }
 
 export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearch(
-  { value, onChange, onSubmit, searching = false, repoName = 'flask' },
+  { value, onChange, onSubmit, searching = false, repoName = 'flask', autoTyping = false },
   ref
 ) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -88,18 +89,21 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
     : focused ? 'focused' 
     : 'idle'
 
+  const canSearch = value.trim() && !autoTyping && !searching
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (value.trim()) onSubmit()
+    if (canSearch) onSubmit()
   }
-
   const showAnimatedPlaceholder = !value && !focused
 
   return (
     <form onSubmit={submit} className="w-full">
       <motion.div
         className={cn(
-          'relative bg-zinc-900/90 backdrop-blur-sm rounded-2xl border border-zinc-800/50 overflow-hidden transition-shadow duration-300',
+          'relative backdrop-blur-sm rounded-2xl border overflow-hidden transition-shadow duration-300',
+          'bg-white dark:bg-zinc-900/90',
+          'border-zinc-200 dark:border-zinc-800/50',
           glowStyles[state]
         )}
         animate={searching ? { scale: [1, 1.005, 1] } : {}}
@@ -110,7 +114,7 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
           <div 
             className="absolute inset-0 rounded-2xl"
             style={{
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)',
+              background: 'linear-gradient(90deg, transparent, rgba(128,128,128,0.05), transparent)',
               backgroundSize: '200% 100%',
               animation: 'shimmer 3s ease-in-out infinite',
             }}
@@ -127,7 +131,10 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
         )}
 
         <div className="flex items-center gap-3 px-5 py-4">
-          <div className={cn('transition-colors', searching ? 'text-[var(--python-yellow)]' : 'text-zinc-500')}>
+          <div className={cn(
+            'transition-colors',
+            searching ? 'text-[var(--python-yellow)]' : 'text-zinc-400 dark:text-zinc-500'
+          )}>
             {searching ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
           </div>
 
@@ -140,11 +147,11 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               placeholder={focused ? 'Search for anything...' : ''}
-              className="w-full bg-transparent text-white text-lg placeholder:text-zinc-500 focus:outline-none"
+              className="w-full bg-transparent text-lg focus:outline-none text-foreground placeholder:text-muted-foreground"
             />
             {showAnimatedPlaceholder && (
               <div className="absolute inset-0 flex items-center pointer-events-none">
-                <span className="text-zinc-500 text-lg">
+                <span className="text-zinc-400 dark:text-zinc-500 text-lg">
                   {animatedPlaceholder}
                   <span className="animate-pulse">|</span>
                 </span>
@@ -153,19 +160,23 @@ export const HeroSearch = forwardRef<HeroSearchHandle, Props>(function HeroSearc
           </div>
 
           {value && !searching && (
-            <button type="button" onClick={() => onChange('')} className="text-zinc-500 hover:text-zinc-300">
+            <button 
+              type="button" 
+              onClick={() => onChange('')} 
+              className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+            >
               <X className="w-4 h-4" />
             </button>
           )}
 
           <button
             type="submit"
-            disabled={searching || !value.trim()}
+            disabled={!canSearch}
             className={cn(
               'px-5 py-2 rounded-xl font-medium transition-all',
-              value.trim() && !searching
+              canSearch
                 ? 'bg-[var(--python-blue)] text-white hover:opacity-90'
-                : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500 cursor-not-allowed'
             )}
           >
             {searching ? 'Searching...' : 'Search'}

@@ -3,11 +3,84 @@ Rate Limiting & API Key Management
 Prevents abuse and manages request quotas
 """
 import time
-from typing import Optional, Dict
+from typing import Optional, Dict, Callable
 from datetime import datetime, timedelta
+from functools import wraps
 import hashlib
 import secrets
 from dataclasses import dataclass
+from fastapi import HTTPException, Request
+
+
+# In-memory rate limit storage (per-process, resets on restart)
+_rate_limit_store: Dict[str, list] = {}
+_last_cleanup: float = 0.0
+_CLEANUP_INTERVAL_SEC = 60
+
+
+def rate_limit(requests_per_minute: int = 60):
+    """
+    Simple rate limit decorator for FastAPI routes.
+    Uses in-memory storage - suitable for single-instance deployments.
+    For production, use Redis-backed RateLimiter class instead.
+    
+    IMPORTANT: Routes using this decorator MUST include `request: Request` as
+    a parameter. For correct client IP detection behind a reverse proxy, 
+    configure Uvicorn with:
+        --proxy-headers --forwarded-allow-ips="<your-proxy-ips>"
+    This ensures request.client.host reflects the real client IP from 
+    X-Forwarded-For header, not the proxy's IP.
+    """
+    def decorator(func: Callable):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Get Request from kwargs (FastAPI injects it by parameter name)
+            request = kwargs.get('request')
+            if not request:
+                for arg in args:
+                    if isinstance(arg, Request):
+                        request = arg
+                        break
+            
+            if not request or not isinstance(request, Request):
+                raise HTTPException(
+                    status_code=500,
+                    detail="Rate limiting requires Request parameter in route"
+                )
+            
+            # Get client IP (relies on Uvicorn proxy-headers config for real IP)
+            client_id = request.client.host if request.client else "unknown"
+            
+            key = f"{func.__name__}:{client_id}"
+            now = time.time()
+            window_start = now - 60
+            
+            # Periodic cleanup of stale keys to prevent unbounded memory growth
+            global _last_cleanup
+            if now - _last_cleanup > _CLEANUP_INTERVAL_SEC:
+                for k in list(_rate_limit_store.keys()):
+                    timestamps = _rate_limit_store.get(k, [])
+                    if not timestamps or timestamps[-1] <= window_start:
+                        _rate_limit_store.pop(k, None)
+                _last_cleanup = now
+            
+            # Clean old entries and get current count
+            if key not in _rate_limit_store:
+                _rate_limit_store[key] = []
+            
+            _rate_limit_store[key] = [t for t in _rate_limit_store[key] if t > window_start]
+            
+            if len(_rate_limit_store[key]) >= requests_per_minute:
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded. Max {requests_per_minute} requests per minute."
+                )
+            
+            _rate_limit_store[key].append(now)
+            return await func(*args, **kwargs)
+        
+        return wrapper
+    return decorator
 
 
 @dataclass

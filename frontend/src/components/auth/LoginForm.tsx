@@ -71,7 +71,7 @@ export function LoginForm() {
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold text-foreground mb-2">
-              Sign in to CodeIntel
+              Sign in to OpenCodeIntel
             </h1>
             <p className="text-sm text-muted-foreground">
               Enter your credentials to continue

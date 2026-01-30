@@ -31,7 +31,7 @@ export function DocsHomePage() {
       <div className="max-w-3xl">
         {/* Header */}
         <div className="mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">CodeIntel Documentation</h1>
+          <h1 className="text-4xl font-bold text-white mb-4">OpenCodeIntel Documentation</h1>
           <p className="text-xl text-gray-400">
             Give your AI assistant deep understanding of your codebase. Semantic search, 
             dependency analysis, and impact prediction - all through MCP.
@@ -42,13 +42,13 @@ export function DocsHomePage() {
         <section className="mb-12">
           <h2 className="text-2xl font-semibold text-white mb-4">Get Started</h2>
           <p className="text-gray-300 mb-6">
-            New to CodeIntel? Start here. Most developers are up and running in under 5 minutes.
+            New to OpenCodeIntel? Start here. Most developers are up and running in under 5 minutes.
           </p>
           
           <div className="grid gap-4">
             <FeatureCard
               title="MCP Setup Guide"
-              description="Connect CodeIntel to Claude Desktop. The complete walkthrough."
+              description="Connect OpenCodeIntel to Claude Desktop. The complete walkthrough."
               href="/docs/mcp-setup"
               icon={
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,7 +73,7 @@ export function DocsHomePage() {
         <section className="mb-12">
           <h2 className="text-2xl font-semibold text-white mb-4">Core Features</h2>
           <p className="text-gray-300 mb-6">
-            What CodeIntel actually does for you.
+            What OpenCodeIntel actually does for you.
           </p>
           
           <div className="grid gap-4">
@@ -120,9 +120,9 @@ export function DocsHomePage() {
           </div>
         </section>
 
-        {/* Why CodeIntel */}
+        {/* Why OpenCodeIntel */}
         <section className="mb-12 p-6 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-white/10 rounded-xl">
-          <h2 className="text-2xl font-semibold text-white mb-4">Why CodeIntel?</h2>
+          <h2 className="text-2xl font-semibold text-white mb-4">Why OpenCodeIntel?</h2>
           <div className="space-y-4 text-gray-300">
             <p>
               <strong className="text-white">The problem:</strong> AI coding assistants are powerful, 
@@ -130,7 +130,7 @@ export function DocsHomePage() {
               your architecture, and have no clue what breaks when you change something.
             </p>
             <p>
-              <strong className="text-white">The solution:</strong> CodeIntel is an MCP server that 
+              <strong className="text-white">The solution:</strong> OpenCodeIntel is an MCP server that 
               gives AI assistants persistent memory of your codebase. Not just file contents - 
               semantic understanding, dependency graphs, and impact analysis.
             </p>

@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, Sparkles } from 'lucide-react'
+import { WaitlistModal } from './WaitlistModal'
 
 const PLANS = [
   {
@@ -30,7 +32,7 @@ const PLANS = [
     description: 'For teams that need control',
     features: ['Self-hosted deployment', 'SSO / SAML authentication', 'Dedicated support', 'Custom integrations', 'SLA guarantee', 'On-premise option'],
     cta: 'Contact Sales',
-    ctaHref: 'mailto:devanshurajesh@gmail.com?subject=CodeIntel%20Enterprise',
+    ctaHref: '/contact',
     popular: false,
   },
 ]
@@ -46,6 +48,14 @@ const cardVariants = {
 }
 
 export function Pricing() {
+  const [waitlistOpen, setWaitlistOpen] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState<{ name: string; price: string } | null>(null)
+
+  const handleWaitlistClick = (planName: string, planPrice: string) => {
+    setSelectedPlan({ name: planName, price: planPrice })
+    setWaitlistOpen(true)
+  }
+
   return (
     <section id="pricing" className="py-20 px-6 relative">
       <div className="max-w-5xl mx-auto">
@@ -120,18 +130,33 @@ export function Pricing() {
                 ))}
               </ul>
 
-              <motion.a
-                href={plan.ctaHref}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className={`block w-full py-3 px-4 rounded-lg text-center text-sm font-medium transition-all ${
-                  plan.popular
-                    ? 'bg-accent text-white hover:bg-accent/90 shadow-lg shadow-accent/20'
-                    : 'border border-border text-foreground hover:bg-muted/50'
-                }`}
-              >
-                {plan.cta}
-              </motion.a>
+              {(plan.ctaHref === '/waitlist' || plan.ctaHref === '/contact') ? (
+                <motion.button
+                  onClick={() => handleWaitlistClick(plan.name, plan.price === 'Custom' ? 'Custom pricing' : `${plan.price}${plan.period}`)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`block w-full py-3 px-4 rounded-lg text-center text-sm font-medium transition-all ${
+                    plan.popular
+                      ? 'bg-accent text-white hover:bg-accent/90 shadow-lg shadow-accent/20'
+                      : 'border border-border text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  {plan.cta}
+                </motion.button>
+              ) : (
+                <motion.a
+                  href={plan.ctaHref}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`block w-full py-3 px-4 rounded-lg text-center text-sm font-medium transition-all ${
+                    plan.popular
+                      ? 'bg-accent text-white hover:bg-accent/90 shadow-lg shadow-accent/20'
+                      : 'border border-border text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  {plan.cta}
+                </motion.a>
+              )}
             </motion.div>
           ))}
         </motion.div>
@@ -146,6 +171,13 @@ export function Pricing() {
           All plans include automatic updates and security patches
         </motion.p>
       </div>
+
+      <WaitlistModal
+        isOpen={waitlistOpen}
+        onClose={() => setWaitlistOpen(false)}
+        planName={selectedPlan?.name}
+        planPrice={selectedPlan?.price}
+      />
     </section>
   )
 }
