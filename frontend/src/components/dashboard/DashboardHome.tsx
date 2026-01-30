@@ -26,7 +26,7 @@ import { StyleInsights } from '../StyleInsights'
 import { ImpactAnalyzer } from '../ImpactAnalyzer'
 import { DashboardStats } from './DashboardStats'
 import { IndexingProgressModal } from '../IndexingProgressModal'
-import { WaitlistModal } from '../landing/WaitlistModal'
+import { UpgradeLimitModal } from '../UpgradeLimitModal'
 import type { Repository } from '../../types'
 import type { GitHubRepo } from '../../hooks/useGitHubRepos'
 import { API_URL } from '../../config/api'
@@ -58,14 +58,6 @@ function isUpgradeError(err: any): boolean {
   return ['REPO_TOO_LARGE', 'REPO_LIMIT_REACHED'].includes(code)
 }
 
-// Show upgrade toast with waitlist CTA (DRY helper for 4 call sites)
-function showUpgradeToast(err: any, fallback: string, onJoin: () => void) {
-  toast.error(extractErrorMessage(err, fallback), {
-    description: 'Join the Pro waitlist for higher limits',
-    action: { label: 'Join Waitlist', onClick: onJoin }
-  })
-}
-
 type RepoTab = 'overview' | 'search' | 'dependencies' | 'insights' | 'impact'
 
 export function DashboardHome() {
@@ -85,7 +77,12 @@ export function DashboardHome() {
   const [showIndexingModal, setShowIndexingModal] = useState(false)
   
   // Upgrade prompt modal state
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [upgradeModal, setUpgradeModal] = useState<{ show: boolean; message: string; repoName?: string }>({ show: false, message: '' })
+
+  // Helper to show upgrade modal with context
+  const showUpgradeModal = (err: any, repoName?: string) => {
+    setUpgradeModal({ show: true, message: extractErrorMessage(err, 'Repository exceeds free tier limits'), repoName })
+  }
 
   // Auto-open GitHub import modal if redirected from OAuth callback
   useEffect(() => {
@@ -134,7 +131,7 @@ export function DashboardHome() {
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
         if (isUpgradeError(err)) {
-          showUpgradeToast(err, 'Repository too large', () => setShowUpgradeModal(true))
+          showUpgradeModal(err, name)
           return
         }
         throw new Error(extractErrorMessage(err, 'Failed to add repository'))
@@ -152,7 +149,7 @@ export function DashboardHome() {
       if (!indexResponse.ok) {
         const err = await indexResponse.json().catch(() => ({}))
         if (isUpgradeError(err)) {
-          showUpgradeToast(err, 'Repository too large', () => setShowUpgradeModal(true))
+          showUpgradeModal(err, name)
           return
         }
         throw new Error(extractErrorMessage(err, 'Failed to start indexing'))
@@ -196,7 +193,7 @@ export function DashboardHome() {
         if (!response.ok) {
           const err = await response.json().catch(() => ({}))
           if (isUpgradeError(err)) {
-            showUpgradeToast(err, `${repo.name} too large`, () => setShowUpgradeModal(true))
+            showUpgradeModal(err, repo.name)
             continue
           }
           throw new Error(extractErrorMessage(err, `Failed to add ${repo.name}`))
@@ -214,7 +211,7 @@ export function DashboardHome() {
         if (!indexResponse.ok) {
           const err = await indexResponse.json().catch(() => ({}))
           if (isUpgradeError(err)) {
-            showUpgradeToast(err, `${repo.name} too large`, () => setShowUpgradeModal(true))
+            showUpgradeModal(err, repo.name)
             continue
           }
           const errMsg = extractErrorMessage(err, 'Indexing failed to start')
@@ -493,12 +490,12 @@ export function DashboardHome() {
         currentRepoCount={repos.length}
       />
       
-      {/* Upgrade/Waitlist Modal */}
-      <WaitlistModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        planName="Pro"
-        planPrice="$19/mo"
+      {/* Upgrade Limit Modal */}
+      <UpgradeLimitModal
+        isOpen={upgradeModal.show}
+        onClose={() => setUpgradeModal({ show: false, message: '' })}
+        errorMessage={upgradeModal.message}
+        repoName={upgradeModal.repoName}
       />
     </div>
   )
