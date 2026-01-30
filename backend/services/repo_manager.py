@@ -156,3 +156,30 @@ class RepositoryManager:
     def update_last_commit(self, repo_id: str, commit_sha: str, function_count: int = 0):
         """Update last indexed commit"""
         self.db.update_last_indexed(repo_id, commit_sha, function_count)
+    
+    def delete_repo(self, repo_id: str) -> bool:
+        """Delete repository and clean up local files"""
+        import shutil
+        
+        repo = self.get_repo(repo_id)
+        if not repo:
+            return False
+        
+        # Delete from database (cascades to embeddings, dependencies, etc.)
+        self.db.delete_repository(repo_id)
+        
+        # Clean up local clone if it exists
+        local_path = repo.get("local_path")
+        if local_path and Path(local_path).exists():
+            try:
+                shutil.rmtree(local_path)
+                logger.info("Deleted local repo files", repo_id=repo_id, path=local_path)
+            except Exception as e:
+                logger.warning("Failed to delete local files", repo_id=repo_id, error=str(e))
+        
+        # Remove from in-memory cache
+        if repo_id in self.repos:
+            del self.repos[repo_id]
+        
+        logger.info("Deleted repository", repo_id=repo_id)
+        return True

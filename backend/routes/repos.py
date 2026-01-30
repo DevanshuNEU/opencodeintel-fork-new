@@ -146,6 +146,35 @@ async def add_repository(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.delete("/{repo_id}")
+async def delete_repository(
+    repo_id: str,
+    auth: AuthContext = Depends(require_auth)
+):
+    """Delete a repository and all its indexed data."""
+    user_id = auth.user_id
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID required")
+    
+    # Verify ownership
+    repo = get_repo_or_404(repo_id, user_id)
+    
+    try:
+        success = repo_manager.delete_repo(repo_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete repository")
+        
+        logger.info("Repository deleted", repo_id=repo_id, user_id=user_id)
+        return {"message": "Repository deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to delete repository", repo_id=repo_id, error=str(e))
+        capture_exception(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/{repo_id}/index")
 async def index_repository(
     repo_id: str,
