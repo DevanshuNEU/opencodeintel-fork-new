@@ -246,8 +246,10 @@ class RepoValidator:
                 if file_path.is_symlink():
                     continue
                 
-                # Skip files in excluded directories
-                if any(skip_dir in file_path.parts for skip_dir in self.SKIP_DIRS):
+                # Skip files in excluded directories (use repo-relative path to avoid
+                # false positives when repo is stored in a folder named 'repos', etc.)
+                rel_parts = file_path.relative_to(repo_root).parts
+                if any(skip_dir in rel_parts for skip_dir in self.SKIP_DIRS):
                     continue
                 
                 # Check extension

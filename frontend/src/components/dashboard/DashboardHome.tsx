@@ -36,8 +36,12 @@ const MAX_FREE_REPOS = 3
 // Extract error message from API response (handles nested detail objects)
 function extractErrorMessage(err: any, fallback: string): string {
   if (typeof err?.detail === 'string') return err.detail
-  if (err?.detail?.message) return err.detail.message
-  if (err?.message) return err.message
+  if (typeof err?.detail?.message === 'string') return err.detail.message
+  if (typeof err?.message === 'string') return err.message
+  // Last resort: try to stringify if it's an object
+  if (err?.detail && typeof err.detail === 'object') {
+    return JSON.stringify(err.detail)
+  }
   return fallback
 }
 
@@ -45,6 +49,14 @@ function extractErrorMessage(err: any, fallback: string): string {
 function isUpgradeError(err: any): boolean {
   const code = err?.detail?.error || err?.detail?.error_code
   return ['REPO_TOO_LARGE', 'REPO_LIMIT_REACHED'].includes(code)
+}
+
+// Show upgrade toast with waitlist CTA (DRY helper for 4 call sites)
+function showUpgradeToast(err: any, fallback: string, onJoin: () => void) {
+  toast.error(extractErrorMessage(err, fallback), {
+    description: 'Join the Pro waitlist for higher limits',
+    action: { label: 'Join Waitlist', onClick: onJoin }
+  })
 }
 
 type RepoTab = 'overview' | 'search' | 'dependencies' | 'insights' | 'impact'
@@ -115,10 +127,7 @@ export function DashboardHome() {
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
         if (isUpgradeError(err)) {
-          toast.error(extractErrorMessage(err, 'Repository too large'), {
-            description: 'Join the Pro waitlist for higher limits',
-            action: { label: 'Join Waitlist', onClick: () => setShowUpgradeModal(true) }
-          })
+          showUpgradeToast(err, 'Repository too large', () => setShowUpgradeModal(true))
           return
         }
         throw new Error(extractErrorMessage(err, 'Failed to add repository'))
@@ -136,10 +145,7 @@ export function DashboardHome() {
       if (!indexResponse.ok) {
         const err = await indexResponse.json().catch(() => ({}))
         if (isUpgradeError(err)) {
-          toast.error(extractErrorMessage(err, 'Repository too large'), {
-            description: 'Join the Pro waitlist for higher limits',
-            action: { label: 'Join Waitlist', onClick: () => setShowUpgradeModal(true) }
-          })
+          showUpgradeToast(err, 'Repository too large', () => setShowUpgradeModal(true))
           return
         }
         throw new Error(extractErrorMessage(err, 'Failed to start indexing'))
@@ -183,10 +189,7 @@ export function DashboardHome() {
         if (!response.ok) {
           const err = await response.json().catch(() => ({}))
           if (isUpgradeError(err)) {
-            toast.error(extractErrorMessage(err, `${repo.name} too large`), {
-              description: 'Join the Pro waitlist for higher limits',
-              action: { label: 'Join Waitlist', onClick: () => setShowUpgradeModal(true) }
-            })
+            showUpgradeToast(err, `${repo.name} too large`, () => setShowUpgradeModal(true))
             continue
           }
           throw new Error(extractErrorMessage(err, `Failed to add ${repo.name}`))
@@ -204,10 +207,7 @@ export function DashboardHome() {
         if (!indexResponse.ok) {
           const err = await indexResponse.json().catch(() => ({}))
           if (isUpgradeError(err)) {
-            toast.error(extractErrorMessage(err, `${repo.name} too large`), {
-              description: 'Join the Pro waitlist for higher limits',
-              action: { label: 'Join Waitlist', onClick: () => setShowUpgradeModal(true) }
-            })
+            showUpgradeToast(err, `${repo.name} too large`, () => setShowUpgradeModal(true))
             continue
           }
           const errMsg = extractErrorMessage(err, 'Indexing failed to start')
