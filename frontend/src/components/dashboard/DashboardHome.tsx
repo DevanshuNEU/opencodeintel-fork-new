@@ -33,6 +33,15 @@ import { API_URL } from '../../config/api'
 
 const MAX_FREE_REPOS = 3
 
+// Safe stringify that won't crash on circular refs
+function safeStringify(obj: unknown, maxLen = 200): string {
+  try {
+    return JSON.stringify(obj).slice(0, maxLen)
+  } catch {
+    return String(obj).slice(0, maxLen)
+  }
+}
+
 // Extract error message from API response (handles nested detail objects)
 function extractErrorMessage(err: any, fallback: string): string {
   // FastAPI wraps in detail, but handle both cases
@@ -42,11 +51,11 @@ function extractErrorMessage(err: any, fallback: string): string {
   if (typeof detail?.message === 'string') return detail.message
   if (typeof err?.message === 'string') return err.message
   
-  // Last resort: stringify (but keep it short)
+  // Last resort: stringify (but keep it short, safe from circular refs)
   if (detail && typeof detail === 'object') {
     const msg = detail.message || detail.error
     if (msg) return String(msg)
-    return JSON.stringify(detail).slice(0, 200)
+    return safeStringify(detail)
   }
   return fallback
 }
