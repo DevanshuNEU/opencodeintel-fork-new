@@ -140,6 +140,8 @@ async def add_repository(
             "analysis": analysis.to_dict(),
             "message": "Repository added successfully. Ready for indexing."
         }
+    except HTTPException:
+        raise  # Re-raise HTTPExceptions (like REPO_TOO_LARGE) as-is
     except Exception as e:
         logger.error("Failed to add repository", error=str(e), user_id=user_id)
         capture_exception(e)
