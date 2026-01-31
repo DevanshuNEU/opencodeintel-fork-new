@@ -1,88 +1,126 @@
 <p align="center">
-  <!-- Logo placeholder - replace with actual logo -->
-  <h1 align="center">OpenCodeIntel</h1>
+  <img src="docs/assets/OpenCodeIntel_Fav.png" alt="OpenCodeIntel" width="80" />
+</p>
+
+<h1 align="center">OpenCodeIntel</h1>
+
+<p align="center">
+  <strong>Stop feeling lost in unfamiliar codebases.</strong><br/>
+  Semantic code search powered by AI. Find anything, instantly.
 </p>
 
 <p align="center">
-  <strong>Finally understand your codebase</strong>
+  <a href="https://opencodeintel.com"><strong>Try it Free</strong></a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#quick-start">Self-Host</a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="./docs">Docs</a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="./CONTRIBUTING.md">Contribute</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/OpenCodeIntel/opencodeintel/actions/workflows/ci.yml">
-    <img src="https://github.com/OpenCodeIntel/opencodeintel/actions/workflows/ci.yml/badge.svg" alt="CI Status" />
+    <img src="https://github.com/OpenCodeIntel/opencodeintel/actions/workflows/ci.yml/badge.svg" alt="CI" />
   </a>
   <a href="https://github.com/OpenCodeIntel/opencodeintel/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/OpenCodeIntel/opencodeintel" alt="License" />
   </a>
-  <a href="https://github.com/OpenCodeIntel/opencodeintel/releases">
-    <img src="https://img.shields.io/github/v/release/OpenCodeIntel/opencodeintel?include_prereleases" alt="Release" />
+  <a href="https://github.com/OpenCodeIntel/opencodeintel/stargazers">
+    <img src="https://img.shields.io/github/stars/OpenCodeIntel/opencodeintel?style=social" alt="Stars" />
   </a>
 </p>
 
+<br/>
+
 <p align="center">
-  <a href="#quick-start">Quick Start</a> •
-  <a href="./docs/deployment.md">Docs</a> •
-  <a href="./CONTRIBUTING.md">Contributing</a>
+  <img src="docs/assets/hero.png" alt="OpenCodeIntel Demo" width="800" />
 </p>
 
 ---
 
-You know that mass of code you inherited? The one where you spend 20 minutes grep-ing just to find where authentication happens? Where you're scared to change anything because you don't know what might break?
+## The Problem
 
-**OpenCodeIntel fixes that.**
+You know the feeling. Day one on a new codebase. Deadline in two weeks.
 
-Search your code by what it *does*, not what it's named. Ask for "error handling" and find it—even when the function is called `processFailure()`.
+You need to find "where authentication happens" but the function is called `validateSessionToken()`. Grep for "auth" and you get nothing. You spend 20 minutes clicking through files, afraid to touch anything because you don't know what might break.
 
-<!-- Demo screenshot placeholder -->
-<!-- <p align="center">
-  <img src="docs/assets/demo.png" alt="OpenCodeIntel Demo" width="800" />
-</p> -->
+Traditional code search matches text, not meaning. You have to already know what you're looking for to find it.
 
-## See it in action
+---
 
-| You search for... | It finds... |
-|-------------------|-------------|
-| `"authentication logic"` | `validateJWT()`, `checkSession()`, `authMiddleware.ts` |
-| `"where we handle payments"` | `stripe/checkout.ts`, `processRefund()`, `PaymentService` |
-| `"error handling"` | `processFailure()`, `onError()`, `catch` blocks across the codebase |
+## The Solution
+
+OpenCodeIntel understands your code the way you do. Search by what code *does*, not what it's named.
+
+```
+You search: "authentication logic"
+It finds:   validateSessionToken(), checkJWT(), authMiddleware.ts
+```
+
+```
+You search: "where we handle payments"  
+It finds:   stripe/checkout.ts, processRefund(), PaymentService
+```
+
+```
+You search: "error handling"
+It finds:   catch blocks, onError(), processFailure()
+```
 
 No regex. No exact matches. Just describe what you're looking for.
 
-## What else?
+---
 
-**Dependency Graph** — See how your files connect. One glance shows you the architecture.
+## Features
 
-**Impact Analysis** — About to change `auth.ts`? Know exactly what breaks before you touch it.
+### Semantic Code Search
+Search by meaning, not keywords. Find that function even when you don't know its name.
 
-**Code Style** — Understand your team's patterns. snake_case or camelCase? How are errors handled?
+### Dependency Graph  
+Visualize how your files connect. Understand the architecture at a glance.
 
-**Works with Claude** — Connects as an MCP server. Your AI assistant finally understands your codebase.
+### Impact Analysis
+About to change `auth.ts`? Know exactly what breaks before you touch it.
+
+### Code Style Intelligence
+Understand your team's patterns. snake_case or camelCase? How are errors handled? Match conventions instantly.
+
+### Works with Claude (MCP)
+Connect as an MCP server. Your AI assistant gets real context about your codebase, not just the file you have open.
+
+---
 
 ## Quick Start
+
+### Hosted (Fastest)
+
+Go to [opencodeintel.com](https://opencodeintel.com), connect your GitHub, and start searching in under a minute.
+
+### Self-Hosted
 
 ```bash
 git clone https://github.com/OpenCodeIntel/opencodeintel.git
 cd opencodeintel
 
 cp .env.example .env
-# Add your API keys
+# Add your OpenAI + Pinecone API keys
 
 docker compose up -d
 ```
 
-Open http://localhost:3000. That's it.
+Open [localhost:3000](http://localhost:3000). Done.
 
 <details>
 <summary><strong>Manual setup (without Docker)</strong></summary>
 
-**Requirements:** Python 3.11+, Node.js 20+
+**Requirements:** Python 3.11+, Node.js 20+, Redis
 
 ```bash
 # Backend
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
 python main.py
 
 # Frontend (new terminal)
@@ -95,7 +133,7 @@ npm install && npm run dev
 <details>
 <summary><strong>Connect to Claude Desktop (MCP)</strong></summary>
 
-Add to your Claude Desktop config:
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -112,38 +150,89 @@ Add to your Claude Desktop config:
 }
 ```
 
-See [full MCP setup guide](./docs/mcp-setup.md).
+See [full MCP setup guide](./docs/mcp-setup.md)
 
 </details>
+
+---
+
+## Why I Built This
+
+I got tired of grep.
+
+Every time I joined a new project or inherited a codebase, I spent hours just figuring out where things lived. The original authors were gone. The docs were outdated. And I was scared to change anything because I couldn't see what depended on what.
+
+I wanted code search that actually understood what code does. Not pattern matching on text. Something that could answer "where do we handle user sessions?" without me already knowing the answer.
+
+OpenCodeIntel is the tool I wish I had. It's open source because I think every developer deserves to understand their code, not just those at companies with dedicated platform teams.
+
+---
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────┐
-│           Frontend (React)              │
+│           Frontend (React + Vite)       │
 └─────────────────┬───────────────────────┘
                   │
 ┌─────────────────▼───────────────────────┐
 │          Backend (FastAPI)              │
+│  • Semantic indexing with OpenAI        │
+│  • Dependency graph analysis            │
+│  • Real-time WebSocket updates          │
 └───────┬─────────┬─────────┬─────────────┘
         │         │         │
    ┌────▼───┐ ┌───▼────┐ ┌──▼───┐
    │Pinecone│ │Supabase│ │Redis │
-   │vectors │ │database│ │cache │
+   │vectors │ │metadata│ │cache │
    └────────┘ └────────┘ └──────┘
 ```
 
-## Docs
+---
 
-- [Docker Quickstart](./docs/docker-quickstart.md) — Running in 5 minutes
-- [Deployment Guide](./docs/deployment.md) — Production setup
-- [MCP Integration](./docs/mcp-setup.md) — Claude Desktop setup
-- [Troubleshooting](./docs/docker-troubleshooting.md) — Common fixes
+## Roadmap
+
+- [x] Semantic code search
+- [x] GitHub OAuth integration  
+- [x] Dependency graph visualization
+- [x] Impact analysis
+- [x] MCP server for Claude
+- [ ] VS Code extension
+- [ ] Team workspaces
+- [ ] Self-hosted Ollama support (no OpenAI required)
+- [ ] GitLab / Bitbucket support
+
+Want to influence the roadmap? [Open an issue](https://github.com/OpenCodeIntel/opencodeintel/issues).
+
+---
 
 ## Contributing
 
-We'd love your help. See [CONTRIBUTING.md](./CONTRIBUTING.md).
+Found a bug? [Open an issue](https://github.com/OpenCodeIntel/opencodeintel/issues/new?template=bug_report.yml)
+
+Have an idea? [Request a feature](https://github.com/OpenCodeIntel/opencodeintel/issues/new?template=feature_request.yml)
+
+Want to contribute code? See [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+---
+
+## Documentation
+
+- [Docker Quickstart](./docs/docker-quickstart.md)
+- [Deployment Guide](./docs/deployment.md)
+- [MCP Integration](./docs/mcp-setup.md)  
+- [Troubleshooting](./docs/docker-troubleshooting.md)
+
+---
 
 ## License
 
 [MIT](./LICENSE)
+
+---
+
+<p align="center">
+  <a href="https://opencodeintel.com">Website</a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="https://github.com/OpenCodeIntel/opencodeintel">GitHub</a>
+</p>
