@@ -98,9 +98,11 @@ export function Playground({ onSignupClick }: PlaygroundProps) {
       <nav className="border-b border-gray-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-              <span className="text-white font-bold text-xs">CI</span>
-            </div>
+            <img 
+              src="/favicon.png" 
+              alt="OpenCodeIntel" 
+              className="w-7 h-7 rounded-lg"
+            />
             <span className="font-semibold text-gray-900">OpenCodeIntel</span>
           </div>
           <div className="flex items-center gap-3">

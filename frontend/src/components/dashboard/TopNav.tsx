@@ -42,11 +42,12 @@ export function TopNav({ onToggleSidebar, sidebarCollapsed, onOpenCommandPalette
           </button>
 
           <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-xs">OCI</span>
-            </div>
+            <img 
+              src="/favicon.png" 
+              alt="OpenCodeIntel" 
+              className="w-8 h-8 rounded-lg"
+            />
             <span className="font-semibold text-foreground hidden sm:block">OpenCodeIntel</span>
-            <span className="text-xs text-muted-foreground hidden md:block">MCP Server</span>
           </Link>
         </div>
 
