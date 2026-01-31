@@ -53,17 +53,17 @@ Traditional code search matches text, not meaning. You have to already know what
 
 OpenCodeIntel understands your code the way you do. Search by what code *does*, not what it's named.
 
-```
+```text
 You search: "authentication logic"
 It finds:   validateSessionToken(), checkJWT(), authMiddleware.ts
 ```
 
-```
+```text
 You search: "where we handle payments"  
 It finds:   stripe/checkout.ts, processRefund(), PaymentService
 ```
 
-```
+```text
 You search: "error handling"
 It finds:   catch blocks, onError(), processFailure()
 ```
@@ -170,7 +170,7 @@ OpenCodeIntel is the tool I wish I had. It's open source because I think every d
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │           Frontend (React + Vite)       │
 └─────────────────┬───────────────────────┘
