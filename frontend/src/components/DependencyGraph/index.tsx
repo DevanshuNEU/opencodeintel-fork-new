@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import ReactFlow, {
   Controls,
   Background,
@@ -125,6 +125,7 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
   const [clusterByDir, setClusterByDir] = useState(false)
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set())
   const [rawGraphData, setRawGraphData] = useState<any>(null)
+  const [renderKey, setRenderKey] = useState(0) // Force re-render key
 
   const { fitView } = useReactFlow()
   const { resolvedTheme } = useTheme()
@@ -136,6 +137,23 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
   useEffect(() => {
     if (data) setRawGraphData(data)
   }, [data])
+
+  // Handle tab visibility changes - force re-render when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Force re-render by updating key
+        setRenderKey(k => k + 1)
+        // Also trigger fitView after a short delay
+        setTimeout(() => {
+          fitView({ padding: 0.2, duration: 200 })
+        }, 100)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [fitView])
 
   const visibleNodeIds = useMemo(() => {
     if (!rawGraphData || !impact.isReady) return new Set<string>()
@@ -241,14 +259,17 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
     let flowNodes: Node[] = []
     let flowEdges: Edge[] = []
 
-    if (clusterByDir && clusteredData) {
+    // Only use cluster mode if we have clustered data ready
+    const useClusterMode = clusterByDir && clusteredData && clusteredData.dirNodes.length > 0
+
+    if (useClusterMode) {
       // Safety: only apply selection highlighting if the selected node is actually visible
       const effectiveSelectedIdCluster = selectedNodeId && 
-        (clusteredData.visibleFiles.has(selectedNodeId) || selectedNodeId.startsWith('dir:')) 
+        (clusteredData!.visibleFiles.has(selectedNodeId) || selectedNodeId.startsWith('dir:')) 
         ? selectedNodeId : null
       
       // Add directory nodes
-      clusteredData.dirNodes.forEach(dir => {
+      clusteredData!.dirNodes.forEach(dir => {
         flowNodes.push({
           id: dir.id,
           type: 'directory',
@@ -259,7 +280,7 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
 
       // Add visible file nodes
       rawGraphData.nodes
-        .filter((node: any) => clusteredData.visibleFiles.has(node.id))
+        .filter((node: any) => clusteredData!.visibleFiles.has(node.id))
         .forEach((node: any) => {
           const fileName = node.label || node.id.split('/').pop()
           const metrics = impact.getFileMetrics(node.id)
@@ -289,7 +310,7 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
         })
 
       // Add edges
-      clusteredData.edges.forEach(([source, target]) => {
+      clusteredData!.edges.forEach(([source, target]) => {
         flowEdges.push({
           id: `${source}-${target}`,
           source,
@@ -360,12 +381,14 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
     setEdges(layoutedEdges)
   }, [rawGraphData, impact.isReady, visibleNodeIds, selectedNodeId, selectedImpact, hoveredFileId, isDark, clusterByDir, clusteredData])
 
+  // Fit view when nodes change or panel opens/closes
   useEffect(() => {
     if (nodes.length > 0) {
       const minZoom = nodes.length > 20 ? 0.5 : 0.3
-      setTimeout(() => fitView({ padding: 0.2, duration: 300, minZoom }), 100)
+      // Delay to allow container resize when panel opens/closes
+      setTimeout(() => fitView({ padding: 0.2, duration: 300, minZoom }), 150)
     }
-  }, [showAll, showTests, clusterByDir, expandedDirs])
+  }, [nodes.length, selectedNodeId, showAll, showTests, clusterByDir, expandedDirs, fitView])
 
   const handleNodeClick = useCallback((_: any, node: Node) => {
     // Toggle directory expansion
@@ -492,6 +515,7 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
       <div className="flex overflow-hidden" style={{ height: '600px' }}>
         <div className="relative" style={{ flex: 1, height: '600px' }}>
           <ReactFlow
+            key={renderKey}
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
