@@ -54,7 +54,7 @@ const STATE_STYLES: Record<GraphNodeData['state'], string> = {
   selected: 'border-indigo-500 bg-white dark:bg-zinc-900 ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/20',
   direct: 'border-rose-500 bg-white dark:bg-zinc-900 ring-1 ring-rose-500/30',
   transitive: 'border-amber-500 bg-white dark:bg-zinc-900 ring-1 ring-amber-500/30',
-  dimmed: 'border-zinc-200 bg-zinc-50/50 opacity-40 dark:border-zinc-800 dark:bg-zinc-900/50',
+  dimmed: 'border-zinc-300 bg-zinc-100 opacity-50 dark:border-zinc-600 dark:bg-zinc-800/80',
 }
 
 const RISK_CONFIG: Record<RiskLevel, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string; className: string }> = {

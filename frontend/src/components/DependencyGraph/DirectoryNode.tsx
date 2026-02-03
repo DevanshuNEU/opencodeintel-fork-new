@@ -21,7 +21,7 @@ const STATE_STYLES: Record<DirectoryNodeData['state'], string> = {
   selected: 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950 ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/20',
   direct: 'border-rose-500 bg-rose-50 dark:bg-rose-950 ring-1 ring-rose-500/30',
   transitive: 'border-amber-500 bg-amber-50 dark:bg-amber-950 ring-1 ring-amber-500/30',
-  dimmed: 'border-zinc-200 bg-zinc-100/50 opacity-40 dark:border-zinc-800 dark:bg-zinc-900/50',
+  dimmed: 'border-zinc-300 bg-zinc-100 opacity-50 dark:border-zinc-600 dark:bg-zinc-800/80',
 }
 
 const RISK_STYLES: Record<RiskLevel, string> = {

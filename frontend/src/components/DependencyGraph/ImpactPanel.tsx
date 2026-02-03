@@ -115,11 +115,6 @@ function CollapsibleSection({
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
-  // Reset collapse state when file selection changes
-  useEffect(() => {
-    setIsOpen(defaultOpen)
-  }, [defaultOpen, files])
-
   const variantStyles = {
     direct: 'text-rose-600 dark:text-rose-400',
     transitive: 'text-amber-600 dark:text-amber-400',
