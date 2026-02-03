@@ -44,6 +44,11 @@ const LAYOUT_CONFIG = {
 const DEFAULT_VISIBLE_COUNT = 15
 
 function getLayoutedElements(nodes: Node[], edges: Edge[]) {
+  // Guard: if no nodes, return empty
+  if (nodes.length === 0) {
+    return { nodes: [], edges: [] }
+  }
+
   const dagreGraph = new dagre.graphlib.Graph()
   dagreGraph.setDefaultEdgeLabel(() => ({}))
   dagreGraph.setGraph({
@@ -59,19 +64,26 @@ function getLayoutedElements(nodes: Node[], edges: Edge[]) {
     })
   })
 
+  // Only add edges where both source and target exist in nodes
+  const nodeIds = new Set(nodes.map(n => n.id))
   edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target)
+    if (nodeIds.has(edge.source) && nodeIds.has(edge.target)) {
+      dagreGraph.setEdge(edge.source, edge.target)
+    }
   })
 
   dagre.layout(dagreGraph)
 
   const layoutedNodes = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id)
+    // Guard: if dagre failed to position node, use fallback
+    const x = nodeWithPosition?.x ?? 0
+    const y = nodeWithPosition?.y ?? 0
     return {
       ...node,
       position: {
-        x: nodeWithPosition.x - LAYOUT_CONFIG.nodeWidth / 2,
-        y: nodeWithPosition.y - LAYOUT_CONFIG.nodeHeight / 2,
+        x: x - LAYOUT_CONFIG.nodeWidth / 2,
+        y: y - LAYOUT_CONFIG.nodeHeight / 2,
       },
     }
   })
@@ -252,14 +264,12 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
           const fileName = node.label || node.id.split('/').pop()
           const metrics = impact.getFileMetrics(node.id)
           
+          // Simplified state - only highlight, don't dim
           let state: GraphNodeData['state'] = 'default'
           if (effectiveSelectedIdCluster === node.id) state = 'selected'
           else if (selectedImpact?.directDependents.includes(node.id)) state = 'direct'
           else if (selectedImpact?.transitiveDependents.includes(node.id)) state = 'transitive'
-          else if (effectiveSelectedIdCluster && !effectiveSelectedIdCluster.startsWith('dir:')) state = 'dimmed'
-          
-          // Hover highlighting in clustered mode
-          if (hoveredFileId === node.id && state === 'dimmed') state = 'direct'
+          // Don't dim - keep as default
 
           flowNodes.push({
             id: node.id,
@@ -298,15 +308,14 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
           const fileName = node.label || node.id.split('/').pop()
           const metrics = impact.getFileMetrics(node.id)
           
+          // Simplified state - only highlight selected and dependents, don't dim others
           let state: GraphNodeData['state'] = 'default'
           if (effectiveSelectedId) {
             if (node.id === effectiveSelectedId) state = 'selected'
             else if (selectedImpact?.directDependents.includes(node.id)) state = 'direct'
             else if (selectedImpact?.transitiveDependents.includes(node.id)) state = 'transitive'
-            else state = 'dimmed'
+            // Don't dim - keep as default for visibility
           }
-
-          if (hoveredFileId === node.id && state === 'dimmed') state = 'direct'
 
           return {
             id: node.id,
@@ -328,11 +337,12 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
       flowEdges = rawGraphData.edges
         .filter((edge: any) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
         .map((edge: any) => {
+          // Simplified - only highlight connected edges, don't dim others
           let edgeState: 'default' | 'highlighted' | 'dimmed' | 'incoming' | 'outgoing' = 'default'
           if (effectiveSelectedId) {
             if (edge.source === effectiveSelectedId) edgeState = 'outgoing'
             else if (edge.target === effectiveSelectedId) edgeState = 'incoming'
-            else edgeState = 'dimmed'
+            // Don't dim - keep as default
           }
 
           return {
