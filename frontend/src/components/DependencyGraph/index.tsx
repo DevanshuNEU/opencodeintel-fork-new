@@ -230,6 +230,11 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
     let flowEdges: Edge[] = []
 
     if (clusterByDir && clusteredData) {
+      // Safety: only apply selection highlighting if the selected node is actually visible
+      const effectiveSelectedIdCluster = selectedNodeId && 
+        (clusteredData.visibleFiles.has(selectedNodeId) || selectedNodeId.startsWith('dir:')) 
+        ? selectedNodeId : null
+      
       // Add directory nodes
       clusteredData.dirNodes.forEach(dir => {
         flowNodes.push({
@@ -248,10 +253,10 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
           const metrics = impact.getFileMetrics(node.id)
           
           let state: GraphNodeData['state'] = 'default'
-          if (selectedNodeId === node.id) state = 'selected'
+          if (effectiveSelectedIdCluster === node.id) state = 'selected'
           else if (selectedImpact?.directDependents.includes(node.id)) state = 'direct'
           else if (selectedImpact?.transitiveDependents.includes(node.id)) state = 'transitive'
-          else if (selectedNodeId && !selectedNodeId.startsWith('dir:')) state = 'dimmed'
+          else if (effectiveSelectedIdCluster && !effectiveSelectedIdCluster.startsWith('dir:')) state = 'dimmed'
           
           // Hover highlighting in clustered mode
           if (hoveredFileId === node.id && state === 'dimmed') state = 'direct'
@@ -284,6 +289,9 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
       })
     } else {
       // Non-clustered mode (original logic)
+      // Safety: only apply selection highlighting if the selected node is actually visible
+      const effectiveSelectedId = selectedNodeId && visibleNodeIds.has(selectedNodeId) ? selectedNodeId : null
+      
       flowNodes = rawGraphData.nodes
         .filter((node: any) => visibleNodeIds.has(node.id))
         .map((node: any) => {
@@ -291,8 +299,8 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
           const metrics = impact.getFileMetrics(node.id)
           
           let state: GraphNodeData['state'] = 'default'
-          if (selectedNodeId) {
-            if (node.id === selectedNodeId) state = 'selected'
+          if (effectiveSelectedId) {
+            if (node.id === effectiveSelectedId) state = 'selected'
             else if (selectedImpact?.directDependents.includes(node.id)) state = 'direct'
             else if (selectedImpact?.transitiveDependents.includes(node.id)) state = 'transitive'
             else state = 'dimmed'
@@ -321,9 +329,9 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
         .filter((edge: any) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
         .map((edge: any) => {
           let edgeState: 'default' | 'highlighted' | 'dimmed' | 'incoming' | 'outgoing' = 'default'
-          if (selectedNodeId) {
-            if (edge.source === selectedNodeId) edgeState = 'outgoing'
-            else if (edge.target === selectedNodeId) edgeState = 'incoming'
+          if (effectiveSelectedId) {
+            if (edge.source === effectiveSelectedId) edgeState = 'outgoing'
+            else if (edge.target === effectiveSelectedId) edgeState = 'incoming'
             else edgeState = 'dimmed'
           }
 
@@ -369,12 +377,26 @@ function DependencyGraphInner({ repoId, apiUrl, apiKey }: DependencyGraphProps) 
   }, [])
 
   const handlePanelFileClick = useCallback((fileId: string) => {
+    // Only select if the file is currently visible in the graph
+    // Otherwise clicking on a non-visible dependent breaks the view
+    if (!visibleNodeIds.has(fileId)) {
+      // If not visible, enable "show all" to make it visible first
+      if (!showAll) {
+        setShowAll(true)
+        // Small delay to let the nodes render, then select
+        setTimeout(() => {
+          setSelectedNodeId(fileId)
+        }, 100)
+        return
+      }
+    }
+    
     setSelectedNodeId(fileId)
     const node = nodes.find(n => n.id === fileId)
     if (node) {
       fitView({ nodes: [node], padding: 0.5, duration: 300 })
     }
-  }, [nodes, fitView])
+  }, [nodes, fitView, visibleNodeIds, showAll])
 
   const handleResetView = useCallback(() => {
     setSelectedNodeId(null)
