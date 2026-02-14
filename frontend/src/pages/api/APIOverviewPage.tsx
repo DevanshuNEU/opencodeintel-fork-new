@@ -42,11 +42,15 @@ export function APIOverviewPage() {
       
       <DocsCodeBlock language="text">
 {`# Local development
-http://localhost:8000/api
+http://localhost:8000/api/v1
 
 # Hosted version
-https://api.opencodeintel.com/api`}
+https://api.opencodeintel.com/api/v1`}
       </DocsCodeBlock>
+
+      <p className="text-gray-300 mt-4 mb-4">
+        The API is versioned. Current version is <code className="px-1.5 py-0.5 bg-white/10 rounded text-sm">v1</code>.
+      </p>
 
       <h2 id="authentication" className="text-2xl font-semibold text-white mt-12 mb-4">Authentication</h2>
       
@@ -56,7 +60,7 @@ https://api.opencodeintel.com/api`}
 
       <DocsCodeBlock language="bash">
 {`curl -H "Authorization: Bearer YOUR_API_KEY" \\
-  http://localhost:8000/api/repos`}
+  http://localhost:8000/api/v1/repos`}
       </DocsCodeBlock>
 
       <p className="text-gray-300 mt-4 mb-4">
@@ -91,14 +95,14 @@ https://api.opencodeintel.com/api`}
           href="/docs/api/analysis"
         />
         <EndpointLink
-          method="GET"
+          method="POST"
           path="/repos/{id}/impact"
           description="Analyze change impact"
           href="/docs/api/analysis"
         />
         <EndpointLink
           method="GET"
-          path="/repos/{id}/style"
+          path="/repos/{id}/style-analysis"
           description="Analyze code style"
           href="/docs/api/analysis"
         />

@@ -33,7 +33,7 @@ export function APISearchPage() {
         <span className="text-xs font-mono font-bold px-2 py-1 rounded text-blue-400 bg-blue-500/10">
           POST
         </span>
-        <code className="text-sm text-gray-300">/api/search</code>
+        <code className="text-sm text-gray-300">/api/v1/search</code>
       </div>
       
       <p className="text-gray-300 mb-4">
@@ -163,7 +163,7 @@ export function APISearchPage() {
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"query": "error handling", "repo_id": "repo_abc123"}' \\
-  http://localhost:8000/api/search`}
+  http://localhost:8000/api/v1/search`}
       </DocsCodeBlock>
 
       <h3 className="text-lg font-medium text-white mt-8 mb-3">Search with Filters</h3>
@@ -178,7 +178,7 @@ export function APISearchPage() {
     "min_score": 0.7,
     "file_filter": "**/*.py"
   }' \\
-  http://localhost:8000/api/search`}
+  http://localhost:8000/api/v1/search`}
       </DocsCodeBlock>
 
       <DocsCallout type="tip">

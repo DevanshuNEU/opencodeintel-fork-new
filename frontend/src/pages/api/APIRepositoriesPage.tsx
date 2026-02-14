@@ -29,7 +29,7 @@ export function APIRepositoriesPage() {
 
       {/* List Repositories */}
       <h2 id="list" className="text-2xl font-semibold text-white mt-12 mb-4">List Repositories</h2>
-      <EndpointHeader method="GET" path="/api/repos" />
+      <EndpointHeader method="GET" path="/api/v1/repos" />
       
       <p className="text-gray-300 mb-4">Returns all repositories accessible to your account.</p>
       
@@ -54,12 +54,12 @@ export function APIRepositoriesPage() {
       <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Example</h4>
       <DocsCodeBlock language="bash">
 {`curl -H "Authorization: Bearer YOUR_API_KEY" \\
-  http://localhost:8000/api/repos`}
+  http://localhost:8000/api/v1/repos`}
       </DocsCodeBlock>
 
       {/* Get Repository */}
       <h2 id="get" className="text-2xl font-semibold text-white mt-12 mb-4">Get Repository</h2>
-      <EndpointHeader method="GET" path="/api/repos/{repo_id}" />
+      <EndpointHeader method="GET" path="/api/v1/repos/{repo_id}" />
       
       <p className="text-gray-300 mb-4">Get details for a specific repository.</p>
       
@@ -89,7 +89,7 @@ export function APIRepositoriesPage() {
 
       {/* Add Repository */}
       <h2 id="create" className="text-2xl font-semibold text-white mt-12 mb-4">Add Repository</h2>
-      <EndpointHeader method="POST" path="/api/repos" />
+      <EndpointHeader method="POST" path="/api/v1/repos" />
       
       <p className="text-gray-300 mb-4">Add a new repository for indexing.</p>
       
@@ -117,12 +117,12 @@ export function APIRepositoriesPage() {
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://github.com/user/my-project"}' \\
-  http://localhost:8000/api/repos`}
+  http://localhost:8000/api/v1/repos`}
       </DocsCodeBlock>
 
       {/* Delete Repository */}
       <h2 id="delete" className="text-2xl font-semibold text-white mt-12 mb-4">Delete Repository</h2>
-      <EndpointHeader method="DELETE" path="/api/repos/{repo_id}" />
+      <EndpointHeader method="DELETE" path="/api/v1/repos/{repo_id}" />
       
       <p className="text-gray-300 mb-4">Remove a repository and all its indexed data.</p>
       
@@ -140,7 +140,7 @@ export function APIRepositoriesPage() {
 
       {/* Reindex Repository */}
       <h2 id="reindex" className="text-2xl font-semibold text-white mt-12 mb-4">Reindex Repository</h2>
-      <EndpointHeader method="POST" path="/api/repos/{repo_id}/reindex" />
+      <EndpointHeader method="POST" path="/api/v1/repos/{repo_id}/reindex" />
       
       <p className="text-gray-300 mb-4">Trigger a fresh index of the repository. Use after major code changes.</p>
       

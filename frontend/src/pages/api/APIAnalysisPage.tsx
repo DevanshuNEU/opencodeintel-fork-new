@@ -33,7 +33,7 @@ export function APIAnalysisPage() {
         <span className="text-xs font-mono font-bold px-2 py-1 rounded text-green-400 bg-green-500/10">
           GET
         </span>
-        <code className="text-sm text-gray-300">/api/repos/{'{repo_id}'}/dependencies</code>
+        <code className="text-sm text-gray-300">/api/v1/repos/{'{repo_id}'}/dependencies</code>
       </div>
       
       <p className="text-gray-300 mb-4">
@@ -73,44 +73,30 @@ export function APIAnalysisPage() {
       <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Example</h4>
       <DocsCodeBlock language="bash">
 {`curl -H "Authorization: Bearer YOUR_API_KEY" \\
-  http://localhost:8000/api/repos/repo_abc123/dependencies`}
+  http://localhost:8000/api/v1/repos/repo_abc123/dependencies`}
       </DocsCodeBlock>
 
       {/* Impact Analysis */}
       <h2 id="impact" className="text-2xl font-semibold text-white mt-12 mb-4">Impact Analysis</h2>
       
       <div className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/10 rounded-lg mb-4">
-        <span className="text-xs font-mono font-bold px-2 py-1 rounded text-green-400 bg-green-500/10">
-          GET
+        <span className="text-xs font-mono font-bold px-2 py-1 rounded text-blue-400 bg-blue-500/10">
+          POST
         </span>
-        <code className="text-sm text-gray-300">/api/repos/{'{repo_id}'}/impact</code>
+        <code className="text-sm text-gray-300">/api/v1/repos/{'{repo_id}'}/impact</code>
       </div>
       
       <p className="text-gray-300 mb-4">
         Analyze the impact of changing a specific file.
       </p>
 
-      <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Query Parameters</h4>
-      <div className="overflow-x-auto mb-4">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-white/10">
-              <th className="text-left py-2 text-gray-400 font-medium">Parameter</th>
-              <th className="text-left py-2 text-gray-400 font-medium">Type</th>
-              <th className="text-left py-2 text-gray-400 font-medium">Required</th>
-              <th className="text-left py-2 text-gray-400 font-medium">Description</th>
-            </tr>
-          </thead>
-          <tbody className="text-gray-300">
-            <tr>
-              <td className="py-2 font-mono text-blue-400">file</td>
-              <td className="py-2 font-mono text-xs">string</td>
-              <td className="py-2"><span className="text-amber-400">Yes</span></td>
-              <td className="py-2">Path to the file to analyze</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Request Body</h4>
+      <DocsCodeBlock language="json">
+{`{
+  "repo_id": "repo_abc123",
+  "file_path": "src/auth/middleware.py"
+}`}
+      </DocsCodeBlock>
 
       <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Response</h4>
       <DocsCodeBlock language="json">
@@ -141,8 +127,11 @@ export function APIAnalysisPage() {
 
       <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Example</h4>
       <DocsCodeBlock language="bash">
-{`curl -H "Authorization: Bearer YOUR_API_KEY" \\
-  "http://localhost:8000/api/repos/repo_abc123/impact?file=src/auth/middleware.py"`}
+{`curl -X POST \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"repo_id": "repo_abc123", "file_path": "src/auth/middleware.py"}' \\
+  http://localhost:8000/api/v1/repos/repo_abc123/impact`}
       </DocsCodeBlock>
 
       {/* Code Style */}
@@ -152,7 +141,7 @@ export function APIAnalysisPage() {
         <span className="text-xs font-mono font-bold px-2 py-1 rounded text-green-400 bg-green-500/10">
           GET
         </span>
-        <code className="text-sm text-gray-300">/api/repos/{'{repo_id}'}/style</code>
+        <code className="text-sm text-gray-300">/api/v1/repos/{'{repo_id}'}/style-analysis</code>
       </div>
       
       <p className="text-gray-300 mb-4">
@@ -191,7 +180,7 @@ export function APIAnalysisPage() {
         <span className="text-xs font-mono font-bold px-2 py-1 rounded text-green-400 bg-green-500/10">
           GET
         </span>
-        <code className="text-sm text-gray-300">/api/repos/{'{repo_id}'}/insights</code>
+        <code className="text-sm text-gray-300">/api/v1/repos/{'{repo_id}'}/insights</code>
       </div>
       
       <p className="text-gray-300 mb-4">
@@ -229,7 +218,7 @@ export function APIAnalysisPage() {
       <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Example</h4>
       <DocsCodeBlock language="bash">
 {`curl -H "Authorization: Bearer YOUR_API_KEY" \\
-  http://localhost:8000/api/repos/repo_abc123/insights`}
+  http://localhost:8000/api/v1/repos/repo_abc123/insights`}
       </DocsCodeBlock>
 
       <DocsPagination
