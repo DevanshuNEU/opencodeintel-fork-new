@@ -8,8 +8,11 @@ import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './components/Dashboard';
 import { DocsHomePage } from './pages/DocsHomePage';
 import { MCPSetupPage } from './pages/MCPSetupPage';
+import { MCPToolsPage } from './pages/MCPToolsPage';
+import { MCPExamplesPage } from './pages/MCPExamplesPage';
 import { QuickStartPage } from './pages/QuickStartPage';
 import { SemanticSearchPage, DependencyAnalysisPage, ImpactPredictionPage, CodeStyleAnalysisPage } from './pages/features';
+import { DockerSetupPage, SelfHostingPage } from './pages/deployment';
 import { GitHubCallbackPage } from './pages/GitHubCallbackPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -70,8 +73,8 @@ function AppRoutes() {
       <Route path="/docs" element={<DocsHomePage />} />
       <Route path="/docs/quickstart" element={<QuickStartPage />} />
       <Route path="/docs/mcp-setup" element={<MCPSetupPage />} />
-      <Route path="/docs/mcp-tools" element={<MCPSetupPage />} />
-      <Route path="/docs/mcp-examples" element={<MCPSetupPage />} />
+      <Route path="/docs/mcp-tools" element={<MCPToolsPage />} />
+      <Route path="/docs/mcp-examples" element={<MCPExamplesPage />} />
       
       {/* Feature pages */}
       <Route path="/docs/features/search" element={<SemanticSearchPage />} />
@@ -79,10 +82,13 @@ function AppRoutes() {
       <Route path="/docs/features/impact" element={<ImpactPredictionPage />} />
       <Route path="/docs/features/style" element={<CodeStyleAnalysisPage />} />
       
+      {/* Deployment pages */}
+      <Route path="/docs/deployment/docker" element={<DockerSetupPage />} />
+      <Route path="/docs/deployment/self-host" element={<SelfHostingPage />} />
+      
       {/* Placeholder routes for future docs pages */}
       <Route path="/docs/api" element={<DocsHomePage />} />
       <Route path="/docs/api/*" element={<DocsHomePage />} />
-      <Route path="/docs/deployment/*" element={<DocsHomePage />} />
       <Route path="/docs/architecture" element={<DocsHomePage />} />
       <Route path="/docs/contributing/*" element={<DocsHomePage />} />
       <Route
