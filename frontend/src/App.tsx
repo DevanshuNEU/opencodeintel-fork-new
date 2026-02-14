@@ -14,6 +14,8 @@ import { QuickStartPage } from './pages/QuickStartPage';
 import { SemanticSearchPage, DependencyAnalysisPage, ImpactPredictionPage, CodeStyleAnalysisPage } from './pages/features';
 import { DockerSetupPage, SelfHostingPage } from './pages/deployment';
 import { APIOverviewPage, APIRepositoriesPage, APISearchPage, APIAnalysisPage } from './pages/api';
+import { ArchitecturePage } from './pages/ArchitecturePage';
+import { ContributingPage } from './pages/ContributingPage';
 import { GitHubCallbackPage } from './pages/GitHubCallbackPage';
 import { ScrollToTop } from './components/ScrollToTop';
 
@@ -94,9 +96,9 @@ function AppRoutes() {
       <Route path="/docs/api/search" element={<APISearchPage />} />
       <Route path="/docs/api/analysis" element={<APIAnalysisPage />} />
       
-      {/* Placeholder routes for future docs pages */}
-      <Route path="/docs/architecture" element={<DocsHomePage />} />
-      <Route path="/docs/contributing/*" element={<DocsHomePage />} />
+      {/* Contributing pages */}
+      <Route path="/docs/architecture" element={<ArchitecturePage />} />
+      <Route path="/docs/contributing" element={<ContributingPage />} />
       <Route
         path="/github/callback"
         element={

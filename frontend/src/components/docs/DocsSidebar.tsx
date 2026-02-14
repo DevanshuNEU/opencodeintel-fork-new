@@ -72,6 +72,7 @@ const navigation: NavSection[] = [
     title: 'Contributing',
     items: [
       { title: 'Architecture', href: '/docs/architecture', icon: <GitBranch className="w-4 h-4" /> },
+      { title: 'Development Setup', href: '/docs/contributing', icon: <Code className="w-4 h-4" /> },
     ],
   },
 ]
