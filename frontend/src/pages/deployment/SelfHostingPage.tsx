@@ -216,7 +216,7 @@ docker compose -f docker-compose.prod.yml up -d
 
       <DocsPagination
         prev={{ title: 'Docker Setup', href: '/docs/deployment/docker' }}
-        next={{ title: 'Architecture', href: '/docs/architecture' }}
+        next={{ title: 'API Overview', href: '/docs/api' }}
       />
     </DocsLayout>
   )
