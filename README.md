@@ -123,9 +123,9 @@ python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 python main.py
 
-# Frontend (new terminal)
+# Frontend (new terminal) - MUST use Bun!
 cd frontend
-npm install && npm run dev
+bun install && bun run dev
 ```
 
 </details>
