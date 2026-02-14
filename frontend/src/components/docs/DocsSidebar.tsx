@@ -13,8 +13,6 @@ import {
   AlertTriangle, 
   Palette,
   Server,
-  Settings,
-  Users,
   ChevronLeft
 } from 'lucide-react'
 
@@ -58,7 +56,6 @@ const navigation: NavSection[] = [
     title: 'API Reference',
     items: [
       { title: 'Overview', href: '/docs/api', icon: <Code className="w-4 h-4" /> },
-      { title: 'Authentication', href: '/docs/api/authentication', icon: <Settings className="w-4 h-4" /> },
       { title: 'Repositories', href: '/docs/api/repositories', icon: <GitBranch className="w-4 h-4" /> },
       { title: 'Search', href: '/docs/api/search', icon: <Search className="w-4 h-4" /> },
       { title: 'Analysis', href: '/docs/api/analysis', icon: <AlertTriangle className="w-4 h-4" /> },
@@ -69,15 +66,12 @@ const navigation: NavSection[] = [
     items: [
       { title: 'Docker Setup', href: '/docs/deployment/docker', icon: <Server className="w-4 h-4" /> },
       { title: 'Self-Hosting', href: '/docs/deployment/self-host', icon: <Server className="w-4 h-4" /> },
-      { title: 'Configuration', href: '/docs/deployment/configuration', icon: <Settings className="w-4 h-4" /> },
     ],
   },
   {
     title: 'Contributing',
     items: [
       { title: 'Architecture', href: '/docs/architecture', icon: <GitBranch className="w-4 h-4" /> },
-      { title: 'Development Setup', href: '/docs/contributing/setup', icon: <Code className="w-4 h-4" /> },
-      { title: 'Code Style Guide', href: '/docs/contributing/style', icon: <FileText className="w-4 h-4" /> },
     ],
   },
 ]
