@@ -81,10 +81,6 @@ export function DocsHomePage() {
       <div className="max-w-4xl">
         {/* Hero */}
         <div className="mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/30 rounded-full text-blue-400 text-sm mb-4">
-            <BookOpen className="w-4 h-4" />
-            Documentation
-          </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 tracking-tight">
             OpenCodeIntel Docs
           </h1>
