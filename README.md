@@ -170,23 +170,7 @@ OpenCodeIntel is the tool I wish I had. It's open source because I think every d
 
 ## Architecture
 
-```text
-┌─────────────────────────────────────────┐
-│           Frontend (React + Vite)       │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│          Backend (FastAPI)              │
-│  • Semantic indexing with OpenAI        │
-│  • Dependency graph analysis            │
-│  • Real-time WebSocket updates          │
-└───────┬─────────┬─────────┬─────────────┘
-        │         │         │
-   ┌────▼───┐ ┌───▼────┐ ┌──▼───┐
-   │Pinecone│ │Supabase│ │Redis │
-   │vectors │ │metadata│ │cache │
-   └────────┘ └────────┘ └──────┘
-```
+<img width="1122" height="556" alt="image" src="https://github.com/user-attachments/assets/5c4f5846-184f-46ec-b4c4-a444cbb6540d" />
 
 ---
 
