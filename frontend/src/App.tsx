@@ -15,6 +15,7 @@ import { SemanticSearchPage, DependencyAnalysisPage, ImpactPredictionPage, CodeS
 import { DockerSetupPage, SelfHostingPage } from './pages/deployment';
 import { APIOverviewPage, APIRepositoriesPage, APISearchPage, APIAnalysisPage } from './pages/api';
 import { GitHubCallbackPage } from './pages/GitHubCallbackPage';
+import { ScrollToTop } from './components/ScrollToTop';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -122,6 +123,7 @@ export function App() {
     >
       <TooltipProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <AuthProvider>
             <AppRoutes />
           </AuthProvider>
