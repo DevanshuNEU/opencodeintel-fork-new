@@ -13,6 +13,7 @@ import { MCPExamplesPage } from './pages/MCPExamplesPage';
 import { QuickStartPage } from './pages/QuickStartPage';
 import { SemanticSearchPage, DependencyAnalysisPage, ImpactPredictionPage, CodeStyleAnalysisPage } from './pages/features';
 import { DockerSetupPage, SelfHostingPage } from './pages/deployment';
+import { APIOverviewPage, APIRepositoriesPage, APISearchPage, APIAnalysisPage } from './pages/api';
 import { GitHubCallbackPage } from './pages/GitHubCallbackPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -86,9 +87,13 @@ function AppRoutes() {
       <Route path="/docs/deployment/docker" element={<DockerSetupPage />} />
       <Route path="/docs/deployment/self-host" element={<SelfHostingPage />} />
       
+      {/* API Reference pages */}
+      <Route path="/docs/api" element={<APIOverviewPage />} />
+      <Route path="/docs/api/repositories" element={<APIRepositoriesPage />} />
+      <Route path="/docs/api/search" element={<APISearchPage />} />
+      <Route path="/docs/api/analysis" element={<APIAnalysisPage />} />
+      
       {/* Placeholder routes for future docs pages */}
-      <Route path="/docs/api" element={<DocsHomePage />} />
-      <Route path="/docs/api/*" element={<DocsHomePage />} />
       <Route path="/docs/architecture" element={<DocsHomePage />} />
       <Route path="/docs/contributing/*" element={<DocsHomePage />} />
       <Route
