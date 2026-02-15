@@ -71,7 +71,7 @@ export function SemanticSearchPage() {
 
       <h3 className="text-lg font-medium text-white mt-8 mb-3">Via API</h3>
       <DocsCodeBlock language="bash">
-{`curl -X POST "http://localhost:8000/api/search" \\
+{`curl -X POST "http://localhost:8000/api/v1/search" \\
   -H "Content-Type: application/json" \\
   -d '{
     "repo_id": "your-repo-id",
