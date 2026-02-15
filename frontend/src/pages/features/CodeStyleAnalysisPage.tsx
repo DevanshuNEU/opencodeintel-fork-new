@@ -86,7 +86,7 @@ export function CodeStyleAnalysisPage() {
 
       <h3 className="text-lg font-medium text-white mt-8 mb-3">Via API</h3>
       <DocsCodeBlock language="bash">
-{`curl "http://localhost:8000/api/repos/{repo_id}/style"`}
+{`curl "http://localhost:8000/api/v1/repos/{repo_id}/style-analysis"`}
       </DocsCodeBlock>
 
       <h2 id="api-response" className="text-2xl font-semibold text-white mt-12 mb-4">API Response</h2>
