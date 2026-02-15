@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CommandDialog,
@@ -174,6 +174,11 @@ const groupedPages = docsPages.reduce((acc, page) => {
 export function DocsSearch() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  
+  const isMac = useMemo(() => {
+    if (typeof navigator === 'undefined') return true
+    return navigator.platform.toLowerCase().includes('mac')
+  }, [])
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -201,7 +206,7 @@ export function DocsSearch() {
         <SearchIcon className="w-4 h-4" />
         <span className="flex-1 text-left">Search docs...</span>
         <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 bg-white/5 border border-white/10 rounded">
-          <span className="text-xs">⌘</span>K
+          <span className="text-xs">{isMac ? '⌘' : 'Ctrl+'}</span>K
         </kbd>
       </button>
       
