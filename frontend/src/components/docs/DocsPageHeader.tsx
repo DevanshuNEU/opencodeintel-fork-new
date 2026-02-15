@@ -27,9 +27,9 @@ export function DocsPageHeader({
       
       <p className="text-xl text-gray-400 mb-4">{description}</p>
       
-      {(timeEstimate || difficulty) && (
+      {(timeEstimate != null || difficulty) && (
         <div className="flex items-center gap-3">
-          {timeEstimate && <TimeEstimate minutes={timeEstimate} />}
+          {timeEstimate != null && <TimeEstimate minutes={timeEstimate} />}
           {difficulty && <DifficultyBadge level={difficulty} />}
         </div>
       )}
