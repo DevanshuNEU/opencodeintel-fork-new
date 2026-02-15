@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { DocsSidebar } from './DocsSidebar'
 import { DocsBreadcrumb } from './DocsBreadcrumb'
 import { DocsTableOfContents, TOCItem } from './DocsTableOfContents'
@@ -6,7 +7,7 @@ import { DocsSearch } from './DocsSearch'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Menu, BookOpen } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { cn } from '@/lib/utils'
 
 interface DocsLayoutProps {
   children: React.ReactNode
@@ -104,9 +105,6 @@ function MobileSidebar({ onNavigate }: { onNavigate: () => void }) {
 }
 
 // Mobile navigation items
-import { useLocation } from 'react-router-dom'
-import { cn } from '@/lib/utils'
-
 const mobileNavigation = [
   {
     title: 'Getting Started',
@@ -137,6 +135,22 @@ const mobileNavigation = [
     items: [
       { title: 'Docker Setup', href: '/docs/deployment/docker' },
       { title: 'Self-Hosting', href: '/docs/deployment/self-host' },
+    ],
+  },
+  {
+    title: 'API Reference',
+    items: [
+      { title: 'Overview', href: '/docs/api' },
+      { title: 'Repositories', href: '/docs/api/repositories' },
+      { title: 'Search', href: '/docs/api/search' },
+      { title: 'Analysis', href: '/docs/api/analysis' },
+    ],
+  },
+  {
+    title: 'Contributing',
+    items: [
+      { title: 'Architecture', href: '/docs/architecture' },
+      { title: 'Development Setup', href: '/docs/contributing' },
     ],
   },
 ]
