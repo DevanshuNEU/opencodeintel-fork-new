@@ -4,10 +4,21 @@
 
 ### General
 - NO emojis anywhere - not in code, comments, docs, or commit messages
-- Files must stay under 200 lines. Split if larger.
-- Comments explain WHY, not WHAT. One-liners only.
-- No decorative headers, no JSDoc blocks, no ASCII art
+- Prefer files under 200 lines. Larger files allowed when logically cohesive.
+- Comments explain WHY, not WHAT. Keep them brief.
+- No decorative headers or ASCII art
 - Casual tone in comments - write like a human, not a robot
+
+### JSDoc Policy
+- JSDoc allowed for public API functions and exported hooks
+- Keep JSDoc minimal - document params and return types, not obvious behavior
+- Approved files using JSDoc: `frontend/src/services/playground-api.ts`, `frontend/src/config/api.ts`, `frontend/src/hooks/useViewTransition.ts`
+
+### Large File Exceptions
+These files exceed 200 lines but are approved due to logical cohesion:
+- `backend/routes/playground.py`
+- `backend/services/dna_extractor.py`
+- `frontend/src/components/DependencyGraph/index.tsx`
 
 ### Frontend (TypeScript/React)
 - Package manager: **Bun only**. Never npm, never yarn.
@@ -33,7 +44,7 @@
 ## Architecture
 
 ### Project Structure
-```
+```plaintext
 backend/          # FastAPI, Python 3.11+
 frontend/         # React 18, TypeScript, Vite, Bun
 mcp-server/       # MCP protocol server
@@ -54,6 +65,4 @@ mcp-server/       # MCP protocol server
 - Don't use npm (use Bun)
 - Don't add emojis
 - Don't write verbose comments
-- Don't create files over 200 lines
 - Don't add "AI-looking" badges or decorations
-- Don't use JSDoc or decorative comment blocks
