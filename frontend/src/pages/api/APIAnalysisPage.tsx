@@ -172,6 +172,12 @@ export function APIAnalysisPage() {
 }`}
       </DocsCodeBlock>
 
+      <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Example</h4>
+      <DocsCodeBlock language="bash">
+{`curl -H "Authorization: Bearer <YOUR_API_KEY>" \\
+  http://localhost:8000/api/v1/repos/repo_abc123/style-analysis`}
+      </DocsCodeBlock>
+
       {/* Repository Insights */}
       <h2 id="insights" className="text-2xl font-semibold text-white mt-12 mb-4">Repository Insights</h2>
       
