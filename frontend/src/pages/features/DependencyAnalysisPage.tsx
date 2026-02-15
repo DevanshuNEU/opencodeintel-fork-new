@@ -88,7 +88,7 @@ export function DependencyAnalysisPage() {
 
       <h3 className="text-lg font-medium text-white mt-8 mb-3">Via API</h3>
       <DocsCodeBlock language="bash">
-{`curl "http://localhost:8000/api/repos/{repo_id}/dependencies"`}
+{`curl "http://localhost:8000/api/v1/repos/{repo_id}/dependencies"`}
       </DocsCodeBlock>
 
       <h3 className="text-lg font-medium text-white mt-8 mb-3">Via Dashboard</h3>
