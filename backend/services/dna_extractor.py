@@ -1036,6 +1036,7 @@ class DNAExtractor:
                 # Reconstruct CodebaseDNA from dict
                 dna = CodebaseDNA(
                     repo_id=data['repo_id'],
+                    detected_framework=data.get('detected_framework'),
                     language_distribution=data.get('language_distribution', {}),
                     auth_patterns=AuthPattern(**data.get('auth_patterns', {})),
                     service_patterns=ServicePattern(**data.get('service_patterns', {})),
@@ -1043,6 +1044,9 @@ class DNAExtractor:
                     error_patterns=ErrorPattern(**data.get('error_patterns', {})),
                     logging_patterns=LoggingPattern(**data.get('logging_patterns', {})),
                     naming_conventions=NamingConventions(**data.get('naming_conventions', {})),
+                    test_patterns=TestPattern(**data.get('test_patterns', {})),
+                    config_patterns=ConfigPattern(**data.get('config_patterns', {})),
+                    middleware_patterns=data.get('middleware_patterns', []),
                     common_imports=data.get('common_imports', []),
                     skip_directories=data.get('skip_directories', []),
                     api_versioning=data.get('api_versioning'),
