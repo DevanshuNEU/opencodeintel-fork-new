@@ -8,9 +8,9 @@ interface StepProps {
 
 export function Step({ number, title, children }: StepProps) {
   return (
-    <div className="relative pl-10 pb-8 last:pb-0">
+    <div className="relative pl-10 pb-8 last:pb-0 [&:last-child_.step-connector]:hidden">
       {/* Vertical line connecting steps */}
-      <div className="absolute left-[15px] top-8 bottom-0 w-px bg-white/10 last:hidden" />
+      <div className="step-connector absolute left-[15px] top-8 bottom-0 w-px bg-white/10" />
       
       {/* Step number */}
       <div className="absolute left-0 top-0 flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/50 text-blue-400 text-sm font-semibold">
