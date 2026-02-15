@@ -96,7 +96,10 @@ export function ImpactPredictionPage() {
 
       <h3 className="text-lg font-medium text-white mt-8 mb-3">Via API</h3>
       <DocsCodeBlock language="bash">
-{`curl "http://localhost:8000/api/repos/{repo_id}/impact?file=src/auth/middleware.py"`}
+{`curl -X POST \\
+  -H "Content-Type: application/json" \\
+  -d '{"file_path": "src/auth/middleware.py"}' \\
+  http://localhost:8000/api/v1/repos/{repo_id}/impact`}
       </DocsCodeBlock>
 
       <h3 className="text-lg font-medium text-white mt-8 mb-3">Via Dashboard</h3>
