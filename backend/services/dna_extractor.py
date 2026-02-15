@@ -114,6 +114,8 @@ class CodebaseDNA:
     skip_directories: List[str] = field(default_factory=list)
     api_versioning: Optional[str] = None
     router_pattern: Optional[str] = None
+    team_rules: Optional[str] = None
+    team_rules_source: Optional[str] = None
     
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -247,6 +249,14 @@ class CodebaseDNA:
             md += "## Skip Directories\n"
             md += f"`{', '.join(self.skip_directories)}`\n\n"
         
+        # Team rules (explicit conventions from CLAUDE.md, .cursorrules, etc.)
+        if self.team_rules:
+            md += "## Team Rules\n"
+            if self.team_rules_source:
+                md += f"*Source: `{self.team_rules_source}`*\n\n"
+            md += self.team_rules
+            md += "\n"
+        
         return md
 
 
@@ -256,6 +266,16 @@ class DNAExtractor:
     SKIP_DIRS = {'node_modules', '.git', '__pycache__', 'venv', 'env', 'dist', 'build', '.next', 'coverage', '.venv', 'site-packages'}
     MAX_FILE_SIZE = 1024 * 1024  # 1MB
     MAX_FILES = 5000
+    
+    # Team rules files in priority order (first found wins)
+    RULES_FILES = [
+        'CLAUDE.md',
+        '.cursorrules', 
+        '.codeintel/rules.md',
+        'CONVENTIONS.md',
+        '.github/copilot-instructions.md',
+        'CODING_GUIDELINES.md',
+    ]
     
     def __init__(self):
         self.parsers = {
@@ -316,6 +336,21 @@ class DNAExtractor:
             logger.debug(f"Error reading {file_path}: {e}")
             self._stats['read_errors'] += 1
             return None
+    
+    def _extract_team_rules(self, repo_path: Path) -> tuple[Optional[str], Optional[str]]:
+        """Extract team-defined rules from convention files.
+        
+        Returns:
+            Tuple of (rules_content, source_filename) or (None, None) if not found.
+        """
+        for filename in self.RULES_FILES:
+            rules_path = repo_path / filename
+            if rules_path.exists() and rules_path.is_file():
+                content = self._safe_read_file(rules_path)
+                if content:
+                    logger.info(f"Found team rules in {filename}")
+                    return content.strip(), filename
+        return None, None
     
     def _detect_language(self, file_path: str) -> str:
         ext = Path(file_path).suffix.lower()
@@ -930,6 +965,7 @@ class DNAExtractor:
         config_patterns = self._extract_config_patterns(files, repo_path)
         common_imports = self._extract_common_imports(files)
         api_versioning, router_pattern = self._extract_api_patterns(files, repo_path)
+        team_rules, team_rules_source = self._extract_team_rules(repo_path)
         
         dna = CodebaseDNA(
             repo_id=repo_id,
@@ -948,6 +984,8 @@ class DNAExtractor:
             skip_directories=list(self.SKIP_DIRS),
             api_versioning=api_versioning,
             router_pattern=router_pattern,
+            team_rules=team_rules,
+            team_rules_source=team_rules_source,
         )
         
         elapsed = time.time() - start_time
@@ -998,6 +1036,7 @@ class DNAExtractor:
                 # Reconstruct CodebaseDNA from dict
                 dna = CodebaseDNA(
                     repo_id=data['repo_id'],
+                    detected_framework=data.get('detected_framework'),
                     language_distribution=data.get('language_distribution', {}),
                     auth_patterns=AuthPattern(**data.get('auth_patterns', {})),
                     service_patterns=ServicePattern(**data.get('service_patterns', {})),
@@ -1005,10 +1044,15 @@ class DNAExtractor:
                     error_patterns=ErrorPattern(**data.get('error_patterns', {})),
                     logging_patterns=LoggingPattern(**data.get('logging_patterns', {})),
                     naming_conventions=NamingConventions(**data.get('naming_conventions', {})),
+                    test_patterns=TestPattern(**data.get('test_patterns', {})),
+                    config_patterns=ConfigPattern(**data.get('config_patterns', {})),
+                    middleware_patterns=data.get('middleware_patterns', []),
                     common_imports=data.get('common_imports', []),
                     skip_directories=data.get('skip_directories', []),
                     api_versioning=data.get('api_versioning'),
                     router_pattern=data.get('router_pattern'),
+                    team_rules=data.get('team_rules'),
+                    team_rules_source=data.get('team_rules_source'),
                 )
                 logger.debug("DNA loaded from cache", repo_id=repo_id)
                 return dna
