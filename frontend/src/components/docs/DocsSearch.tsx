@@ -162,6 +162,15 @@ const docsPages: DocPage[] = [
   },
 ]
 
+// Pre-compute grouped pages at module level since docsPages is constant
+const groupedPages = docsPages.reduce((acc, page) => {
+  if (!acc[page.category]) {
+    acc[page.category] = []
+  }
+  acc[page.category].push(page)
+  return acc
+}, {} as Record<string, DocPage[]>)
+
 export function DocsSearch() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
@@ -182,15 +191,6 @@ export function DocsSearch() {
     setOpen(false)
     command()
   }, [])
-
-  // Group pages by category
-  const groupedPages = docsPages.reduce((acc, page) => {
-    if (!acc[page.category]) {
-      acc[page.category] = []
-    }
-    acc[page.category].push(page)
-    return acc
-  }, {} as Record<string, DocPage[]>)
 
   return (
     <>
