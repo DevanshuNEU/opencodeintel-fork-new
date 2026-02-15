@@ -23,9 +23,13 @@ export function DocsCodeBlock({
   const [copied, setCopied] = useState(false)
 
   const copyToClipboard = async () => {
-    await navigator.clipboard.writeText(children.trim())
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(children.trim())
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard API failed, silently ignore
+    }
   }
 
   return (
@@ -97,10 +101,14 @@ export function DocsCodeTabs({ tabs, filename }: CodeTabsProps) {
   const [activeTab, setActiveTab] = useState(tabs[0]?.label || '')
 
   const copyToClipboard = async () => {
-    const activeCode = tabs.find(t => t.label === activeTab)?.code || ''
-    await navigator.clipboard.writeText(activeCode.trim())
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      const activeCode = tabs.find(t => t.label === activeTab)?.code || ''
+      await navigator.clipboard.writeText(activeCode.trim())
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard API failed, silently ignore
+    }
   }
 
   return (
