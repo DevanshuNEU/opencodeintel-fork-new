@@ -97,9 +97,10 @@ export function APIRepositoriesPage() {
       <DocsCodeBlock language="json">
 {`{
   "url": "https://github.com/user/my-project",
-  "branch": "main"  // optional, defaults to default branch
+  "branch": "main"
 }`}
       </DocsCodeBlock>
+      <p className="text-sm text-gray-500 mt-2">The <code className="text-gray-400">branch</code> field is optional and defaults to the repository's default branch.</p>
 
       <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Response</h4>
       <DocsCodeBlock language="json">
