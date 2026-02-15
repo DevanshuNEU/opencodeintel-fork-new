@@ -81,10 +81,7 @@ export function DocsSidebar() {
   const location = useLocation()
 
   const isActive = (href: string) => {
-    if (href === '/docs') {
-      return location.pathname === '/docs'
-    }
-    return location.pathname.startsWith(href)
+    return location.pathname === href
   }
 
   return (
