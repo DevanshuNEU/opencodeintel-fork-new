@@ -17,14 +17,17 @@ pip install -r requirements.txt
 cp .env.example .env
 # Add your API keys to .env
 
-# Set up frontend
+# Set up frontend (MUST use Bun, not npm!)
 cd ../frontend
-npm install
+bun install
 
 # Run tests
 cd ../backend
 pytest tests/ -v
 ```
+
+> **Important:** The frontend uses Bun exclusively. Do NOT use npm or yarn.
+> Install Bun: `curl -fsSL https://bun.sh/install | bash`
 
 ## How to Contribute
 
@@ -65,7 +68,7 @@ pytest tests/ -v
 - Use TypeScript strict mode
 - Prefer functional components
 - Use Tailwind for styling
-- Run: `npm run build` to check for errors
+- Run: `bun run build` to check for errors
 
 ## Testing
 

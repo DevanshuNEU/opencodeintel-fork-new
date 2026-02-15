@@ -5,16 +5,16 @@
 
 # Default target - rebuild frontend
 f frontend:
-	@echo "🔄 Rebuilding frontend..."
+	@echo "Rebuilding frontend..."
 	@docker compose build frontend
 	@docker compose up -d frontend
-	@echo "✅ Done"
+	@echo "Done"
 
 b backend:
-	@echo "🔄 Rebuilding backend..."
+	@echo "Rebuilding backend..."
 	@docker compose build backend
 	@docker compose up -d backend
-	@echo "✅ Done"
+	@echo "Done"
 
 all:
 	@docker compose build
@@ -39,7 +39,7 @@ status ps:
 	@docker compose ps
 
 clean:
-	@echo "⚠️  Full rebuild (slow)..."
+	@echo "Full rebuild (slow)..."
 	@docker compose build --no-cache
 	@docker compose up -d
 

@@ -1,153 +1,223 @@
 import { Link } from 'react-router-dom'
-import { DocsLayout } from '../components/docs/DocsLayout'
+import { DocsLayout } from '@/components/docs'
+import { 
+  Zap, 
+  Search, 
+  GitBranch, 
+  AlertTriangle, 
+  Palette, 
+  Terminal, 
+  Server,
+  ArrowRight,
+  BookOpen,
+  Code,
+  ExternalLink
+} from 'lucide-react'
 
-function FeatureCard({ title, description, href, icon }: { 
+interface QuickLinkProps {
   title: string
   description: string
   href: string
-  icon: React.ReactNode 
-}) {
+  icon: React.ReactNode
+  time?: string
+}
+
+function QuickLink({ title, description, href, icon, time }: QuickLinkProps) {
   return (
     <Link 
       to={href}
-      className="block p-5 bg-[#111113] border border-white/10 rounded-xl hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group"
+      className="group relative flex flex-col p-5 bg-white/[0.02] border border-white/10 rounded-xl hover:border-blue-500/50 hover:bg-blue-500/5 transition-all"
     >
-      <div className="flex items-start gap-4">
-        <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 group-hover:bg-blue-500/20 transition-colors">
+      <div className="flex items-start justify-between mb-3">
+        <div className="p-2.5 bg-blue-500/10 rounded-lg text-blue-400 group-hover:bg-blue-500/20 transition-colors">
           {icon}
         </div>
-        <div>
-          <h3 className="text-lg font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">{title}</h3>
-          <p className="text-gray-400 text-sm">{description}</p>
-        </div>
+        {time && (
+          <span className="text-xs text-gray-500">{time}</span>
+        )}
       </div>
+      <h3 className="text-lg font-semibold text-white mb-1 group-hover:text-blue-400 transition-colors">
+        {title}
+      </h3>
+      <p className="text-sm text-gray-400 mb-3">{description}</p>
+      <span className="inline-flex items-center gap-1 text-sm text-blue-400 mt-auto">
+        Learn more
+        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+      </span>
+    </Link>
+  )
+}
+
+interface FeatureCardProps {
+  title: string
+  description: string
+  href: string
+  icon: React.ReactNode
+}
+
+function FeatureCard({ title, description, href, icon }: FeatureCardProps) {
+  return (
+    <Link 
+      to={href}
+      className="group flex items-start gap-4 p-4 rounded-lg hover:bg-white/5 transition-colors"
+    >
+      <div className="p-2 bg-white/5 rounded-lg text-gray-400 group-hover:text-blue-400 group-hover:bg-blue-500/10 transition-colors">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <h3 className="font-medium text-white group-hover:text-blue-400 transition-colors">
+          {title}
+        </h3>
+        <p className="text-sm text-gray-400 mt-0.5">{description}</p>
+      </div>
+      <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all shrink-0 mt-1" />
     </Link>
   )
 }
 
 export function DocsHomePage() {
   return (
-    <DocsLayout>
-      <div className="max-w-3xl">
-        {/* Header */}
+    <DocsLayout showToc={false}>
+      <div className="max-w-4xl">
+        {/* Hero */}
         <div className="mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">OpenCodeIntel Documentation</h1>
-          <p className="text-xl text-gray-400">
+          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 tracking-tight">
+            OpenCodeIntel Docs
+          </h1>
+          <p className="text-xl text-gray-400 leading-relaxed max-w-2xl">
             Give your AI assistant deep understanding of your codebase. Semantic search, 
-            dependency analysis, and impact prediction - all through MCP.
+            dependency analysis, and impact prediction. Set up in 5 minutes.
           </p>
         </div>
 
-        {/* Quick Start */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-semibold text-white mb-4">Get Started</h2>
-          <p className="text-gray-300 mb-6">
-            New to OpenCodeIntel? Start here. Most developers are up and running in under 5 minutes.
-          </p>
-          
-          <div className="grid gap-4">
-            <FeatureCard
-              title="MCP Setup Guide"
-              description="Connect OpenCodeIntel to Claude Desktop. The complete walkthrough."
-              href="/docs/mcp-setup"
-              icon={
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              }
-            />
-            <FeatureCard
-              title="Quick Start with Docker"
-              description="Spin up the entire stack with a single command."
+        {/* Quick Start Cards */}
+        <section className="mb-16">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+            Get Started
+          </h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <QuickLink
+              title="Quick Start"
+              description="Get up and running with OpenCodeIntel in under 5 minutes."
               href="/docs/quickstart"
-              icon={
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                </svg>
-              }
+              icon={<Zap className="w-5 h-5" />}
+              time="5 min"
+            />
+            <QuickLink
+              title="MCP Setup"
+              description="Connect OpenCodeIntel to Claude Desktop for AI-powered code intelligence."
+              href="/docs/mcp-setup"
+              icon={<Terminal className="w-5 h-5" />}
+              time="5 min"
+            />
+            <QuickLink
+              title="Self-Hosting"
+              description="Deploy your own instance with Docker or on your infrastructure."
+              href="/docs/deployment/docker"
+              icon={<Server className="w-5 h-5" />}
+              time="15 min"
             />
           </div>
         </section>
 
-        {/* Core Features */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-semibold text-white mb-4">Core Features</h2>
-          <p className="text-gray-300 mb-6">
-            What OpenCodeIntel actually does for you.
-          </p>
-          
-          <div className="grid gap-4">
+        {/* Features */}
+        <section className="mb-16">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+            Core Features
+          </h2>
+          <div className="bg-white/[0.02] border border-white/10 rounded-xl divide-y divide-white/5">
             <FeatureCard
-              title="Semantic Code Search"
-              description="Find code by meaning, not keywords. 'error handling' finds processFailure()."
+              title="Semantic Search"
+              description="Find code by meaning, not keywords. Search for 'error handling' and find processFailure()."
               href="/docs/features/search"
-              icon={
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              }
+              icon={<Search className="w-5 h-5" />}
             />
             <FeatureCard
               title="Dependency Analysis"
-              description="Visualize your architecture. See what connects to what."
+              description="Visualize your architecture. See how files connect and identify critical components."
               href="/docs/features/dependencies"
-              icon={
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              }
+              icon={<GitBranch className="w-5 h-5" />}
             />
             <FeatureCard
               title="Impact Prediction"
-              description="Know what breaks before you change it. See the blast radius."
+              description="Know what breaks before you change it. See the blast radius of any modification."
               href="/docs/features/impact"
-              icon={
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              }
+              icon={<AlertTriangle className="w-5 h-5" />}
             />
             <FeatureCard
               title="Code Style Analysis"
-              description="Understand team conventions. Write code that fits in."
+              description="Understand team conventions. Write code that fits in with existing patterns."
               href="/docs/features/style"
-              icon={
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                </svg>
-              }
+              icon={<Palette className="w-5 h-5" />}
             />
           </div>
         </section>
 
         {/* Why OpenCodeIntel */}
-        <section className="mb-12 p-6 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-white/10 rounded-xl">
-          <h2 className="text-2xl font-semibold text-white mb-4">Why OpenCodeIntel?</h2>
-          <div className="space-y-4 text-gray-300">
-            <p>
-              <strong className="text-white">The problem:</strong> AI coding assistants are powerful, 
-              but they're flying blind. They can't search your actual codebase, don't understand 
-              your architecture, and have no clue what breaks when you change something.
-            </p>
-            <p>
-              <strong className="text-white">The solution:</strong> OpenCodeIntel is an MCP server that 
-              gives AI assistants persistent memory of your codebase. Not just file contents - 
-              semantic understanding, dependency graphs, and impact analysis.
-            </p>
-            <p>
-              <strong className="text-white">The result:</strong> Claude that actually knows your code. 
-              Ask "where's the auth middleware?" and get real answers, not guesses.
-            </p>
+        <section className="mb-16">
+          <div className="p-6 sm:p-8 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-transparent border border-white/10 rounded-xl">
+            <h2 className="text-2xl font-semibold text-white mb-4">Why OpenCodeIntel?</h2>
+            <div className="space-y-4 text-gray-300">
+              <p>
+                <strong className="text-white">The problem:</strong> AI coding assistants are powerful, 
+                but they are flying blind. They cannot search your actual codebase, do not understand 
+                your architecture, and have no clue what breaks when you change something.
+              </p>
+              <p>
+                <strong className="text-white">The solution:</strong> OpenCodeIntel is an MCP server that 
+                gives AI assistants persistent memory of your codebase. Not just file contents but 
+                semantic understanding, dependency graphs, and impact analysis.
+              </p>
+              <p>
+                <strong className="text-white">The result:</strong> Claude that actually knows your code. 
+                Ask "where is the auth middleware?" and get real answers, not guesses.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* API Reference */}
+        <section className="mb-16">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+            API Reference
+          </h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Link
+              to="/docs/api"
+              className="group flex items-center gap-4 p-4 bg-white/[0.02] border border-white/10 rounded-xl hover:border-blue-500/30 hover:bg-white/[0.04] transition-all"
+            >
+              <div className="p-2.5 bg-white/5 rounded-lg">
+                <Code className="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" />
+              </div>
+              <div>
+                <h3 className="font-medium text-white group-hover:text-blue-400 transition-colors">REST API</h3>
+                <p className="text-sm text-gray-500">Full API reference with examples</p>
+              </div>
+            </Link>
+            <Link
+              to="/docs/mcp-tools"
+              className="group flex items-center gap-4 p-4 bg-white/[0.02] border border-white/10 rounded-xl hover:border-blue-500/30 hover:bg-white/[0.04] transition-all"
+            >
+              <div className="p-2.5 bg-white/5 rounded-lg">
+                <Terminal className="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" />
+              </div>
+              <div>
+                <h3 className="font-medium text-white group-hover:text-blue-400 transition-colors">MCP Tools</h3>
+                <p className="text-sm text-gray-500">Tools available to AI assistants</p>
+              </div>
+            </Link>
           </div>
         </section>
 
         {/* Resources */}
         <section>
-          <h2 className="text-2xl font-semibold text-white mb-4">Resources</h2>
-          <div className="flex flex-wrap gap-4">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+            Resources
+          </h2>
+          <div className="flex flex-wrap gap-3">
             <a 
               href="https://github.com/OpenCodeIntel/opencodeintel" 
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -158,14 +228,21 @@ export function DocsHomePage() {
             </a>
             <a 
               href="https://github.com/OpenCodeIntel/opencodeintel/issues" 
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <AlertTriangle className="w-4 h-4" />
               Report Issue
+            </a>
+            <a 
+              href="https://opencodeintel.com" 
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Try Hosted Version
             </a>
           </div>
         </section>
