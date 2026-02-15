@@ -151,7 +151,7 @@ PINECONE_INDEX_NAME=codeintel`}
       <DocsPrerequisites 
         items={[
           { text: 'Python 3.11+' },
-          { text: 'Node.js 20+ (or Bun)' },
+          { text: 'Bun (package manager)', href: 'https://bun.sh' },
           { text: 'Redis running locally' },
           { text: 'OpenAI and Pinecone API keys' },
         ]} 
