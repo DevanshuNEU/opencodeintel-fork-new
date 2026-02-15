@@ -53,7 +53,7 @@ export function APIRepositoriesPage() {
 
       <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Example</h4>
       <DocsCodeBlock language="bash">
-{`curl -H "Authorization: Bearer YOUR_API_KEY" \\
+{`curl -H "Authorization: Bearer <YOUR_API_KEY>" \\
   http://localhost:8000/api/v1/repos`}
       </DocsCodeBlock>
 
@@ -115,7 +115,7 @@ export function APIRepositoriesPage() {
       <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Example</h4>
       <DocsCodeBlock language="bash">
 {`curl -X POST \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://github.com/user/my-project"}' \\
   http://localhost:8000/api/v1/repos`}

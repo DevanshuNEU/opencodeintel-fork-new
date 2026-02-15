@@ -160,7 +160,7 @@ export function APISearchPage() {
       <h3 className="text-lg font-medium text-white mt-6 mb-3">Basic Search</h3>
       <DocsCodeBlock language="bash">
 {`curl -X POST \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{"query": "error handling", "repo_id": "repo_abc123"}' \\
   http://localhost:8000/api/v1/search`}
@@ -169,7 +169,7 @@ export function APISearchPage() {
       <h3 className="text-lg font-medium text-white mt-8 mb-3">Search with Filters</h3>
       <DocsCodeBlock language="bash">
 {`curl -X POST \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "query": "database connection pool",

@@ -72,7 +72,7 @@ export function APIAnalysisPage() {
 
       <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Example</h4>
       <DocsCodeBlock language="bash">
-{`curl -H "Authorization: Bearer YOUR_API_KEY" \\
+{`curl -H "Authorization: Bearer <YOUR_API_KEY>" \\
   http://localhost:8000/api/v1/repos/repo_abc123/dependencies`}
       </DocsCodeBlock>
 
@@ -127,7 +127,7 @@ export function APIAnalysisPage() {
       <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Example</h4>
       <DocsCodeBlock language="bash">
 {`curl -X POST \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{"file_path": "src/auth/middleware.py"}' \\
   http://localhost:8000/api/v1/repos/repo_abc123/impact`}
@@ -216,7 +216,7 @@ export function APIAnalysisPage() {
 
       <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Example</h4>
       <DocsCodeBlock language="bash">
-{`curl -H "Authorization: Bearer YOUR_API_KEY" \\
+{`curl -H "Authorization: Bearer <YOUR_API_KEY>" \\
   http://localhost:8000/api/v1/repos/repo_abc123/insights`}
       </DocsCodeBlock>
 

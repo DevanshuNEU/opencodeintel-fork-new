@@ -59,7 +59,7 @@ https://api.opencodeintel.com/api/v1`}
       </p>
 
       <DocsCodeBlock language="bash">
-{`curl -H "Authorization: Bearer YOUR_API_KEY" \\
+{`curl -H "Authorization: Bearer <YOUR_API_KEY>" \\
   http://localhost:8000/api/v1/repos`}
       </DocsCodeBlock>
 
