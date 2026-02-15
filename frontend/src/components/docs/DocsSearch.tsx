@@ -114,6 +114,52 @@ const docsPages: DocPage[] = [
     icon: <Server className="w-4 h-4" />,
     category: 'Deployment'
   },
+  
+  // API Reference
+  { 
+    title: 'API Overview', 
+    href: '/docs/api', 
+    description: 'REST API introduction',
+    icon: <Code className="w-4 h-4" />,
+    category: 'API Reference'
+  },
+  { 
+    title: 'Repositories API', 
+    href: '/docs/api/repositories', 
+    description: 'Manage indexed repositories',
+    icon: <Code className="w-4 h-4" />,
+    category: 'API Reference'
+  },
+  { 
+    title: 'Search API', 
+    href: '/docs/api/search', 
+    description: 'Semantic code search',
+    icon: <SearchIcon className="w-4 h-4" />,
+    category: 'API Reference'
+  },
+  { 
+    title: 'Analysis API', 
+    href: '/docs/api/analysis', 
+    description: 'Dependencies, impact, style',
+    icon: <Code className="w-4 h-4" />,
+    category: 'API Reference'
+  },
+  
+  // Contributing
+  { 
+    title: 'Architecture', 
+    href: '/docs/architecture', 
+    description: 'System design and tech stack',
+    icon: <GitBranch className="w-4 h-4" />,
+    category: 'Contributing'
+  },
+  { 
+    title: 'Development Setup', 
+    href: '/docs/contributing', 
+    description: 'Local dev environment',
+    icon: <Terminal className="w-4 h-4" />,
+    category: 'Contributing'
+  },
 ]
 
 export function DocsSearch() {
