@@ -9,6 +9,7 @@ Disallow: /dashboard
 Disallow: /settings
 Disallow: /repos/
 Disallow: /callback
+Disallow: /api/
 
 # Sitemap location
 Sitemap: https://opencodeintel.com/sitemap.xml
