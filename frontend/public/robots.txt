@@ -6,9 +6,9 @@ Allow: /
 
 # Disallow authenticated/private routes
 Disallow: /dashboard
-Disallow: /settings
-Disallow: /repos/
-Disallow: /callback
+Disallow: /github/callback
+Disallow: /login
+Disallow: /signup
 Disallow: /api/
 
 # Sitemap location
