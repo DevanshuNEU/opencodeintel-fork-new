@@ -38,3 +38,7 @@ mcp-server/__pycache__/
 # Validation experiments
 validation-experiment/
 exp-2/
+
+# Internal planning
+IDEAS.md
+TODO.md
