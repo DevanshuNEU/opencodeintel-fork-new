@@ -1,0 +1,15 @@
+# OpenCodeIntel - Robots.txt
+# https://opencodeintel.com
+
+User-agent: *
+Allow: /
+
+# Disallow authenticated/private routes
+Disallow: /dashboard
+Disallow: /github/callback
+Disallow: /login
+Disallow: /signup
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://opencodeintel.com/sitemap.xml
