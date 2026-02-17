@@ -1,5 +1,5 @@
 # OpenCodeIntel - Robots.txt
-# https://opencodeintel.dev
+# https://opencodeintel.com
 
 User-agent: *
 Allow: /
@@ -11,4 +11,4 @@ Disallow: /repos/
 Disallow: /callback
 
 # Sitemap location
-Sitemap: https://opencodeintel.dev/sitemap.xml
+Sitemap: https://opencodeintel.com/sitemap.xml
