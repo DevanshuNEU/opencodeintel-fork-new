@@ -71,6 +71,8 @@ export function useGraphData(apiData: DependencyApiResponse | undefined) {
           graph.addEdge(edge.source, edge.target, {
             weight: 1,
             type: 'arrow',
+            size: 0.5,
+            color: 'rgba(75, 85, 99, 0.12)',
           })
         }
       }

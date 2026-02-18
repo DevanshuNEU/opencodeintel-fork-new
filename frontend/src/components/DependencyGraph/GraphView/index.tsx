@@ -21,19 +21,28 @@ interface GraphViewProps {
   onSelectFile?: (filePath: string) => void
 }
 
-// Dark theme settings for sigma
+// dark theme -- bg matches zinc-950, edges nearly invisible until hover
 const SIGMA_SETTINGS = {
   defaultNodeColor: '#6366f1',
-  defaultEdgeColor: '#374151',
+  defaultEdgeColor: 'rgba(75, 85, 99, 0.15)',
   defaultEdgeType: 'arrow' as const,
+  edgeReducer: null as any,
+  nodeReducer: null as any,
   renderEdgeLabels: false,
   labelFont: 'Inter, system-ui, sans-serif',
-  labelSize: 12,
-  labelColor: { color: '#e5e7eb' },
-  labelRenderedSizeThreshold: 8,
+  labelSize: 11,
+  labelWeight: '500',
+  labelColor: { color: '#d1d5db' },
+  // only show labels for large (important) nodes at default zoom
+  labelRenderedSizeThreshold: 14,
+  labelDensity: 0.15,
   zIndex: true,
-  minCameraRatio: 0.05,
+  minCameraRatio: 0.03,
   maxCameraRatio: 3,
+  stagePadding: 40,
+  // subtle node borders
+  defaultNodeBorderSize: 1,
+  defaultNodeBorderColor: 'rgba(255, 255, 255, 0.08)',
 }
 
 // Loads graph into Sigma and fits camera
@@ -43,7 +52,6 @@ function LoadAndDisplay({ graph }: { graph: Graph }) {
 
   useEffect(() => {
     loadGraph(graph)
-    // fit camera after graph loads
     requestAnimationFrame(() => {
       sigma.getCamera().animatedReset({ duration: 300 })
     })
@@ -52,7 +60,7 @@ function LoadAndDisplay({ graph }: { graph: Graph }) {
   return null
 }
 
-// Handles all mouse/keyboard interactions on the graph
+// Handles hover/click interactions and drives node/edge reducers
 function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => void }) {
   const sigma = useSigma()
   const registerEvents = useRegisterEvents()
@@ -89,7 +97,7 @@ function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => v
     })
   }, [registerEvents, sigma, onSelectFile])
 
-  // highlight hovered node neighborhood, fade everything else
+  // highlight hovered neighborhood, fade everything else
   useEffect(() => {
     const graph = sigma.getGraph()
 
@@ -98,14 +106,32 @@ function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => v
       neighbors.add(hoveredNode)
 
       sigma.setSetting('nodeReducer', (node, data) => {
-        if (neighbors.has(node)) return { ...data, zIndex: 1 }
-        return { ...data, color: '#1f2937', label: '', zIndex: 0 }
+        if (neighbors.has(node)) {
+          return {
+            ...data,
+            zIndex: 1,
+            // show label on hover for all neighbors
+            label: data.label,
+            // slight glow effect via larger border
+            borderSize: node === hoveredNode ? 3 : 1,
+            borderColor: node === hoveredNode ? '#ffffff' : 'rgba(255,255,255,0.2)',
+          }
+        }
+        // fade non-neighbors hard
+        return {
+          ...data,
+          color: 'rgba(31, 41, 55, 0.3)',
+          label: '',
+          zIndex: 0,
+          borderSize: 0,
+        }
       })
+
       sigma.setSetting('edgeReducer', (edge, data) => {
         const src = graph.source(edge)
         const tgt = graph.target(edge)
         if (neighbors.has(src) && neighbors.has(tgt)) {
-          return { ...data, color: '#6366f1', size: 1.5 }
+          return { ...data, color: 'rgba(99, 102, 241, 0.6)', size: 1.5 }
         }
         return { ...data, hidden: true }
       })
@@ -115,7 +141,6 @@ function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => v
     }
   }, [hoveredNode, sigma])
 
-  // build tooltip data from graph attributes
   const tooltipData = (() => {
     if (!tooltip) return null
     const graph = sigma.getGraph()
@@ -147,22 +172,23 @@ export function GraphView({ data, onSelectFile }: GraphViewProps) {
   }
 
   return (
-    <div className="relative h-[700px] bg-zinc-950 rounded-lg overflow-hidden">
+    <div className="relative h-[700px] rounded-lg overflow-hidden border border-zinc-800">
       <SigmaContainer
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: '100%', width: '100%', background: '#09090b' }}
         settings={SIGMA_SETTINGS}
       >
         <LoadAndDisplay graph={graph} />
         <Interactions onSelectFile={onSelectFile} />
       </SigmaContainer>
 
-      <div className="absolute bottom-4 right-4 bg-zinc-900/90 border border-zinc-700 rounded-lg p-3 text-xs">
-        <div className="text-zinc-400 font-medium mb-2">Legend</div>
-        <div className="space-y-1 text-zinc-500">
+      {/* legend - glass card style */}
+      <div className="absolute bottom-4 right-4 bg-zinc-900/80 backdrop-blur-sm border border-zinc-800 rounded-lg px-3 py-2.5 text-[11px]">
+        <div className="text-zinc-400 font-medium mb-1.5">Legend</div>
+        <div className="space-y-0.5 text-zinc-500">
           <div>Node size = dependents count</div>
-          <div>Node color = module cluster</div>
-          <div>Hover to highlight neighbors</div>
-          <div>Click to analyze impact</div>
+          <div>Color = module cluster</div>
+          <div>Hover = highlight neighbors</div>
+          <div>Click = impact analysis</div>
         </div>
       </div>
     </div>
