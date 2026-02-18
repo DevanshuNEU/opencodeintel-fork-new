@@ -1,7 +1,7 @@
 // Sigma.js WebGL graph view
-// Renders dependency graph with search, controls, hover/click interactions
+// Single source of truth for highlight state shared between search and hover
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   SigmaContainer,
   useSigma,
@@ -22,7 +22,6 @@ interface GraphViewProps {
   onSelectFile?: (filePath: string) => void
 }
 
-// dark bg, subtle edges, only important labels visible
 const SIGMA_SETTINGS = {
   defaultNodeColor: '#6366f1',
   defaultEdgeColor: 'rgba(75, 85, 99, 0.12)',
@@ -42,7 +41,6 @@ const SIGMA_SETTINGS = {
   stagePadding: 30,
   defaultNodeBorderSize: 1,
   defaultNodeBorderColor: 'rgba(255, 255, 255, 0.06)',
-  // performance: skip edges when zoomed out
   hideEdgesOnMove: true,
 }
 
@@ -52,7 +50,6 @@ function LoadAndDisplay({ graph }: { graph: Graph }) {
 
   useEffect(() => {
     loadGraph(graph)
-    // let sigma calculate bounds, then fit the camera with padding
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         sigma.getCamera().animatedReset({ duration: 400 })
@@ -63,10 +60,19 @@ function LoadAndDisplay({ graph }: { graph: Graph }) {
   return null
 }
 
-function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => void }) {
+// Single component that owns all highlight state
+// Both hover and search funnel into "highlightedNode"
+function InteractionsAndHighlight({
+  onSelectFile,
+  highlightedNode,
+  setHighlightedNode,
+}: {
+  onSelectFile?: (filePath: string) => void
+  highlightedNode: string | null
+  setHighlightedNode: (node: string | null) => void
+}) {
   const sigma = useSigma()
   const registerEvents = useRegisterEvents()
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null)
   const [tooltip, setTooltip] = useState<{
     nodeId: string
     position: { x: number; y: number }
@@ -75,37 +81,42 @@ function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => v
   useEffect(() => {
     registerEvents({
       enterNode: ({ node, event }) => {
-        setHoveredNode(node)
+        setHighlightedNode(node)
         setTooltip({ nodeId: node, position: { x: event.x, y: event.y } })
         const el = sigma.getContainer()
         if (el) el.style.cursor = 'pointer'
       },
       leaveNode: () => {
-        setHoveredNode(null)
+        setHighlightedNode(null)
         setTooltip(null)
         const el = sigma.getContainer()
         if (el) el.style.cursor = 'default'
       },
       clickNode: ({ node }) => onSelectFile?.(node),
       doubleClickNode: ({ node }) => {
-        const pos = sigma.getNodeDisplayData(node)
-        if (pos) {
-          sigma.getCamera().animate(
-            { x: pos.x, y: pos.y, ratio: 0.12 },
-            { duration: 400 }
-          )
-        }
+        // use graph coords (node attributes), not display coords
+        const graph = sigma.getGraph()
+        if (!graph.hasNode(node)) return
+        const attrs = graph.getNodeAttributes(node)
+        sigma.getCamera().animate(
+          { x: attrs.x, y: attrs.y, ratio: 0.12 },
+          { duration: 400 }
+        )
+      },
+      // click on empty stage clears highlight
+      clickStage: () => {
+        setHighlightedNode(null)
       },
     })
-  }, [registerEvents, sigma, onSelectFile])
+  }, [registerEvents, sigma, onSelectFile, setHighlightedNode])
 
-  // highlight hovered neighborhood, fade everything else
+  // single reducer driven by highlightedNode -- works for both hover and search
   useEffect(() => {
     const graph = sigma.getGraph()
 
-    if (hoveredNode && graph.hasNode(hoveredNode)) {
-      const neighbors = new Set(graph.neighbors(hoveredNode))
-      neighbors.add(hoveredNode)
+    if (highlightedNode && graph.hasNode(highlightedNode)) {
+      const neighbors = new Set(graph.neighbors(highlightedNode))
+      neighbors.add(highlightedNode)
 
       sigma.setSetting('nodeReducer', (node, data) => {
         if (neighbors.has(node)) {
@@ -113,8 +124,8 @@ function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => v
             ...data,
             zIndex: 1,
             label: data.label,
-            borderSize: node === hoveredNode ? 3 : 1,
-            borderColor: node === hoveredNode ? '#ffffff' : 'rgba(255,255,255,0.15)',
+            borderSize: node === highlightedNode ? 3 : 1,
+            borderColor: node === highlightedNode ? '#ffffff' : 'rgba(255,255,255,0.15)',
           }
         }
         return { ...data, color: 'rgba(31, 41, 55, 0.25)', label: '', zIndex: 0, borderSize: 0 }
@@ -131,7 +142,7 @@ function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => v
       sigma.setSetting('nodeReducer', null)
       sigma.setSetting('edgeReducer', null)
     }
-  }, [hoveredNode, sigma])
+  }, [highlightedNode, sigma])
 
   const tooltipData = (() => {
     if (!tooltip) return null
@@ -154,6 +165,8 @@ function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => v
 
 export function GraphView({ data, onSelectFile }: GraphViewProps) {
   const graph = useGraphData(data)
+  // shared highlight state -- search and hover both write to this
+  const [highlightedNode, setHighlightedNode] = useState<string | null>(null)
 
   if (!graph || graph.order === 0) {
     return (
@@ -170,12 +183,15 @@ export function GraphView({ data, onSelectFile }: GraphViewProps) {
         settings={SIGMA_SETTINGS}
       >
         <LoadAndDisplay graph={graph} />
-        <Interactions onSelectFile={onSelectFile} />
-        <SearchBar />
+        <InteractionsAndHighlight
+          onSelectFile={onSelectFile}
+          highlightedNode={highlightedNode}
+          setHighlightedNode={setHighlightedNode}
+        />
+        <SearchBar onFocusNode={setHighlightedNode} />
         <GraphControls />
       </SigmaContainer>
 
-      {/* legend */}
       <div className="absolute bottom-4 right-4 bg-zinc-900/80 backdrop-blur-sm border border-zinc-800 rounded-lg px-3 py-2.5 text-[11px]">
         <div className="text-zinc-400 font-medium mb-1.5">Legend</div>
         <div className="space-y-0.5 text-zinc-500">

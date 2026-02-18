@@ -1,11 +1,15 @@
 // Search bar for finding and focusing nodes in the graph
-// Floats top-left of the graph canvas
+// Uses shared highlight state from parent -- doesn't touch reducers directly
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Search, X } from 'lucide-react'
 import { useSigma } from '@react-sigma/core'
 
-export function SearchBar() {
+interface SearchBarProps {
+  onFocusNode: (nodeId: string | null) => void
+}
+
+export function SearchBar({ onFocusNode }: SearchBarProps) {
   const sigma = useSigma()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<{ id: string; label: string }[]>([])
@@ -31,7 +35,6 @@ export function SearchBar() {
       }
     })
 
-    // sort: exact filename matches first, then by path
     matches.sort((a, b) => {
       const aExact = a.label.toLowerCase().startsWith(q) ? 0 : 1
       const bExact = b.label.toLowerCase().startsWith(q) ? 0 : 1
@@ -45,58 +48,36 @@ export function SearchBar() {
     const graph = sigma.getGraph()
     if (!graph.hasNode(nodeId)) return
 
-    // highlight this node and neighbors
-    const neighbors = new Set(graph.neighbors(nodeId))
-    neighbors.add(nodeId)
+    // tell parent to highlight this node (drives shared reducers)
+    onFocusNode(nodeId)
 
-    sigma.setSetting('nodeReducer', (node, data) => {
-      if (neighbors.has(node)) {
-        return {
-          ...data,
-          zIndex: 1,
-          label: data.label,
-          borderSize: node === nodeId ? 3 : 1,
-          borderColor: node === nodeId ? '#ffffff' : 'rgba(255,255,255,0.2)',
-        }
-      }
-      return { ...data, color: 'rgba(31, 41, 55, 0.3)', label: '', zIndex: 0, borderSize: 0 }
-    })
-    sigma.setSetting('edgeReducer', (edge, data) => {
-      const src = graph.source(edge)
-      const tgt = graph.target(edge)
-      if (neighbors.has(src) && neighbors.has(tgt)) {
-        return { ...data, color: 'rgba(99, 102, 241, 0.6)', size: 1.5 }
-      }
-      return { ...data, hidden: true }
-    })
-
-    // zoom to the node
-    const pos = sigma.getNodeDisplayData(nodeId)
-    if (pos) {
-      sigma.getCamera().animate(
-        { x: pos.x, y: pos.y, ratio: 0.15 },
-        { duration: 400 }
-      )
-    }
+    // zoom to the node using graph coordinates (not display coords)
+    const attrs = graph.getNodeAttributes(nodeId)
+    sigma.getCamera().animate(
+      { x: attrs.x as number, y: attrs.y as number, ratio: 0.15 },
+      { duration: 400 }
+    )
 
     setQuery('')
     setResults([])
     setIsOpen(false)
-  }, [sigma])
+  }, [sigma, onFocusNode])
 
   const clearSearch = useCallback(() => {
     setQuery('')
     setResults([])
     setIsOpen(false)
-    // reset reducers
-    sigma.setSetting('nodeReducer', null)
-    sigma.setSetting('edgeReducer', null)
+    onFocusNode(null)
     sigma.getCamera().animatedReset({ duration: 300 })
-  }, [sigma])
+  }, [sigma, onFocusNode])
 
-  // keyboard shortcut: / or cmd+f to focus search
+  // keyboard: / to open, Escape to clear
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // don't capture if user is typing in another input
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+
       if (e.key === '/' && !isOpen) {
         e.preventDefault()
         setIsOpen(true)
@@ -142,12 +123,12 @@ export function SearchBar() {
           </div>
 
           {results.length > 0 && (
-            <div className="mt-1 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700 rounded-lg overflow-hidden">
+            <div className="mt-1 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700 rounded-lg overflow-hidden max-h-[280px] overflow-y-auto">
               {results.map((r) => (
                 <button
                   key={r.id}
                   onClick={() => focusNode(r.id)}
-                  className="w-full text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0"
+                  className="w-full text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800/50 last:border-0"
                 >
                   <div className="text-xs text-zinc-200 font-medium">{r.label}</div>
                   <div className="text-[10px] text-zinc-500 truncate">{r.id}</div>
