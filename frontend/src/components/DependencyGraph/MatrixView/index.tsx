@@ -29,23 +29,16 @@ function MatrixGrid({
   onRowClick,
   highlightedIndex,
   setHighlightedIndex,
+  cycleSet,
 }: {
   labels: string[]
   matrix: number[][]
-  cycles: [number, number][]
+  cycleSet: Set<string>
   onCellHover: (info: { row: number; col: number; x: number; y: number } | null) => void
   onRowClick: (index: number) => void
   highlightedIndex: number | null
   setHighlightedIndex: (i: number | null) => void
 }) {
-  const cycleSet = useMemo(() => {
-    const set = new Set<string>()
-    for (const [a, b] of cycles) {
-      set.add(`${a}-${b}`)
-      set.add(`${b}-${a}`)
-    }
-    return set
-  }, [cycles])
 
   const size = labels.length
   // cell size scales with matrix size for readability
@@ -106,11 +99,13 @@ function MatrixGrid({
                       getCellBg(value, isCycle, isDiagonal)
                     } ${isHighlighted && !isDiagonal ? 'ring-1 ring-inset ring-zinc-600' : ''}`}
                     style={{ width: cellSize, height: cellSize, minWidth: cellSize }}
-                    onMouseEnter={(e) =>
-                      value > 0 || isCycle
-                        ? onCellHover({ row: rowIdx, col: colIdx, x: e.clientX, y: e.clientY })
-                        : undefined
-                    }
+                    onMouseEnter={(e) => {
+                      if (value > 0 || isCycle) {
+                        onCellHover({ row: rowIdx, col: colIdx, x: e.clientX, y: e.clientY })
+                      } else {
+                        onCellHover(null)
+                      }
+                    }}
                     onMouseLeave={() => onCellHover(null)}
                   >
                     {value > 0 && !isDiagonal && (
@@ -247,7 +242,7 @@ export function MatrixView({ data, onSelectFile }: MatrixViewProps) {
       <MatrixGrid
         labels={activeLabels}
         matrix={activeMatrix}
-        cycles={activeCycles}
+        cycleSet={cycleSet}
         onCellHover={setHoveredCell}
         onRowClick={handleRowClick}
         highlightedIndex={highlightedIndex}

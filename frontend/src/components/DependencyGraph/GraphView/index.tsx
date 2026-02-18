@@ -20,15 +20,13 @@ import type Graph from 'graphology'
 
 interface GraphViewProps {
   data: DependencyApiResponse
-  onSelectFile?: (filePath: string) => void
+  onSelectFile?: (filePath: string | null) => void
 }
 
 const SIGMA_SETTINGS = {
   defaultNodeColor: '#6366f1',
   defaultEdgeColor: 'rgba(75, 85, 99, 0.12)',
   defaultEdgeType: 'arrow' as const,
-  edgeReducer: null as any,
-  nodeReducer: null as any,
   renderEdgeLabels: false,
   labelFont: 'Inter, system-ui, sans-serif',
   labelSize: 11,
@@ -75,7 +73,7 @@ function Interactions({
   pinnedNode,
   setPinnedNode,
 }: {
-  onSelectFile?: (filePath: string) => void
+  onSelectFile?: (filePath: string | null) => void
   pinnedNode: string | null
   setPinnedNode: (node: string | null) => void
 }) {
@@ -91,7 +89,12 @@ function Interactions({
     registerEvents({
       enterNode: ({ node, event }) => {
         setHoveredNode(node)
-        setTooltip({ nodeId: node, position: { x: event.x, y: event.y } })
+        // convert container-relative coords to viewport-relative for fixed tooltip
+        const container = sigma.getContainer()
+        const rect = container?.getBoundingClientRect()
+        const x = (rect?.left ?? 0) + event.x
+        const y = (rect?.top ?? 0) + event.y
+        setTooltip({ nodeId: node, position: { x, y } })
         const el = sigma.getContainer()
         if (el) el.style.cursor = 'pointer'
       },
@@ -127,9 +130,8 @@ function Interactions({
         )
       },
       clickStage: () => {
-        // clear pinned state when clicking empty space
         setPinnedNode(null)
-        onSelectFile?.(undefined as any)
+        onSelectFile?.(null)
       },
     })
   }, [registerEvents, sigma, onSelectFile, setPinnedNode])
@@ -181,7 +183,6 @@ function Interactions({
     if (!graph.hasNode(tooltip.nodeId)) return null
     const a = graph.getNodeAttributes(tooltip.nodeId)
     return {
-      nodeId: tooltip.nodeId,
       label: (a.label as string) || tooltip.nodeId,
       directory: (a.directory as string) || '',
       imports: (a.imports as number) || 0,

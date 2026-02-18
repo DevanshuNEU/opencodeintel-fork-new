@@ -78,13 +78,21 @@ export function useDirectoryMatrix(apiData: DependencyApiResponse | undefined): 
       }
     }
 
+    // count cross-directory deps only (off-diagonal)
+    let crossDirDeps = 0
+    for (let i = 0; i < size; i++) {
+      for (let j = 0; j < size; j++) {
+        if (i !== j) crossDirDeps += matrix[i][j]
+      }
+    }
+
     return {
       directories,
       shortLabels: directories.map(getShortDir),
       matrix,
       fileCounts,
       cycles,
-      totalDeps: apiData.edges.length,
+      totalDeps: crossDirDeps,
       totalCycles: cycles.length,
     }
   }, [apiData])

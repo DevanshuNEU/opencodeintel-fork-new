@@ -14,7 +14,6 @@ import type { DependencyApiResponse } from './types'
 
 interface DependencyGraphProps {
   repoId: string
-  apiUrl: string
   apiKey: string
 }
 
@@ -88,7 +87,7 @@ function ViewToggle({
   )
 }
 
-export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps) {
+export function DependencyGraph({ repoId, apiKey }: DependencyGraphProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('graph')
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
 
@@ -122,10 +121,10 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
 
       <div className="relative">
         {viewMode === 'graph' && (
-          <GraphView data={data} onSelectFile={setSelectedFile} />
+          <GraphView data={data} onSelectFile={(f) => setSelectedFile(f)} />
         )}
         {viewMode === 'matrix' && (
-          <MatrixView data={data} onSelectFile={setSelectedFile} />
+          <MatrixView data={data} onSelectFile={(f) => setSelectedFile(f)} />
         )}
 
         {/* impact panel overlays as right sidebar */}

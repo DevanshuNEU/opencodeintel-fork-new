@@ -1,8 +1,7 @@
 // Tooltip shown when hovering a node in the graph
-// Positioned absolutely near the cursor
+// Positioned with fixed coordinates (viewport-relative from parent)
 
 interface NodeTooltipProps {
-  nodeId: string
   label: string
   directory: string
   imports: number

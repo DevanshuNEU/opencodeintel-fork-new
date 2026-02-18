@@ -457,7 +457,6 @@ export function DashboardHome() {
               {activeTab === 'dependencies' && (
                 <DependencyGraph 
                   repoId={selectedRepo} 
-                  apiUrl={API_URL} 
                   apiKey={session?.access_token || ''} 
                 />
               )}

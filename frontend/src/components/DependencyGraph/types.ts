@@ -32,15 +32,3 @@ export interface DependencyApiResponse {
   external_dependencies?: string[]
   cached?: boolean
 }
-
-// Matrix view data types
-export interface MatrixData {
-  labels: string[]
-  shortLabels: string[]
-  matrix: number[][]
-  directories: Map<string, number[]>
-  directorySeparators: number[]
-  cycles: [number, number][]
-  totalDeps: number
-  totalCycles: number
-}
