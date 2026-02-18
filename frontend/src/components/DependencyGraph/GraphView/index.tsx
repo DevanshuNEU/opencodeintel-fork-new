@@ -1,6 +1,5 @@
 // Sigma.js WebGL graph view
-// Renders the dependency graph using WebGL for performance
-// Layout + clustering computed in useGraphData, rendering handled by Sigma
+// Renders dependency graph with search, controls, hover/click interactions
 
 import { useState, useEffect } from 'react'
 import {
@@ -13,6 +12,8 @@ import '@react-sigma/core/lib/style.css'
 
 import { useGraphData } from './useGraphData'
 import { NodeTooltip } from './NodeTooltip'
+import { SearchBar } from './SearchBar'
+import { GraphControls } from './GraphControls'
 import type { DependencyApiResponse } from '../types'
 import type Graph from 'graphology'
 
@@ -21,10 +22,10 @@ interface GraphViewProps {
   onSelectFile?: (filePath: string) => void
 }
 
-// dark theme -- bg matches zinc-950, edges nearly invisible until hover
+// dark bg, subtle edges, only important labels visible
 const SIGMA_SETTINGS = {
   defaultNodeColor: '#6366f1',
-  defaultEdgeColor: 'rgba(75, 85, 99, 0.15)',
+  defaultEdgeColor: 'rgba(75, 85, 99, 0.12)',
   defaultEdgeType: 'arrow' as const,
   edgeReducer: null as any,
   nodeReducer: null as any,
@@ -33,34 +34,35 @@ const SIGMA_SETTINGS = {
   labelSize: 11,
   labelWeight: '500',
   labelColor: { color: '#d1d5db' },
-  // only show labels for large (important) nodes at default zoom
-  labelRenderedSizeThreshold: 14,
-  labelDensity: 0.15,
+  labelRenderedSizeThreshold: 12,
+  labelDensity: 0.12,
   zIndex: true,
   minCameraRatio: 0.03,
   maxCameraRatio: 3,
-  stagePadding: 40,
-  // subtle node borders
+  stagePadding: 30,
   defaultNodeBorderSize: 1,
-  defaultNodeBorderColor: 'rgba(255, 255, 255, 0.08)',
+  defaultNodeBorderColor: 'rgba(255, 255, 255, 0.06)',
+  // performance: skip edges when zoomed out
+  hideEdgesOnMove: true,
 }
 
-// Loads graph into Sigma and fits camera
 function LoadAndDisplay({ graph }: { graph: Graph }) {
   const loadGraph = useLoadGraph()
   const sigma = useSigma()
 
   useEffect(() => {
     loadGraph(graph)
+    // let sigma calculate bounds, then fit the camera with padding
     requestAnimationFrame(() => {
-      sigma.getCamera().animatedReset({ duration: 300 })
+      requestAnimationFrame(() => {
+        sigma.getCamera().animatedReset({ duration: 400 })
+      })
     })
   }, [graph, loadGraph, sigma])
 
   return null
 }
 
-// Handles hover/click interactions and drives node/edge reducers
 function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => void }) {
   const sigma = useSigma()
   const registerEvents = useRegisterEvents()
@@ -89,7 +91,7 @@ function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => v
         const pos = sigma.getNodeDisplayData(node)
         if (pos) {
           sigma.getCamera().animate(
-            { x: pos.x, y: pos.y, ratio: 0.15 },
+            { x: pos.x, y: pos.y, ratio: 0.12 },
             { duration: 400 }
           )
         }
@@ -110,28 +112,18 @@ function Interactions({ onSelectFile }: { onSelectFile?: (filePath: string) => v
           return {
             ...data,
             zIndex: 1,
-            // show label on hover for all neighbors
             label: data.label,
-            // slight glow effect via larger border
             borderSize: node === hoveredNode ? 3 : 1,
-            borderColor: node === hoveredNode ? '#ffffff' : 'rgba(255,255,255,0.2)',
+            borderColor: node === hoveredNode ? '#ffffff' : 'rgba(255,255,255,0.15)',
           }
         }
-        // fade non-neighbors hard
-        return {
-          ...data,
-          color: 'rgba(31, 41, 55, 0.3)',
-          label: '',
-          zIndex: 0,
-          borderSize: 0,
-        }
+        return { ...data, color: 'rgba(31, 41, 55, 0.25)', label: '', zIndex: 0, borderSize: 0 }
       })
-
       sigma.setSetting('edgeReducer', (edge, data) => {
         const src = graph.source(edge)
         const tgt = graph.target(edge)
         if (neighbors.has(src) && neighbors.has(tgt)) {
-          return { ...data, color: 'rgba(99, 102, 241, 0.6)', size: 1.5 }
+          return { ...data, color: 'rgba(99, 102, 241, 0.5)', size: 1.5 }
         }
         return { ...data, hidden: true }
       })
@@ -179,9 +171,11 @@ export function GraphView({ data, onSelectFile }: GraphViewProps) {
       >
         <LoadAndDisplay graph={graph} />
         <Interactions onSelectFile={onSelectFile} />
+        <SearchBar />
+        <GraphControls />
       </SigmaContainer>
 
-      {/* legend - glass card style */}
+      {/* legend */}
       <div className="absolute bottom-4 right-4 bg-zinc-900/80 backdrop-blur-sm border border-zinc-800 rounded-lg px-3 py-2.5 text-[11px]">
         <div className="text-zinc-400 font-medium mb-1.5">Legend</div>
         <div className="space-y-0.5 text-zinc-500">

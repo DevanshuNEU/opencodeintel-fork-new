@@ -38,16 +38,22 @@ export function useGraphData(apiData: DependencyApiResponse | undefined) {
 
     const graph = new Graph({ type: 'directed' })
 
-    // Build in-degree map to know dependents count per node
+    // Build in-degree and out-degree maps
     const inDegree: Record<string, number> = {}
+    const outDegree: Record<string, number> = {}
     for (const edge of apiData.edges) {
       inDegree[edge.target] = (inDegree[edge.target] || 0) + 1
+      outDegree[edge.source] = (outDegree[edge.source] || 0) + 1
     }
 
-    // Add nodes
+    // Add nodes -- skip orphans (0 connections) to reduce noise
     for (const node of apiData.nodes) {
       const dependents = inDegree[node.id] || 0
       const imports = node.import_count ?? node.imports ?? 0
+      const totalConnections = dependents + (outDegree[node.id] || 0)
+
+      // filter out isolated nodes (no edges at all) -- they clutter the graph
+      if (totalConnections === 0) continue
 
       graph.addNode(node.id, {
         label: node.label || node.id.split('/').pop() || node.id,
@@ -105,18 +111,19 @@ export function useGraphData(apiData: DependencyApiResponse | undefined) {
       })
     }
 
-    // Run ForceAtlas2 for layout positions
-    // Use synchronous version with fixed iterations for deterministic layout
+    // ForceAtlas2 for layout -- tuned for readability over compactness
     forceAtlas2.assign(graph, {
-      iterations: 300,
+      iterations: 400,
       settings: {
-        gravity: 1,
-        scalingRatio: 10,
-        barnesHutOptimize: graph.order > 100,
+        gravity: 0.5,
+        scalingRatio: 20,
+        barnesHutOptimize: graph.order > 50,
         barnesHutTheta: 0.5,
-        slowDown: 5,
+        slowDown: 3,
         strongGravityMode: false,
         adjustSizes: true,
+        linLogMode: true,
+        outboundAttractionDistribution: true,
       },
     })
 

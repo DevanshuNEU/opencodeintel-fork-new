@@ -127,18 +127,21 @@ export function DependencyGraph({ repoId, apiUrl, apiKey }: DependencyGraphProps
         {viewMode === 'matrix' && (
           <MatrixView data={data} onSelectFile={setSelectedFile} />
         )}
-      </div>
 
-      {selectedFile && selectedImpact && (
-        <ImpactPanel
-          fileName={selectedFileName}
-          fullPath={selectedFile}
-          impact={selectedImpact}
-          onClose={() => setSelectedFile(null)}
-          onFileClick={(fileId) => setSelectedFile(fileId)}
-          onFileHover={() => {}}
-        />
-      )}
+        {/* impact panel overlays as right sidebar */}
+        {selectedFile && selectedImpact && (
+          <div className="absolute top-0 right-0 h-full z-20">
+            <ImpactPanel
+              fileName={selectedFileName}
+              fullPath={selectedFile}
+              impact={selectedImpact}
+              onClose={() => setSelectedFile(null)}
+              onFileClick={(fileId) => setSelectedFile(fileId)}
+              onFileHover={() => {}}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
