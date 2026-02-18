@@ -30,6 +30,7 @@ import { UpgradeLimitModal } from '../UpgradeLimitModal'
 import type { Repository } from '../../types'
 import type { GitHubRepo } from '../../hooks/useGitHubRepos'
 import { API_URL } from '../../config/api'
+import { useRepos, useInvalidateRepoCache } from '../../hooks/useCachedQuery'
 
 const MAX_FREE_REPOS = 3
 
@@ -72,11 +73,10 @@ type RepoTab = 'overview' | 'search' | 'dependencies' | 'insights' | 'impact'
 export function DashboardHome() {
   const { session } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [repos, setRepos] = useState<Repository[]>([])
+  const { data: repos = [], isLoading: reposLoading, invalidate: refreshRepos } = useRepos(session?.access_token)
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
   const [loading, setLoading] = useState(false)
-  const [reposLoading, setReposLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showGitHubSelector, setShowGitHubSelector] = useState(false)
   
@@ -102,27 +102,6 @@ export function DashboardHome() {
       setSearchParams(searchParams, { replace: true })
     }
   }, [searchParams, setSearchParams])
-
-  const fetchRepos = async () => {
-    if (!session?.access_token) return
-    try {
-      const response = await fetch(`${API_URL}/repos`, {
-        headers: { 'Authorization': `Bearer ${session.access_token}` }
-      })
-      const data = await response.json()
-      setRepos(data.repositories || [])
-    } catch (error) {
-      console.error('Error fetching repos:', error)
-    } finally {
-      setReposLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchRepos()
-    const interval = setInterval(fetchRepos, 30000)
-    return () => clearInterval(interval)
-  }, [session])
 
   const handleAddRepo = async (gitUrl: string, branch: string) => {
     try {
@@ -170,7 +149,7 @@ export function DashboardHome() {
       setShowIndexingModal(true)
       setShowAddForm(false)
       
-      await fetchRepos()
+      refreshRepos()
     } catch (error) {
       console.error('Error adding repo:', error)
       toast.error('Failed to add repository', { description: error instanceof Error ? error.message : 'Please check the Git URL and try again' })
@@ -245,11 +224,11 @@ export function DashboardHome() {
     }
     
     setLoading(false)
-    await fetchRepos()
+    refreshRepos()
   }
 
   const handleIndexingComplete = async () => {
-    await fetchRepos()
+    refreshRepos()
     toast.success('Indexing complete!', { description: `${indexingRepoName} is ready for search` })
   }
 

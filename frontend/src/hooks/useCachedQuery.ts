@@ -165,3 +165,35 @@ export function useInvalidateRepoCache() {
     invalidateRepoCache(repoId)
   }
 }
+
+/**
+ * Fetch repos list with 30s auto-refresh.
+ * Replaces manual fetch-in-useEffect + setInterval pattern.
+ */
+export function useRepos(apiKey: string | undefined) {
+  const queryClient = useQueryClient()
+
+  const query = useQuery({
+    queryKey: ['repos'],
+    queryFn: async () => {
+      const data = await fetchWithAuth(`${API_URL}/repos`, apiKey!)
+      return (data.repositories || []) as Array<{
+        id: string
+        name: string
+        url: string
+        status: string
+        file_count: number
+        language: string
+        branch: string
+        created_at: string
+      }>
+    },
+    enabled: !!apiKey,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  })
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['repos'] })
+
+  return { ...query, invalidate }
+}
