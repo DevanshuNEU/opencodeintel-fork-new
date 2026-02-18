@@ -1,7 +1,8 @@
 // Sigma.js WebGL graph view
-// Single source of truth for highlight state shared between search and hover
+// Highlight state: "pinned" (from click/search) vs "hovered" (from mouseover)
+// Pinned persists until user clicks stage or closes panel. Hover is transient.
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
   SigmaContainer,
   useSigma,
@@ -60,19 +61,27 @@ function LoadAndDisplay({ graph }: { graph: Graph }) {
   return null
 }
 
-// Single component that owns all highlight state
-// Both hover and search funnel into "highlightedNode"
-function InteractionsAndHighlight({
+// Builds the neighbor set for a given node, used by the reducer
+function getNeighborSet(sigma: ReturnType<typeof useSigma>, nodeId: string): Set<string> | null {
+  const graph = sigma.getGraph()
+  if (!graph.hasNode(nodeId)) return null
+  const neighbors = new Set(graph.neighbors(nodeId))
+  neighbors.add(nodeId)
+  return neighbors
+}
+
+function Interactions({
   onSelectFile,
-  highlightedNode,
-  setHighlightedNode,
+  pinnedNode,
+  setPinnedNode,
 }: {
   onSelectFile?: (filePath: string) => void
-  highlightedNode: string | null
-  setHighlightedNode: (node: string | null) => void
+  pinnedNode: string | null
+  setPinnedNode: (node: string | null) => void
 }) {
   const sigma = useSigma()
   const registerEvents = useRegisterEvents()
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null)
   const [tooltip, setTooltip] = useState<{
     nodeId: string
     position: { x: number; y: number }
@@ -81,68 +90,79 @@ function InteractionsAndHighlight({
   useEffect(() => {
     registerEvents({
       enterNode: ({ node, event }) => {
-        setHighlightedNode(node)
+        setHoveredNode(node)
         setTooltip({ nodeId: node, position: { x: event.x, y: event.y } })
         const el = sigma.getContainer()
         if (el) el.style.cursor = 'pointer'
       },
       leaveNode: () => {
-        setHighlightedNode(null)
+        setHoveredNode(null)
         setTooltip(null)
         const el = sigma.getContainer()
         if (el) el.style.cursor = 'default'
       },
-      clickNode: ({ node }) => onSelectFile?.(node),
+      clickNode: ({ node }) => {
+        // pin this node and open impact panel
+        setPinnedNode(node)
+        onSelectFile?.(node)
+      },
       doubleClickNode: ({ node }) => {
-        // use graph coords (node attributes), not display coords
         const graph = sigma.getGraph()
         if (!graph.hasNode(node)) return
         const attrs = graph.getNodeAttributes(node)
         sigma.getCamera().animate(
-          { x: attrs.x, y: attrs.y, ratio: 0.12 },
+          { x: attrs.x as number, y: attrs.y as number, ratio: 0.12 },
           { duration: 400 }
         )
       },
-      // click on empty stage clears highlight
       clickStage: () => {
-        setHighlightedNode(null)
+        // clear pinned state when clicking empty space
+        setPinnedNode(null)
+        onSelectFile?.(undefined as any)
       },
     })
-  }, [registerEvents, sigma, onSelectFile, setHighlightedNode])
+  }, [registerEvents, sigma, onSelectFile, setPinnedNode])
 
-  // single reducer driven by highlightedNode -- works for both hover and search
+  // the active node is: hovered takes priority for visual, but pinned persists
+  const activeNode = hoveredNode || pinnedNode
+
   useEffect(() => {
-    const graph = sigma.getGraph()
-
-    if (highlightedNode && graph.hasNode(highlightedNode)) {
-      const neighbors = new Set(graph.neighbors(highlightedNode))
-      neighbors.add(highlightedNode)
-
-      sigma.setSetting('nodeReducer', (node, data) => {
-        if (neighbors.has(node)) {
-          return {
-            ...data,
-            zIndex: 1,
-            label: data.label,
-            borderSize: node === highlightedNode ? 3 : 1,
-            borderColor: node === highlightedNode ? '#ffffff' : 'rgba(255,255,255,0.15)',
-          }
-        }
-        return { ...data, color: 'rgba(31, 41, 55, 0.25)', label: '', zIndex: 0, borderSize: 0 }
-      })
-      sigma.setSetting('edgeReducer', (edge, data) => {
-        const src = graph.source(edge)
-        const tgt = graph.target(edge)
-        if (neighbors.has(src) && neighbors.has(tgt)) {
-          return { ...data, color: 'rgba(99, 102, 241, 0.5)', size: 1.5 }
-        }
-        return { ...data, hidden: true }
-      })
-    } else {
+    if (!activeNode) {
       sigma.setSetting('nodeReducer', null)
       sigma.setSetting('edgeReducer', null)
+      return
     }
-  }, [highlightedNode, sigma])
+
+    const neighbors = getNeighborSet(sigma, activeNode)
+    if (!neighbors) {
+      sigma.setSetting('nodeReducer', null)
+      sigma.setSetting('edgeReducer', null)
+      return
+    }
+
+    sigma.setSetting('nodeReducer', (node, data) => {
+      if (neighbors.has(node)) {
+        return {
+          ...data,
+          zIndex: 1,
+          label: data.label,
+          borderSize: node === activeNode ? 3 : 1,
+          borderColor: node === activeNode ? '#ffffff' : 'rgba(255,255,255,0.15)',
+        }
+      }
+      return { ...data, color: 'rgba(31, 41, 55, 0.25)', label: '', zIndex: 0, borderSize: 0 }
+    })
+
+    sigma.setSetting('edgeReducer', (edge, data) => {
+      const graph = sigma.getGraph()
+      const src = graph.source(edge)
+      const tgt = graph.target(edge)
+      if (neighbors.has(src) && neighbors.has(tgt)) {
+        return { ...data, color: 'rgba(99, 102, 241, 0.5)', size: 1.5 }
+      }
+      return { ...data, hidden: true }
+    })
+  }, [activeNode, sigma])
 
   const tooltipData = (() => {
     if (!tooltip) return null
@@ -165,8 +185,7 @@ function InteractionsAndHighlight({
 
 export function GraphView({ data, onSelectFile }: GraphViewProps) {
   const graph = useGraphData(data)
-  // shared highlight state -- search and hover both write to this
-  const [highlightedNode, setHighlightedNode] = useState<string | null>(null)
+  const [pinnedNode, setPinnedNode] = useState<string | null>(null)
 
   if (!graph || graph.order === 0) {
     return (
@@ -183,12 +202,17 @@ export function GraphView({ data, onSelectFile }: GraphViewProps) {
         settings={SIGMA_SETTINGS}
       >
         <LoadAndDisplay graph={graph} />
-        <InteractionsAndHighlight
+        <Interactions
           onSelectFile={onSelectFile}
-          highlightedNode={highlightedNode}
-          setHighlightedNode={setHighlightedNode}
+          pinnedNode={pinnedNode}
+          setPinnedNode={setPinnedNode}
         />
-        <SearchBar onFocusNode={setHighlightedNode} />
+        <SearchBar
+          onFocusNode={(nodeId) => {
+            setPinnedNode(nodeId)
+            if (nodeId) onSelectFile?.(nodeId)
+          }}
+        />
         <GraphControls />
       </SigmaContainer>
 

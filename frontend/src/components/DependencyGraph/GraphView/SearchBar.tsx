@@ -1,5 +1,5 @@
 // Search bar for finding and focusing nodes in the graph
-// Uses shared highlight state from parent -- doesn't touch reducers directly
+// Sets pinnedNode in parent -- doesn't manage reducers
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Search, X } from 'lucide-react'
@@ -16,7 +16,6 @@ export function SearchBar({ onFocusNode }: SearchBarProps) {
   const [isOpen, setIsOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // fuzzy match against all node labels and full paths
   useEffect(() => {
     if (!query.trim()) {
       setResults([])
@@ -29,8 +28,7 @@ export function SearchBar({ onFocusNode }: SearchBarProps) {
 
     graph.forEachNode((node, attrs) => {
       const label = (attrs.label as string) || ''
-      const fullPath = node.toLowerCase()
-      if (fullPath.includes(q) || label.toLowerCase().includes(q)) {
+      if (node.toLowerCase().includes(q) || label.toLowerCase().includes(q)) {
         matches.push({ id: node, label })
       }
     })
@@ -48,15 +46,18 @@ export function SearchBar({ onFocusNode }: SearchBarProps) {
     const graph = sigma.getGraph()
     if (!graph.hasNode(nodeId)) return
 
-    // tell parent to highlight this node (drives shared reducers)
+    // pin this node (parent handles highlight via reducers)
     onFocusNode(nodeId)
 
-    // zoom to the node using graph coordinates (not display coords)
+    // zoom camera to node using graph coordinates
     const attrs = graph.getNodeAttributes(nodeId)
-    sigma.getCamera().animate(
-      { x: attrs.x as number, y: attrs.y as number, ratio: 0.15 },
-      { duration: 400 }
-    )
+    // small delay so the reducer applies before camera moves
+    setTimeout(() => {
+      sigma.getCamera().animate(
+        { x: attrs.x as number, y: attrs.y as number, ratio: 0.2 },
+        { duration: 500 }
+      )
+    }, 50)
 
     setQuery('')
     setResults([])
@@ -71,10 +72,8 @@ export function SearchBar({ onFocusNode }: SearchBarProps) {
     sigma.getCamera().animatedReset({ duration: 300 })
   }, [sigma, onFocusNode])
 
-  // keyboard: / to open, Escape to clear
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // don't capture if user is typing in another input
       const target = e.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
 
