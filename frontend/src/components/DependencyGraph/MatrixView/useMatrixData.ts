@@ -1,55 +1,74 @@
-// Transforms API dependency response into a 2D adjacency matrix
-// for the Dependency Structure Matrix (DSM) view
+// Transforms API response into directory-level matrix (default)
+// and file-level matrix (drill-down on directory click)
 
 import { useMemo } from 'react'
-import type { DependencyApiResponse, MatrixData } from '../types'
+import type { DependencyApiResponse } from '../types'
 
 function getDirectory(filePath: string): string {
   const parts = filePath.split('/')
   return parts.length > 1 ? parts.slice(0, -1).join('/') : '.'
 }
 
-function getShortLabel(filePath: string): string {
-  return filePath.split('/').pop() || filePath
+function getShortDir(dirPath: string): string {
+  const parts = dirPath.split('/')
+  return parts[parts.length - 1] || dirPath
 }
 
-export function useMatrixData(apiData: DependencyApiResponse | undefined): MatrixData | null {
+export interface DirectoryMatrixData {
+  directories: string[]
+  shortLabels: string[]
+  matrix: number[][]
+  fileCounts: number[]
+  cycles: [number, number][]
+  totalDeps: number
+  totalCycles: number
+}
+
+export interface FileMatrixData {
+  directory: string
+  files: string[]
+  shortLabels: string[]
+  matrix: number[][]
+  cycles: [number, number][]
+}
+
+export function useDirectoryMatrix(apiData: DependencyApiResponse | undefined): DirectoryMatrixData | null {
   return useMemo(() => {
     if (!apiData?.nodes?.length) return null
 
-    // Sort files by directory so same-directory files are adjacent
-    const sortedFiles = [...apiData.nodes]
-      .map((n) => n.id)
-      .sort((a, b) => {
-        const dirA = getDirectory(a)
-        const dirB = getDirectory(b)
-        if (dirA !== dirB) return dirA.localeCompare(dirB)
-        return a.localeCompare(b)
-      })
+    // collect all unique directories
+    const dirSet = new Set<string>()
+    for (const node of apiData.nodes) {
+      dirSet.add(getDirectory(node.id))
+    }
+    const directories = [...dirSet].sort()
 
-    // Build index lookup: file path -> matrix index
-    const indexMap = new Map<string, number>()
-    sortedFiles.forEach((file, idx) => {
-      indexMap.set(file, idx)
-    })
+    // map dir -> index
+    const dirIndex = new Map<string, number>()
+    directories.forEach((dir, idx) => dirIndex.set(dir, idx))
 
-    const size = sortedFiles.length
+    const size = directories.length
+    const matrix: number[][] = Array.from({ length: size }, () => new Array(size).fill(0))
 
-    // Build adjacency matrix
-    // matrix[row][col] = number of imports from row -> col
-    const matrix: number[][] = Array.from({ length: size }, () =>
-      new Array(size).fill(0)
-    )
+    // count how many files per directory
+    const fileCounts = new Array(size).fill(0)
+    for (const node of apiData.nodes) {
+      const idx = dirIndex.get(getDirectory(node.id))
+      if (idx !== undefined) fileCounts[idx]++
+    }
 
+    // aggregate edges into directory-level
     for (const edge of apiData.edges) {
-      const sourceIdx = indexMap.get(edge.source)
-      const targetIdx = indexMap.get(edge.target)
-      if (sourceIdx !== undefined && targetIdx !== undefined) {
-        matrix[sourceIdx][targetIdx] += 1
+      const srcDir = getDirectory(edge.source)
+      const tgtDir = getDirectory(edge.target)
+      const srcIdx = dirIndex.get(srcDir)
+      const tgtIdx = dirIndex.get(tgtDir)
+      if (srcIdx !== undefined && tgtIdx !== undefined) {
+        matrix[srcIdx][tgtIdx]++
       }
     }
 
-    // Detect circular dependencies: both directions have imports
+    // detect circular deps between directories
     const cycles: [number, number][] = []
     for (let i = 0; i < size; i++) {
       for (let j = i + 1; j < size; j++) {
@@ -59,36 +78,62 @@ export function useMatrixData(apiData: DependencyApiResponse | undefined): Matri
       }
     }
 
-    // Build directory grouping and find separator positions
-    const directories = new Map<string, number[]>()
-    const directorySeparators: number[] = []
-    let prevDir = ''
-
-    sortedFiles.forEach((file, idx) => {
-      const dir = getDirectory(file)
-      if (!directories.has(dir)) {
-        directories.set(dir, [])
-      }
-      directories.get(dir)!.push(idx)
-
-      if (dir !== prevDir && idx > 0) {
-        directorySeparators.push(idx)
-      }
-      prevDir = dir
-    })
-
-    const totalDeps = apiData.edges.length
-    const totalCycles = cycles.length
-
     return {
-      labels: sortedFiles,
-      shortLabels: sortedFiles.map(getShortLabel),
-      matrix,
       directories,
-      directorySeparators,
+      shortLabels: directories.map(getShortDir),
+      matrix,
+      fileCounts,
       cycles,
-      totalDeps,
-      totalCycles,
+      totalDeps: apiData.edges.length,
+      totalCycles: cycles.length,
     }
   }, [apiData])
+}
+
+export function useFileMatrix(
+  apiData: DependencyApiResponse | undefined,
+  directory: string | null
+): FileMatrixData | null {
+  return useMemo(() => {
+    if (!apiData?.nodes?.length || !directory) return null
+
+    // get files in this directory
+    const files = apiData.nodes
+      .map((n) => n.id)
+      .filter((id) => getDirectory(id) === directory)
+      .sort()
+
+    if (files.length === 0) return null
+
+    const fileIndex = new Map<string, number>()
+    files.forEach((f, idx) => fileIndex.set(f, idx))
+
+    const size = files.length
+    const matrix: number[][] = Array.from({ length: size }, () => new Array(size).fill(0))
+
+    for (const edge of apiData.edges) {
+      const srcIdx = fileIndex.get(edge.source)
+      const tgtIdx = fileIndex.get(edge.target)
+      if (srcIdx !== undefined && tgtIdx !== undefined) {
+        matrix[srcIdx][tgtIdx]++
+      }
+    }
+
+    const cycles: [number, number][] = []
+    for (let i = 0; i < size; i++) {
+      for (let j = i + 1; j < size; j++) {
+        if (matrix[i][j] > 0 && matrix[j][i] > 0) {
+          cycles.push([i, j])
+        }
+      }
+    }
+
+    return {
+      directory,
+      files,
+      shortLabels: files.map((f) => f.split('/').pop() || f),
+      matrix,
+      cycles,
+    }
+  }, [apiData, directory])
 }

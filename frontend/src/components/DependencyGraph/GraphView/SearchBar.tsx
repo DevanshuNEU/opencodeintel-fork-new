@@ -49,15 +49,19 @@ export function SearchBar({ onFocusNode }: SearchBarProps) {
     // pin this node (parent handles highlight via reducers)
     onFocusNode(nodeId)
 
-    // zoom camera to node using graph coordinates
-    const attrs = graph.getNodeAttributes(nodeId)
-    // small delay so the reducer applies before camera moves
+    // zoom: get the node's position in sigma's coordinate system
+    // nodeDisplayData gives us the rendered position which we can use directly
     setTimeout(() => {
-      sigma.getCamera().animate(
-        { x: attrs.x as number, y: attrs.y as number, ratio: 0.2 },
-        { duration: 500 }
-      )
-    }, 50)
+      const displayData = sigma.getNodeDisplayData(nodeId)
+      if (displayData) {
+        // convert viewport pixel coords to graph coords for the camera
+        const graphCoords = sigma.viewportToGraph({ x: displayData.x, y: displayData.y })
+        sigma.getCamera().animate(
+          { x: graphCoords.x, y: graphCoords.y, ratio: 0.2 },
+          { duration: 500 }
+        )
+      }
+    }, 100)
 
     setQuery('')
     setResults([])
