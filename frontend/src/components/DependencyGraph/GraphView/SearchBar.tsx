@@ -49,18 +49,35 @@ export function SearchBar({ onFocusNode }: SearchBarProps) {
     // pin this node (parent handles highlight via reducers)
     onFocusNode(nodeId)
 
-    // zoom: get the node's position in sigma's coordinate system
-    // nodeDisplayData gives us the rendered position which we can use directly
+    // zoom to node: use framedGraphToViewport to get correct camera position
+    // sigma's camera x/y are in the graph's normalized coordinate space
     setTimeout(() => {
-      const displayData = sigma.getNodeDisplayData(nodeId)
-      if (displayData) {
-        // convert viewport pixel coords to graph coords for the camera
-        const graphCoords = sigma.viewportToGraph({ x: displayData.x, y: displayData.y })
-        sigma.getCamera().animate(
-          { x: graphCoords.x, y: graphCoords.y, ratio: 0.2 },
-          { duration: 500 }
-        )
-      }
+      const nodeAttrs = graph.getNodeAttributes(nodeId)
+      const x = nodeAttrs.x as number
+      const y = nodeAttrs.y as number
+
+      // get the graph bounding box to normalize coords
+      const camera = sigma.getCamera()
+      const { width, height } = sigma.getDimensions()
+
+      // convert graph position to a camera state that centers on the node
+      // sigma internally normalizes graph coords, so we use graphToViewport
+      // then figure out what camera state would put that at center
+      const currentState = camera.getState()
+      const viewCenter = sigma.graphToViewport({ x, y })
+
+      // how far off-center is the node currently?
+      const dx = viewCenter.x - width / 2
+      const dy = viewCenter.y - height / 2
+
+      // compute new camera position by shifting proportionally
+      const newX = currentState.x + (dx / width) * currentState.ratio
+      const newY = currentState.y + (dy / height) * currentState.ratio
+
+      camera.animate(
+        { x: newX, y: newY, ratio: 0.2 },
+        { duration: 500 }
+      )
     }, 100)
 
     setQuery('')

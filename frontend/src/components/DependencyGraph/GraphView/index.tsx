@@ -107,14 +107,24 @@ function Interactions({
         onSelectFile?.(node)
       },
       doubleClickNode: ({ node }) => {
-        const displayData = sigma.getNodeDisplayData(node)
-        if (displayData) {
-          const graphCoords = sigma.viewportToGraph({ x: displayData.x, y: displayData.y })
-          sigma.getCamera().animate(
-            { x: graphCoords.x, y: graphCoords.y, ratio: 0.12 },
-            { duration: 400 }
-          )
-        }
+        // zoom to node using graphToViewport + camera offset calculation
+        const graph = sigma.getGraph()
+        if (!graph.hasNode(node)) return
+        const attrs = graph.getNodeAttributes(node)
+        const camera = sigma.getCamera()
+        const { width, height } = sigma.getDimensions()
+        const currentState = camera.getState()
+        const viewPos = sigma.graphToViewport({ x: attrs.x as number, y: attrs.y as number })
+        const dx = viewPos.x - width / 2
+        const dy = viewPos.y - height / 2
+        camera.animate(
+          {
+            x: currentState.x + (dx / width) * currentState.ratio,
+            y: currentState.y + (dy / height) * currentState.ratio,
+            ratio: 0.12,
+          },
+          { duration: 400 }
+        )
       },
       clickStage: () => {
         // clear pinned state when clicking empty space
