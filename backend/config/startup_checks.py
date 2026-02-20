@@ -9,7 +9,7 @@ from typing import List, Tuple
 from services.observability import logger
 
 
-# (env_var_name, description, required)
+# (env_var_name, description)
 REQUIRED_VARS: List[Tuple[str, str]] = [
     ("SUPABASE_URL", "Supabase project URL"),
     ("SUPABASE_ANON_KEY", "Supabase anon/public key"),

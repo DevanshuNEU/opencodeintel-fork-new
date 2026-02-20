@@ -32,7 +32,7 @@ export class ErrorBoundary extends Component<Props, State> {
             Something went wrong
           </h1>
           <p className="text-muted-foreground">
-            An unexpected error occurred. This has been logged.
+            An unexpected error occurred.
           </p>
           {this.state.error && (
             <pre className="text-xs text-left bg-muted border border-border rounded-lg p-3 overflow-auto max-h-[120px] text-muted-foreground">

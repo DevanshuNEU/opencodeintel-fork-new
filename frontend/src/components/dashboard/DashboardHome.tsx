@@ -30,7 +30,7 @@ import { UpgradeLimitModal } from '../UpgradeLimitModal'
 import type { Repository } from '../../types'
 import type { GitHubRepo } from '../../hooks/useGitHubRepos'
 import { API_URL } from '../../config/api'
-import { useRepos, useInvalidateRepoCache } from '../../hooks/useCachedQuery'
+import { useRepos } from '../../hooks/useCachedQuery'
 
 const MAX_FREE_REPOS = 3
 
