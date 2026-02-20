@@ -30,6 +30,60 @@ const bottomNavItems: NavItem[] = [
   { name: 'Documentation', href: '/docs', icon: <BookOpen className="w-5 h-5" />, external: true },
 ]
 
+// defined at module scope so React can reconcile it across renders
+function NavLink({
+  item,
+  active,
+  showLabels,
+  onClick,
+}: {
+  item: NavItem
+  active: boolean
+  showLabels: boolean
+  onClick?: () => void
+}) {
+  const baseClasses = `
+    flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group
+    ${active 
+      ? 'bg-primary/10 text-primary' 
+      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+    }
+  `
+
+  if (item.external) {
+    return (
+      <a
+        href={item.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={baseClasses}
+        onClick={onClick}
+      >
+        <span className={active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}>
+          {item.icon}
+        </span>
+        {showLabels && (
+          <>
+            <span className="text-sm font-medium truncate">{item.name}</span>
+            <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
+          </>
+        )}
+      </a>
+    )
+  }
+
+  return (
+    <Link to={item.href} className={baseClasses} onClick={onClick}>
+      <span className={active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}>
+        {item.icon}
+      </span>
+      {showLabels && (
+        <span className="text-sm font-medium truncate">{item.name}</span>
+      )}
+    </Link>
+  )
+}
+
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const location = useLocation()
 
@@ -40,62 +94,10 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
     return location.pathname === href
   }
 
-  const handleNavClick = () => {
-    // Close mobile menu when navigating
-    onMobileClose?.()
-  }
+  const showLabels = !collapsed || !!mobileOpen
 
-  const NavLink = ({ item }: { item: NavItem }) => {
-    const active = isActive(item.href)
-    
-    const baseClasses = `
-      flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group
-      ${active 
-        ? 'bg-primary/10 text-primary' 
-        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-      }
-    `
-
-    // On mobile, always show full labels (not collapsed)
-    const showLabels = !collapsed || mobileOpen
-
-    if (item.external) {
-      return (
-        <a
-          href={item.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={baseClasses}
-          onClick={handleNavClick}
-        >
-          <span className={active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}>
-            {item.icon}
-          </span>
-          {showLabels && (
-            <>
-              <span className="text-sm font-medium truncate">{item.name}</span>
-              <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
-            </>
-          )}
-        </a>
-      )
-    }
-
-    return (
-      <Link to={item.href} className={baseClasses} onClick={handleNavClick}>
-        <span className={active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}>
-          {item.icon}
-        </span>
-        {showLabels && (
-          <span className="text-sm font-medium truncate">{item.name}</span>
-        )}
-      </Link>
-    )
-  }
-
-  // Determine sidebar width class
   const getWidthClass = () => {
-    if (mobileOpen) return 'w-[var(--sidebar-width)]' // Always full width on mobile when open
+    if (mobileOpen) return 'w-[var(--sidebar-width)]'
     if (collapsed) return 'w-[var(--sidebar-width-collapsed)]'
     return 'w-[var(--sidebar-width)]'
   }
@@ -111,7 +113,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         lg:translate-x-0
       `}
     >
-      {/* Mobile close button */}
+      {/* mobile close */}
       <div className="lg:hidden flex items-center justify-between p-3 border-b border-border">
         <span className="font-semibold text-foreground">Menu</span>
         <button
@@ -125,16 +127,27 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
 
       <nav className="flex-1 p-3 space-y-1">
         {mainNavItems.map((item) => (
-          <NavLink key={item.href} item={item} />
+          <NavLink
+            key={item.href}
+            item={item}
+            active={isActive(item.href)}
+            showLabels={showLabels}
+            onClick={onMobileClose}
+          />
         ))}
       </nav>
 
       <div className="p-3 border-t border-border space-y-1">
         {bottomNavItems.map((item) => (
-          <NavLink key={item.href} item={item} />
+          <NavLink
+            key={item.href}
+            item={item}
+            active={isActive(item.href)}
+            showLabels={showLabels}
+            onClick={onMobileClose}
+          />
         ))}
 
-        {/* Collapse toggle - desktop only */}
         <button
           onClick={onToggle}
           className="hidden lg:flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"

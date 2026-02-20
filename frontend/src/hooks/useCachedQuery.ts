@@ -11,6 +11,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getFromCache, saveToCache, invalidateRepoCache } from '../lib/cache'
 import { API_URL } from '../config/api'
+import type { Repository } from '../types'
 
 // Stale time: 5 minutes (data considered fresh)
 const STALE_TIME = 5 * 60 * 1000
@@ -164,4 +165,27 @@ export function useInvalidateRepoCache() {
     // Invalidate localStorage cache
     invalidateRepoCache(repoId)
   }
+}
+
+/**
+ * Fetch repos list with 30s auto-refresh.
+ * Replaces manual fetch-in-useEffect + setInterval pattern.
+ */
+export function useRepos(apiKey: string | undefined) {
+  const queryClient = useQueryClient()
+
+  const query = useQuery({
+    queryKey: ['repos'],
+    queryFn: async () => {
+      const data = await fetchWithAuth(`${API_URL}/repos`, apiKey!)
+      return (data.repositories || []) as Array<Repository>
+    },
+    enabled: !!apiKey,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  })
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['repos'] })
+
+  return { ...query, invalidate }
 }

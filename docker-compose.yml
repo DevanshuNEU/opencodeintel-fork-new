@@ -32,11 +32,15 @@ services:
       - PINECONE_API_KEY=${PINECONE_API_KEY}
       - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME}
       - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - API_KEY=${API_KEY}
       - BACKEND_API_URL=http://backend:8000
       - DISCORD_FEEDBACK_WEBHOOK=${DISCORD_FEEDBACK_WEBHOOK}
+      - COHERE_API_KEY=${COHERE_API_KEY}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+      - SENTRY_DSN=${SENTRY_DSN}
       - FORWARDED_ALLOW_IPS=*
     volumes:
       - ./backend/repos:/app/repos
@@ -62,14 +66,14 @@ services:
       args:
         - VITE_API_URL=http://localhost:8000
         - VITE_SUPABASE_URL=${SUPABASE_URL}
-        - VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY}
+        - VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     container_name: codeintel-frontend
     ports:
       - "3000:80"
     environment:
       - VITE_API_URL=http://localhost:8000
       - VITE_SUPABASE_URL=${SUPABASE_URL}
-      - VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY}
+      - VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     depends_on:
       - backend
     healthcheck:

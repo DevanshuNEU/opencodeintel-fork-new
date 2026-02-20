@@ -18,6 +18,7 @@ import { ArchitecturePage } from './pages/ArchitecturePage';
 import { ContributingPage } from './pages/ContributingPage';
 import { GitHubCallbackPage } from './pages/GitHubCallbackPage';
 import { ScrollToTop } from './components/ScrollToTop';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -126,9 +127,11 @@ export function App() {
       <TooltipProvider>
         <BrowserRouter>
           <ScrollToTop />
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
+          <ErrorBoundary>
+            <AuthProvider>
+              <AppRoutes />
+            </AuthProvider>
+          </ErrorBoundary>
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>

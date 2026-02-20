@@ -16,6 +16,7 @@ init_sentry()
 
 # Import API config (single source of truth for versioning)
 from config.api import API_PREFIX, API_VERSION
+from config.startup_checks import validate_environment
 
 # Import routers
 from routes.auth import router as auth_router
@@ -36,7 +37,7 @@ from routes.ws_repos import websocket_repo_indexing
 # Lifespan context manager for startup/shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    validate_environment()
     await load_demo_repos()
     yield
     # Shutdown (cleanup if needed)
