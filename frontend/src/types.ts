@@ -17,3 +17,5 @@ export interface SearchResult {
   line_start: number
   line_end: number
 }
+
+export type RepoTab = 'overview' | 'search' | 'dependencies' | 'insights' | 'impact'
