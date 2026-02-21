@@ -7,7 +7,7 @@ import { AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useAuth } from '../../contexts/AuthContext'
 import { useRepos } from '../../hooks/useCachedQuery'
-import { API_URL } from '../../config/api'
+import { API_URL, MAX_FREE_REPOS } from '../../config/api'
 import { extractErrorMessage, isUpgradeError } from '../../lib/api-errors'
 import { RepoListView } from './RepoListView'
 import { RepoDetailView } from './RepoDetailView'
@@ -208,7 +208,7 @@ export function DashboardHome() {
         isOpen={showGitHubSelector}
         onClose={() => setShowGitHubSelector(false)}
         onImport={handleGitHubImport}
-        maxSelectable={3}
+        maxSelectable={MAX_FREE_REPOS}
         currentRepoCount={repos.length}
       />
 

@@ -57,3 +57,6 @@ export const buildWsUrl = (path: string): string => {
   const cleanPath = path.startsWith('/') ? path : `/${path}`
   return `${WS_URL}${cleanPath}`
 }
+
+// free tier repo limit -- used in dashboard and GitHub import
+export const MAX_FREE_REPOS = 3

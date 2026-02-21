@@ -6,9 +6,8 @@ import { Plus, Github } from 'lucide-react'
 import { Button } from '../ui/button'
 import { RepoList } from '../RepoList'
 import { DashboardStats } from './DashboardStats'
+import { MAX_FREE_REPOS } from '../../config/api'
 import type { Repository } from '../../types'
-
-const MAX_FREE_REPOS = 3
 
 interface RepoListViewProps {
   repos: Repository[]
