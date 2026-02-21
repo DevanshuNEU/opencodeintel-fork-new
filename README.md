@@ -176,14 +176,25 @@ OpenCodeIntel is the tool I wish I had. It's open source because I think every d
 
 ## Roadmap
 
-- [x] Semantic code search
-- [x] GitHub OAuth integration  
-- [x] Dependency graph visualization
+### Shipped
+- [x] Semantic code search with AI summaries
+- [x] GitHub OAuth + repo import
+- [x] WebGL dependency graph (Sigma.js + ForceAtlas2 + Louvain clustering)
+- [x] Dependency Structure Matrix with circular dep detection
 - [x] Impact analysis
-- [x] MCP server for Claude
+- [x] Code style intelligence
+- [x] Codebase DNA extraction
+- [x] Team rules detection (CLAUDE.md, .cursorrules)
+- [x] MCP server for Claude Desktop / Cursor
+- [x] Real-time indexing progress (WebSocket)
+- [x] Full documentation site (12 pages)
+- [x] Frontend test suite (Vitest)
+
+### Coming Soon
+- [ ] MCP authentication overhaul (unified config)
 - [ ] VS Code extension
-- [ ] Team workspaces
 - [ ] Self-hosted Ollama support (no OpenAI required)
+- [ ] Team workspaces
 - [ ] GitLab / Bitbucket support
 
 Want to influence the roadmap? [Open an issue](https://github.com/OpenCodeIntel/opencodeintel/issues).
