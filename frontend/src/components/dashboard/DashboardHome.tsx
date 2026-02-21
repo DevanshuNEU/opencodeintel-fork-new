@@ -165,8 +165,9 @@ export function DashboardHome() {
   return (
     <div className="min-h-screen">
       <AnimatePresence mode="wait">
-        {!isRepoView && (
+        {!isRepoView ? (
           <RepoListView
+            key="repo-list"
             repos={repos}
             loading={loading}
             reposLoading={reposLoading}
@@ -175,10 +176,9 @@ export function DashboardHome() {
             onAddClick={() => setShowAddForm(true)}
             onGitHubClick={() => setShowGitHubSelector(true)}
           />
-        )}
-
-        {isRepoView && (
+        ) : (
           <RepoDetailView
+            key={`repo-detail-${selectedRepo}`}
             repo={selectedRepoData}
             repoId={selectedRepo}
             activeTab={activeTab}
