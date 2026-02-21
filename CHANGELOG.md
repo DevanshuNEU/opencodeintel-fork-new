@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dashboard redesigned with dark theme and glassmorphism (PR #219).
 - NavLink component moved to module scope to prevent remount on every render.
 - Replaced manual fetch-in-useEffect with React Query for repo list (30s polling, request dedup, caching).
-- Docker env vars standardized: SUPABASE_ANON_KEY (was SUPABASE_KEY), added SUPABASE_JWT_SECRET, VOYAGE_API_KEY, COHERE_API_KEY, SENTRY_DSN.
+- Docker env vars standardized: SUPABASE_ANON_KEY replaces SUPABASE_KEY (**Breaking** -- self-hosted users must rename SUPABASE_KEY to SUPABASE_ANON_KEY in their .env). Added SUPABASE_JWT_SECRET, VOYAGE_API_KEY, COHERE_API_KEY, SENTRY_DSN.
 - Repository type in useCachedQuery now uses shared interface (fixes undefined git_url).
 
 ### Removed
