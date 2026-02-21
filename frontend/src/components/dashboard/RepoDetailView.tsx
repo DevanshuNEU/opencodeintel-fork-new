@@ -17,10 +17,8 @@ import { DependencyGraph } from '../DependencyGraph'
 import { RepoOverview } from '../RepoOverview'
 import { StyleInsights } from '../StyleInsights'
 import { ImpactAnalyzer } from '../ImpactAnalyzer'
-import type { Repository } from '../../types'
+import type { Repository, RepoTab } from '../../types'
 import { API_URL } from '../../config/api'
-
-type RepoTab = 'overview' | 'search' | 'dependencies' | 'insights' | 'impact'
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },

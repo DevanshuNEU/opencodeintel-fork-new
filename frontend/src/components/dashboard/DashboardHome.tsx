@@ -16,8 +16,7 @@ import { GitHubRepoSelector } from '../GitHubRepoSelector'
 import { IndexingProgressModal } from '../IndexingProgressModal'
 import { UpgradeLimitModal } from '../UpgradeLimitModal'
 import type { GitHubRepo } from '../../hooks/useGitHubRepos'
-
-type RepoTab = 'overview' | 'search' | 'dependencies' | 'insights' | 'impact'
+import type { RepoTab } from '../../types'
 
 export function DashboardHome() {
   const { session } = useAuth()
