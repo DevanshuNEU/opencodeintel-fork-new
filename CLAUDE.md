@@ -73,7 +73,7 @@ These files exceed 200 lines but are approved due to logical cohesion:
 ## Architecture
 
 ### Project Structure
-```
+```text
 backend/                    # FastAPI, Python 3.11+
   config/                   # API config, startup checks
   middleware/               # Auth, rate limiting
