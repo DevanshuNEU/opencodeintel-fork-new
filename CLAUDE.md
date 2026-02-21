@@ -47,7 +47,7 @@ These files exceed 200 lines but are approved due to logical cohesion:
 - Run with `bun run test`, runs in CI on every PR
 - Test file naming: `ComponentName.test.tsx` or `hookName.test.ts`
 - Smoke tests for critical paths: does it render, does the hook return correct data
-- Backend tests: pytest in `backend/tests/`, run with `pytest tests/ -v`
+- Backend tests: pytest in `backend/tests/`, run with `cd backend && pytest tests/ -v`
 
 ### Backend (Python)
 - Python 3.11+ required
