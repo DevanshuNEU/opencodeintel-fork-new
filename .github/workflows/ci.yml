@@ -93,6 +93,10 @@ jobs:
       working-directory: ./frontend
       run: bun run build
     
+    - name: Run tests
+      working-directory: ./frontend
+      run: bun run test
+    
     - name: Check TypeScript
       working-directory: ./frontend
       run: bun run tsc --noEmit
