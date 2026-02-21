@@ -113,12 +113,14 @@ export function DashboardHome() {
         setLoading(true)
         const repoId = await addAndIndex(repo.name, repo.clone_url, repo.default_branch)
 
-        if (repoId && repo === githubRepos[githubRepos.length - 1]) {
-          setIndexingRepoId(repoId)
-          setIndexingRepoName(repo.name)
-          setShowIndexingModal(true)
+        if (repoId) {
+          if (repo === githubRepos[githubRepos.length - 1]) {
+            setIndexingRepoId(repoId)
+            setIndexingRepoName(repo.name)
+            setShowIndexingModal(true)
+          }
+          toast.success(`Added ${repo.name}`)
         }
-        toast.success(`Added ${repo.name}`)
       } catch (error) {
         toast.error(`Failed to import ${repo.name}`, {
           description: error instanceof Error ? error.message : 'Please try again',
