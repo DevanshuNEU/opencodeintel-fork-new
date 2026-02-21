@@ -86,7 +86,7 @@ export function DashboardHome() {
   const handleAddRepo = async (gitUrl: string, branch: string) => {
     try {
       setLoading(true)
-      const name = gitUrl.split('/').pop()?.replace('.git', '') || 'unknown'
+      const name = gitUrl.split('/').pop()?.replace(/\.git$/, '') || 'unknown'
       const repoId = await addAndIndex(name, gitUrl, branch)
       if (repoId) {
         setIndexingRepoId(repoId)
