@@ -5,7 +5,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  // force development mode so React exposes act() and test utilities
+  // force non-production mode so React exposes act() and test utilities
   define: {
     'process.env.NODE_ENV': '"test"',
   },
