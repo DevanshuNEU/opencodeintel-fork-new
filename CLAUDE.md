@@ -68,7 +68,7 @@ These files exceed 200 lines but are approved due to logical cohesion:
 ### Code Review
 - All PRs go through CodeRabbit automated review
 - Fix real findings (bugs, type safety, missing deps). Skip nitpicks unless trivial.
-- PR into `OpenCodeIntel/opencodeintel:main` from `DevanshuNEU/opencodeintel-fork-new`
+- PRs target `OpenCodeIntel/opencodeintel:main` from your fork
 
 ## Architecture
 
