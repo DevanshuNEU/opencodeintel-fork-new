@@ -107,17 +107,17 @@ export function DashboardHome() {
   const handleGitHubImport = async (githubRepos: GitHubRepo[]) => {
     if (githubRepos.length === 0) return
 
+    let lastSuccessId: string | null = null
+    let lastSuccessName = ''
+
     for (const repo of githubRepos) {
       try {
         setLoading(true)
         const repoId = await addAndIndex(repo.name, repo.clone_url, repo.default_branch)
 
         if (repoId) {
-          if (repo === githubRepos[githubRepos.length - 1]) {
-            setIndexingRepoId(repoId)
-            setIndexingRepoName(repo.name)
-            setShowIndexingModal(true)
-          }
+          lastSuccessId = repoId
+          lastSuccessName = repo.name
           toast.success(`Added ${repo.name}`)
         }
       } catch (error) {
@@ -125,6 +125,13 @@ export function DashboardHome() {
           description: error instanceof Error ? error.message : 'Please try again',
         })
       }
+    }
+
+    // show indexing modal for the last successfully added repo
+    if (lastSuccessId) {
+      setIndexingRepoId(lastSuccessId)
+      setIndexingRepoName(lastSuccessName)
+      setShowIndexingModal(true)
     }
 
     setLoading(false)
