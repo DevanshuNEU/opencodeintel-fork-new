@@ -88,11 +88,11 @@ export function DashboardHome() {
       setLoading(true)
       const name = gitUrl.split('/').pop()?.replace(/\.git$/, '') || 'unknown'
       const repoId = await addAndIndex(name, gitUrl, branch)
+      setShowAddForm(false)
       if (repoId) {
         setIndexingRepoId(repoId)
         setIndexingRepoName(name)
         setShowIndexingModal(true)
-        setShowAddForm(false)
       }
       refreshRepos()
     } catch (error) {
