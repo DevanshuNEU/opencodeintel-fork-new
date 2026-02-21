@@ -72,7 +72,7 @@ export function RepoDetailView({
             <div>
               <h1 className="text-2xl font-bold text-foreground">{repo.name}</h1>
               <a
-                href={repo.git_url?.replace('.git', '')}
+                href={repo.git_url?.replace(/\.git$/, '')}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors font-mono"
@@ -119,7 +119,7 @@ export function RepoDetailView({
             repoId={repoId}
             apiUrl={API_URL}
             apiKey={apiKey}
-            repoUrl={repo.git_url?.replace('.git', '')}
+            repoUrl={repo.git_url?.replace(/\.git$/, '')}
             defaultBranch={repo.branch}
           />
         )}
