@@ -109,10 +109,10 @@ export function DashboardHome() {
 
     let lastSuccessId: string | null = null
     let lastSuccessName = ''
+    setLoading(true)
 
     for (const repo of githubRepos) {
       try {
-        setLoading(true)
         const repoId = await addAndIndex(repo.name, repo.clone_url, repo.default_branch)
 
         if (repoId) {
