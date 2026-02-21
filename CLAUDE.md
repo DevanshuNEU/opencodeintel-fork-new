@@ -83,7 +83,7 @@ backend/                    # FastAPI, Python 3.11+
 frontend/                   # React 18, TypeScript, Vite, Bun
   src/
     components/             # UI components (one concern per file)
-      dashboard/            # Dashboard-specific: Sidebar, TopNav, DashboardHome
+      dashboard/            # Sidebar, TopNav, DashboardHome, RepoListView, RepoDetailView
       DependencyGraph/      # GraphView (Sigma.js), MatrixView (DSM), ImpactPanel
       ui/                   # shadcn/ui primitives
       landing/              # Marketing pages
