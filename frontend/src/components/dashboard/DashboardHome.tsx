@@ -43,8 +43,9 @@ export function DashboardHome() {
   useEffect(() => {
     if (searchParams.get('openGitHubImport') === 'true') {
       setShowGitHubSelector(true)
-      searchParams.delete('openGitHubImport')
-      setSearchParams(searchParams, { replace: true })
+      const cleaned = new URLSearchParams(searchParams)
+      cleaned.delete('openGitHubImport')
+      setSearchParams(cleaned, { replace: true })
     }
   }, [searchParams, setSearchParams])
 
