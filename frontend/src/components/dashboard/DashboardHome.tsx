@@ -109,33 +109,35 @@ export function DashboardHome() {
 
     let lastSuccessId: string | null = null
     let lastSuccessName = ''
-    setLoading(true)
 
-    for (const repo of githubRepos) {
-      try {
-        const repoId = await addAndIndex(repo.name, repo.clone_url, repo.default_branch)
+    try {
+      setLoading(true)
 
-        if (repoId) {
-          lastSuccessId = repoId
-          lastSuccessName = repo.name
-          toast.success(`Added ${repo.name}`)
+      for (const repo of githubRepos) {
+        try {
+          const repoId = await addAndIndex(repo.name, repo.clone_url, repo.default_branch)
+
+          if (repoId) {
+            lastSuccessId = repoId
+            lastSuccessName = repo.name
+            toast.success(`Added ${repo.name}`)
+          }
+        } catch (error) {
+          toast.error(`Failed to import ${repo.name}`, {
+            description: error instanceof Error ? error.message : 'Please try again',
+          })
         }
-      } catch (error) {
-        toast.error(`Failed to import ${repo.name}`, {
-          description: error instanceof Error ? error.message : 'Please try again',
-        })
       }
-    }
 
-    // show indexing modal for the last successfully added repo
-    if (lastSuccessId) {
-      setIndexingRepoId(lastSuccessId)
-      setIndexingRepoName(lastSuccessName)
-      setShowIndexingModal(true)
+      if (lastSuccessId) {
+        setIndexingRepoId(lastSuccessId)
+        setIndexingRepoName(lastSuccessName)
+        setShowIndexingModal(true)
+      }
+    } finally {
+      setLoading(false)
+      refreshRepos()
     }
-
-    setLoading(false)
-    refreshRepos()
   }
 
   const handleReindex = async () => {
