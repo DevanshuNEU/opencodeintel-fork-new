@@ -51,7 +51,7 @@ class TestLocalJWTDecode:
         assert result["user_id"] == "user-456"
 
     def test_expired_token_raises_401(self, auth_service):
-        token = _make_token({"sub": "user-789", "exp": int(time.time()) - 10})
+        token = _make_token({"sub": "user-789", "exp": int(time.time()) - 60})
 
         from fastapi import HTTPException
         with pytest.raises(HTTPException) as exc:

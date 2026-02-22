@@ -53,6 +53,7 @@ class SupabaseAuthService:
                 self.jwt_secret,
                 algorithms=["HS256"],
                 audience="authenticated",
+                leeway=30,
             )
             
             user_id = payload.get("sub")
