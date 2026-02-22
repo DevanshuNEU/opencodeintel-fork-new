@@ -35,7 +35,7 @@ class SupabaseAuthService:
         No network call required -- instant verification using HS256.
         Falls back to Supabase API call if JWT_SECRET is not configured.
         """
-        if token.startswith("Bearer "):
+        if token.lower().startswith("bearer "):
             token = token[7:]
         
         # local decode when secret is available (fast path, no network)
@@ -65,7 +65,7 @@ class SupabaseAuthService:
             return {
                 "user_id": user_id,
                 "email": payload.get("email"),
-                "metadata": payload.get("user_metadata", {}),
+                "metadata": payload.get("user_metadata") or {},
             }
         
         except jwt.ExpiredSignatureError:

@@ -30,7 +30,7 @@ def auth_service():
             "SUPABASE_JWT_SECRET": JWT_SECRET,
         }):
             from services.auth import SupabaseAuthService
-            return SupabaseAuthService()
+            yield SupabaseAuthService()
 
 
 class TestLocalJWTDecode:
@@ -99,6 +99,19 @@ class TestLocalJWTDecode:
         result = auth_service.verify_jwt(token)
 
         assert result["metadata"] == {}
+
+    def test_metadata_null_coalesced_to_empty_dict(self, auth_service):
+        """user_metadata can be explicitly null in Supabase JWTs."""
+        token = _make_token({"sub": "user-null-meta", "user_metadata": None})
+        result = auth_service.verify_jwt(token)
+
+        assert result["metadata"] == {}
+
+    def test_bearer_prefix_case_insensitive(self, auth_service):
+        token = _make_token({"sub": "user-case"})
+        for prefix in ["Bearer ", "bearer ", "BEARER "]:
+            result = auth_service.verify_jwt(f"{prefix}{token}")
+            assert result["user_id"] == "user-case"
 
 
 class TestAPIFallback:
