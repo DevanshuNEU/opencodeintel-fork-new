@@ -9,6 +9,8 @@ import jwt
 from datetime import datetime
 from supabase import create_client, Client
 
+from services.observability import logger
+
 
 class SupabaseAuthService:
     """Supabase authentication and user management"""
@@ -21,46 +23,91 @@ class SupabaseAuthService:
         if not all([self.supabase_url, self.supabase_key]):
             raise ValueError("Supabase credentials not configured")
         
+        if not self.jwt_secret:
+            logger.warning("SUPABASE_JWT_SECRET not set -- falling back to API-based verification")
+        
         self.client: Client = create_client(self.supabase_url, self.supabase_key)
     
     def verify_jwt(self, token: str) -> Dict[str, Any]:
         """
-        Verify Supabase JWT token and return user data
+        Verify Supabase JWT token locally using the signing secret.
         
-        Args:
-            token: JWT token from Authorization header (format: "Bearer <token>")
-            
-        Returns:
-            Dict with user_id, email, and other user metadata
-            
-        Raises:
-            HTTPException: If token is invalid or expired
+        No network call required -- instant verification using HS256.
+        Falls back to Supabase API call if JWT_SECRET is not configured.
         """
+        if token.startswith("Bearer "):
+            token = token[7:]
+        
+        # local decode when secret is available (fast path, no network)
+        if self.jwt_secret:
+            return self._verify_local(token)
+        
+        # fallback: API call to Supabase (slow path, requires network)
+        return self._verify_via_api(token)
+    
+    def _verify_local(self, token: str) -> Dict[str, Any]:
+        """Decode and verify JWT locally with HS256 secret."""
         try:
-            # Remove "Bearer " prefix if present
-            if token.startswith("Bearer "):
-                token = token[7:]
+            payload = jwt.decode(
+                token,
+                self.jwt_secret,
+                algorithms=["HS256"],
+                audience="authenticated",
+            )
             
-            # Use Supabase client to verify token and get user
+            user_id = payload.get("sub")
+            if not user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token missing subject claim",
+                )
+            
+            return {
+                "user_id": user_id,
+                "email": payload.get("email"),
+                "metadata": payload.get("user_metadata", {}),
+            }
+        
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token expired",
+            )
+        except jwt.InvalidAudienceError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token audience",
+            )
+        except jwt.InvalidTokenError as e:
+            logger.debug("JWT decode failed", error=str(e))
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+            )
+    
+    def _verify_via_api(self, token: str) -> Dict[str, Any]:
+        """Fallback: verify via Supabase API call (requires network)."""
+        try:
             response = self.client.auth.get_user(token)
             
             if not response.user:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid or expired token"
+                    detail="Invalid or expired token",
                 )
             
             return {
                 "user_id": response.user.id,
                 "email": response.user.email,
-                "created_at": response.user.created_at,
-                "metadata": response.user.user_metadata
+                "metadata": response.user.user_metadata or {},
             }
-            
+        except HTTPException:
+            raise
         except Exception as e:
+            logger.debug("API-based JWT verification failed", error=str(e))
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Token verification failed: {str(e)}"
+                detail="Token verification failed",
             )
     
     async def signup(self, email: str, password: str, github_username: Optional[str] = None) -> Dict[str, Any]:
