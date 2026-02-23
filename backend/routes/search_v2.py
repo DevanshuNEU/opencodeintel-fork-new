@@ -154,4 +154,4 @@ async def search_v2(
             repo_id=request.repo_id,
             user_id=auth.user_id
         )
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Search failed")

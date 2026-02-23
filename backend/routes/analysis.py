@@ -8,7 +8,7 @@ from dependencies import (
 )
 from services.input_validator import InputValidator
 from middleware.auth import require_auth, AuthContext
-from services.observability import logger, metrics
+from services.observability import logger, metrics, capture_exception
 
 router = APIRouter(prefix="/repos", tags=["Analysis"])
 
@@ -26,21 +26,23 @@ async def get_dependency_graph(
     """Get dependency graph for repository."""
     try:
         repo = get_repo_or_404(repo_id, auth.user_id)
-        
-        # Try cache first
+
         cached_graph = dependency_analyzer.load_from_cache(repo_id)
         if cached_graph:
             logger.debug("Using cached dependency graph", repo_id=repo_id)
             return {**cached_graph, "cached": True}
-        
-        # Build fresh
+
         logger.info("Building fresh dependency graph", repo_id=repo_id)
         graph_data = dependency_analyzer.build_dependency_graph(repo["local_path"])
         dependency_analyzer.save_to_cache(repo_id, graph_data)
-        
+
         return {**graph_data, "cached": False}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Dependency graph failed", repo_id=repo_id, error=str(e))
+        capture_exception(e, operation="dependency_graph", repo_id=repo_id)
+        raise HTTPException(status_code=500, detail="Failed to build dependency graph")
 
 
 @router.post("/{repo_id}/impact")
@@ -52,30 +54,32 @@ async def analyze_impact(
     """Analyze impact of changing a file."""
     try:
         repo = get_repo_or_404(repo_id, auth.user_id)
-        
-        # Validate file path
+
         valid_path, path_error = InputValidator.validate_file_path(
             request.file_path, repo["local_path"]
         )
         if not valid_path:
             raise HTTPException(status_code=400, detail=f"Invalid file path: {path_error}")
-        
-        # Get or build graph
+
         graph_data = dependency_analyzer.load_from_cache(repo_id)
         if not graph_data:
             logger.info("Building dependency graph for impact analysis", repo_id=repo_id)
             graph_data = dependency_analyzer.build_dependency_graph(repo["local_path"])
             dependency_analyzer.save_to_cache(repo_id, graph_data)
-        
+
         impact = dependency_analyzer.get_file_impact(
             repo["local_path"],
             request.file_path,
             graph_data
         )
-        
+
         return impact
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Impact analysis failed", repo_id=repo_id, file_path=request.file_path, error=str(e))
+        capture_exception(e, operation="impact_analysis", repo_id=repo_id, file_path=request.file_path)
+        raise HTTPException(status_code=500, detail="Failed to analyze impact")
 
 
 @router.get("/{repo_id}/insights")
@@ -86,14 +90,13 @@ async def get_repository_insights(
     """Get comprehensive insights about repository."""
     try:
         repo = get_repo_or_404(repo_id, auth.user_id)
-        
-        # Get or build graph
+
         graph_data = dependency_analyzer.load_from_cache(repo_id)
         if not graph_data:
             logger.info("Building dependency graph for insights", repo_id=repo_id)
             graph_data = dependency_analyzer.build_dependency_graph(repo["local_path"])
             dependency_analyzer.save_to_cache(repo_id, graph_data)
-        
+
         return {
             "repo_id": repo_id,
             "name": repo["name"],
@@ -106,8 +109,12 @@ async def get_repository_insights(
             "functions_indexed": repo["file_count"],
             "cached": bool(graph_data)
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Repository insights failed", repo_id=repo_id, error=str(e))
+        capture_exception(e, operation="insights", repo_id=repo_id)
+        raise HTTPException(status_code=500, detail="Failed to get repository insights")
 
 
 @router.get("/{repo_id}/style-analysis")
@@ -118,22 +125,23 @@ async def get_style_analysis(
     """Analyze code style and team patterns."""
     try:
         repo = get_repo_or_404(repo_id, auth.user_id)
-        
-        # Try cache first
+
         cached_style = style_analyzer.load_from_cache(repo_id)
         if cached_style:
             logger.debug("Using cached code style", repo_id=repo_id)
             return {**cached_style, "cached": True}
-        
-        # Analyze fresh
+
         logger.info("Analyzing code style", repo_id=repo_id)
         style_data = style_analyzer.analyze_repository_style(repo["local_path"])
         style_analyzer.save_to_cache(repo_id, style_data)
-        
-        return {**style_data, "cached": False}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
+        return {**style_data, "cached": False}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Style analysis failed", repo_id=repo_id, error=str(e))
+        capture_exception(e, operation="style_analysis", repo_id=repo_id)
+        raise HTTPException(status_code=500, detail="Failed to analyze code style")
 
 
 @router.get("/{repo_id}/dna")
@@ -144,39 +152,40 @@ async def get_codebase_dna(
 ):
     """
     Extract codebase DNA - architectural patterns, conventions, and constraints.
-    
+
     This endpoint analyzes your codebase and returns a DNA profile that helps
     AI assistants understand how to write code consistent with your patterns.
-    
+
     Args:
         repo_id: Repository identifier
         format: Output format - 'json' or 'markdown' (default: json)
-    
+
     Returns:
         DNA profile with auth patterns, service patterns, database patterns, etc.
     """
     try:
         repo = get_repo_or_404(repo_id, auth.user_id)
-        
-        # Try cache first
+
         cached_dna = dna_extractor.load_from_cache(repo_id)
         if cached_dna:
             logger.debug("Using cached DNA", repo_id=repo_id)
             if format == "markdown":
                 return {"dna": cached_dna.to_markdown(), "cached": True}
             return {**cached_dna.to_dict(), "cached": True}
-        
-        # Extract fresh DNA
+
         logger.info("Extracting codebase DNA", repo_id=repo_id)
         metrics.increment("dna_extractions")
-        
+
         dna = dna_extractor.extract_dna(repo["local_path"], repo_id)
         dna_extractor.save_to_cache(repo_id, dna)
-        
+
         if format == "markdown":
             return {"dna": dna.to_markdown(), "cached": False}
         return {**dna.to_dict(), "cached": False}
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error("Error extracting DNA", repo_id=repo_id, error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("DNA extraction failed", repo_id=repo_id, error=str(e))
+        capture_exception(e, operation="dna_extraction", repo_id=repo_id)
+        raise HTTPException(status_code=500, detail="Failed to extract codebase DNA")
