@@ -313,7 +313,7 @@ class Metrics:
         metrics.get_stats()    # raw counters/timings/gauges
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._counters: Dict[str, int] = {}
         self._timings: Dict[str, list] = {}
         self._gauges: Dict[str, float] = {}
@@ -324,11 +324,11 @@ class Metrics:
         self._cache_hits: int = 0
         self._cache_misses: int = 0
     
-    def increment(self, name: str, value: int = 1, **tags):
+    def increment(self, name: str, value: int = 1, **tags) -> None:
         """Increment a counter"""
         self._counters[name] = self._counters.get(name, 0) + value
     
-    def timing(self, name: str, value_ms: float):
+    def timing(self, name: str, value_ms: float) -> None:
         """Record a timing measurement"""
         if name not in self._timings:
             self._timings[name] = []
@@ -336,11 +336,11 @@ class Metrics:
         if len(self._timings[name]) > 1000:
             self._timings[name] = self._timings[name][-1000:]
     
-    def gauge(self, name: str, value: float):
+    def gauge(self, name: str, value: float) -> None:
         """Record a point-in-time value"""
         self._gauges[name] = value
     
-    def record_indexing(self, repo_id: str, duration: float, function_count: int):
+    def record_indexing(self, repo_id: str, duration: float, function_count: int) -> None:
         """Record indexing performance for dashboard metrics."""
         self._indexing_times.append({
             "repo_id": repo_id,
@@ -350,7 +350,7 @@ class Metrics:
             "timestamp": datetime.now().isoformat(),
         })
     
-    def record_search(self, duration: float, cached: bool):
+    def record_search(self, duration: float, cached: bool) -> None:
         """Record search performance for dashboard metrics."""
         self._search_times.append({
             "duration": duration,
@@ -423,7 +423,7 @@ class Metrics:
                 }
         return stats
     
-    def reset(self):
+    def reset(self) -> None:
         """Reset all metrics"""
         self._counters = {}
         self._timings = {}
@@ -452,12 +452,16 @@ def init_sentry() -> bool:
 
         environment = os.getenv("ENVIRONMENT", "development")
 
+        # PII and debug settings -- opt-in via env vars, default to safe
+        send_pii = os.getenv("SENTRY_SEND_PII", "false").lower() in ("true", "1")
+        include_locals = os.getenv("SENTRY_INCLUDE_LOCAL_VARS", "false").lower() in ("true", "1")
+
         sentry_sdk.init(
             dsn=sentry_dsn,
             environment=environment,
             traces_sample_rate=0.1 if environment == "production" else 1.0,
             profiles_sample_rate=0.1 if environment == "production" else 1.0,
-            send_default_pii=True,
+            send_default_pii=send_pii,
             integrations=[
                 FastApiIntegration(transaction_style="endpoint"),
                 StarletteIntegration(transaction_style="endpoint"),
@@ -465,7 +469,7 @@ def init_sentry() -> bool:
             before_send=_filter_events,
             debug=environment == "development",
             attach_stacktrace=True,
-            include_local_variables=True,
+            include_local_variables=include_locals,
         )
 
         print(f"[OK] Sentry initialized (environment: {environment})")
@@ -479,7 +483,7 @@ def init_sentry() -> bool:
         return False
 
 
-def _filter_events(event, hint):
+def _filter_events(event: Dict[str, Any], hint: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Filter out noisy events before sending to Sentry."""
     request_url = event.get("request", {}).get("url", "")
     if "/health" in request_url:
@@ -500,7 +504,7 @@ def _filter_events(event, hint):
     return event
 
 
-def set_user_context(user_id: Optional[str] = None, email: Optional[str] = None):
+def set_user_context(user_id: Optional[str] = None, email: Optional[str] = None) -> None:
     """Set Sentry user context for error attribution."""
     try:
         import sentry_sdk
@@ -509,7 +513,7 @@ def set_user_context(user_id: Optional[str] = None, email: Optional[str] = None)
         pass
 
 
-def capture_http_exception(request, exc: Exception, status_code: int):
+def capture_http_exception(request: Any, exc: Exception, status_code: int) -> None:
     """Capture HTTP exception with request context for Sentry."""
     try:
         import sentry_sdk
