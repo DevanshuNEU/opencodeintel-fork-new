@@ -155,11 +155,10 @@ def add_breadcrumb(message: str, category: str = "custom", level: str = "info", 
 
 def capture_exception(error: Exception, **context):
     """
-    Capture exception with additional context.
+    Capture exception to Sentry with additional context.
     
-    Args:
-        error: The exception to capture
-        **context: Additional context to attach
+    Does NOT log to stdout -- callers are responsible for logging.
+    This avoids double-logging when callers do logger.error() + capture_exception().
     """
     try:
         import sentry_sdk
@@ -167,14 +166,9 @@ def capture_exception(error: Exception, **context):
             for key, value in context.items():
                 scope.set_extra(key, value)
             sentry_sdk.capture_exception(error)
-        
-        # Also log it
-        logger.error(
-            f"Exception captured: {type(error).__name__}: {str(error)}",
-            **context
-        )
     except ImportError:
-        logger.error(f"Exception: {error}", **context)
+        # No Sentry -- log as fallback so errors aren't silently lost
+        logger.error(f"Exception (no Sentry): {type(error).__name__}: {error}", **context)
 
 
 def capture_message(message: str, level: str = "info", **context):
