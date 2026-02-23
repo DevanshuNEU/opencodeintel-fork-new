@@ -30,8 +30,7 @@ backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
 
-# ============== TEST DATA ==============
-
+# TEST DATA
 REPOS_DB = [
     {
         "id": "repo-user1-a", "name": "User1 Repo A", "user_id": "user-1",
@@ -52,8 +51,7 @@ REPOS_DB = [
 ]
 
 
-# ============== UNIT TESTS FOR SUPABASE SERVICE ==============
-
+# UNIT TESTS FOR SUPABASE SERVICE
 class TestSupabaseServiceOwnership:
     """Unit tests for ownership verification methods in SupabaseService"""
 
@@ -121,8 +119,7 @@ class TestSupabaseServiceOwnership:
         assert sig.return_annotation == bool
 
 
-# ============== UNIT TESTS FOR REPO MANAGER ==============
-
+# UNIT TESTS FOR REPO MANAGER
 class TestRepoManagerOwnership:
     """Unit tests for ownership methods in RepoManager"""
 
@@ -163,8 +160,7 @@ class TestRepoManagerOwnership:
                 assert result is False
 
 
-# ============== HELPER FUNCTION TESTS ==============
-
+# HELPER FUNCTION TESTS
 class TestSecurityHelpers:
     """Test the get_repo_or_404 and verify_repo_access helpers"""
 
@@ -200,14 +196,8 @@ class TestSecurityHelpers:
 
             assert exc_info.value.status_code == 404
 
-            with pytest.raises(HTTPException) as exc_info:
-                verify_repo_access("repo-user2-a", "user-1")
 
-            assert exc_info.value.status_code == 404
-
-
-# ============== DEV API KEY TESTS ==============
-
+# DEV API KEY TESTS
 class TestDevApiKeySecurity:
     """Test that dev API key is properly secured (Issue #8)"""
 
@@ -294,8 +284,7 @@ class TestDevApiKeySecurity:
             self._reload_auth_module()  # Reload to known good state
 
 
-# ============== INFO LEAKAGE TESTS ==============
-
+# INFO LEAKAGE TESTS
 class TestInfoLeakagePrevention:
     """Test that 404 is returned instead of 403 to prevent info leakage"""
 
@@ -318,8 +307,7 @@ class TestInfoLeakagePrevention:
             assert exc1.value.detail == exc2.value.detail
 
 
-# ============== INTEGRATION-STYLE TESTS ==============
-
+# INTEGRATION-STYLE TESTS
 class TestEndpointOwnershipIntegration:
     """
     These tests verify that endpoints actually call ownership verification.

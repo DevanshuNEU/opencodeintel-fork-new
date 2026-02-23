@@ -6,12 +6,9 @@ import os
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from supabase import create_client, Client, ClientOptions
-from dotenv import load_dotenv
 import uuid
 
 from services.observability import logger
-
-load_dotenv()
 
 
 class SupabaseService:
@@ -33,8 +30,7 @@ class SupabaseService:
         self.client: Client = create_client(supabase_url, supabase_key, options)
         logger.info("Supabase service initialized")
     
-    # ===== REPOSITORIES =====
-    
+    # REPOSITORIES
     def create_repository(
         self,
         name: str,
@@ -126,8 +122,7 @@ class SupabaseService:
         """Delete repository (cascades to related tables)"""
         self.client.table("repositories").delete().eq("id", repo_id).execute()
     
-    # ===== FILE DEPENDENCIES =====
-    
+    # FILE DEPENDENCIES
     def upsert_file_dependencies(self, repo_id: str, dependencies: List[Dict]) -> None:
         """Bulk upsert file dependencies"""
         if not dependencies:
@@ -158,8 +153,7 @@ class SupabaseService:
         """Clear all file dependencies for a repo (for reindexing)"""
         self.client.table("file_dependencies").delete().eq("repo_id", repo_id).execute()
     
-    # ===== CODE STYLE ANALYSIS =====
-    
+    # CODE STYLE ANALYSIS
     def upsert_code_style(self, repo_id: str, language: str, analysis: Dict) -> None:
         """Store code style analysis results"""
         data = {
@@ -182,8 +176,7 @@ class SupabaseService:
         result = self.client.table("code_style_analysis").select("*").eq("repo_id", repo_id).execute()
         return result.data or []
     
-    # ===== REPOSITORY INSIGHTS =====
-    
+    # REPOSITORY INSIGHTS
     def upsert_repository_insights(self, repo_id: str, insights: Dict) -> None:
         """Store repository insights"""
         data = {
@@ -206,8 +199,7 @@ class SupabaseService:
         result = self.client.table("repository_insights").select("*").eq("repo_id", repo_id).execute()
         return result.data[0] if result.data else None
     
-    # ===== INDEXING JOBS =====
-    
+    # INDEXING JOBS
     def create_indexing_job(self, repo_id: str, total_files: int) -> str:
         """Create a new indexing job"""
         data = {

@@ -7,11 +7,8 @@ import json
 import hashlib
 from typing import Optional, List, Dict
 import os
-from dotenv import load_dotenv
 
 from services.observability import logger, metrics
-
-load_dotenv()
 
 # Configuration
 REDIS_URL = os.getenv("REDIS_URL")  # Railway/Cloud Redis URL

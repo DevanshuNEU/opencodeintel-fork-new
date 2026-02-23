@@ -25,9 +25,7 @@ from services.observability import logger, metrics, track_time
 from services.sentry import capture_exception
 
 
-# =============================================================================
 # DATA CLASSES
-# =============================================================================
 
 @dataclass
 class PlaygroundLimitResult:
@@ -134,9 +132,7 @@ class SessionData:
         return session_id
 
 
-# =============================================================================
 # MAIN CLASS
-# =============================================================================
 
 class PlaygroundLimiter:
     """
@@ -161,9 +157,7 @@ class PlaygroundLimiter:
         has_repo = limiter.has_indexed_repo(session_token)
     """
 
-    # -------------------------------------------------------------------------
     # Configuration
-    # -------------------------------------------------------------------------
 
     # Rate limits
     SESSION_LIMIT_PER_DAY = 50      # Per device (generous for conversion)
@@ -198,9 +192,7 @@ class PlaygroundLimiter:
         """
         self.redis = redis_client
 
-    # -------------------------------------------------------------------------
     # Session Data Methods (#127)
-    # -------------------------------------------------------------------------
 
     def get_session_data(self, session_token: Optional[str]) -> SessionData:
         """
@@ -449,9 +441,7 @@ class PlaygroundLimiter:
             capture_exception(e, operation="create_session")
             return False
 
-    # -------------------------------------------------------------------------
     # Rate Limiting Methods (existing, updated for hash storage)
-    # -------------------------------------------------------------------------
 
     def check_limit(
         self,
@@ -657,9 +647,7 @@ class PlaygroundLimiter:
             logger.error("IP limit check failed", error=str(e))
             return True, self.IP_LIMIT_PER_DAY  # Fail open
 
-    # -------------------------------------------------------------------------
     # Helper Methods
-    # -------------------------------------------------------------------------
 
     def _get_midnight_utc(self) -> datetime:
         """Get next midnight UTC for reset time."""
@@ -788,9 +776,7 @@ class PlaygroundLimiter:
             return {"error": str(e), "redis_available": False}
 
 
-# =============================================================================
 # SINGLETON
-# =============================================================================
 
 _playground_limiter: Optional[PlaygroundLimiter] = None
 

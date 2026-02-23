@@ -139,8 +139,7 @@ class UserLimitsService:
             return False
         return True
     
-    # ===== TIER MANAGEMENT =====
-    
+    # TIER MANAGEMENT
     def get_user_tier(self, user_id: str) -> UserTier:
         """
         Get user's current tier.
@@ -211,8 +210,7 @@ class UserLimitsService:
             except Exception as e:
                 logger.warning("Failed to invalidate tier cache", error=str(e))
     
-    # ===== REPO COUNT LIMITS (#95) =====
-    
+    # REPO COUNT LIMITS (#95)
     def get_user_repo_count(self, user_id: str, raise_on_error: bool = False) -> int:
         """
         Get current repo count for user.
@@ -301,8 +299,7 @@ class UserLimitsService:
             tier=tier.value
         )
     
-    # ===== REPO SIZE LIMITS (#94) =====
-    
+    # REPO SIZE LIMITS (#94)
     def check_repo_size(
         self, 
         user_id: str, 
@@ -377,14 +374,12 @@ class UserLimitsService:
             tier=tier.value
         )
     
-    # ===== PLAYGROUND RATE LIMITS (#93) =====
-    
+    # PLAYGROUND RATE LIMITS (#93)
     def get_playground_limit(self, tier: UserTier = UserTier.FREE) -> Optional[int]:
         """Get playground search limit for tier"""
         return self.get_limits(tier).playground_searches_per_day
     
-    # ===== USAGE SUMMARY =====
-    
+    # USAGE SUMMARY
     def get_usage_summary(self, user_id: str) -> Dict[str, Any]:
         """
         Get complete usage summary for user.

@@ -19,7 +19,7 @@ def init_sentry() -> bool:
     sentry_dsn = os.getenv("SENTRY_DSN")
 
     if not sentry_dsn:
-        print("ℹ️  Sentry DSN not configured - error tracking disabled")
+        print("[INFO] Sentry DSN not configured - error tracking disabled")
         return False
 
     try:
@@ -61,14 +61,14 @@ def init_sentry() -> bool:
             include_local_variables=True,
         )
 
-        print(f"✅ Sentry initialized (environment: {environment})")
+        print(f"[OK] Sentry initialized (environment: {environment})")
         return True
 
     except ImportError:
-        print("⚠️  sentry-sdk not installed - error tracking disabled")
+        print("[WARN] sentry-sdk not installed - error tracking disabled")
         return False
     except Exception as e:
-        print(f"⚠️  Failed to initialize Sentry: {e}")
+        print(f"[WARN] Failed to initialize Sentry: {e}")
         return False
 
 
@@ -97,9 +97,7 @@ def _filter_events(event, hint):
     return event
 
 
-# ============================================================================
 # LEGACY FUNCTIONS - Use observability module for new code
-# ============================================================================
 
 def set_user_context(user_id: Optional[str] = None, email: Optional[str] = None):
     """

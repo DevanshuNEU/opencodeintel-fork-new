@@ -20,9 +20,7 @@ from services.playground_limiter import (
 )
 
 
-# =============================================================================
 # FIXTURES
-# =============================================================================
 
 @pytest.fixture
 def mock_redis():
@@ -71,9 +69,7 @@ def sample_indexed_repo():
     }
 
 
-# =============================================================================
 # DATA CLASS TESTS
-# =============================================================================
 
 class TestIndexedRepoData:
     """Tests for IndexedRepoData dataclass."""
@@ -159,9 +155,7 @@ class TestSessionData:
         assert SessionData._truncate_id("verylongsessiontoken123") == "verylong..."
 
 
-# =============================================================================
 # GET SESSION DATA TESTS
-# =============================================================================
 
 class TestGetSessionData:
     """Tests for get_session_data() method."""
@@ -228,9 +222,7 @@ class TestGetSessionData:
         assert result.searches_used == 5
 
 
-# =============================================================================
 # SET INDEXED REPO TESTS
-# =============================================================================
 
 class TestSetIndexedRepo:
     """Tests for set_indexed_repo() method."""
@@ -270,9 +262,7 @@ class TestSetIndexedRepo:
         assert not mock_redis.set.called
 
 
-# =============================================================================
 # HAS INDEXED REPO TESTS
-# =============================================================================
 
 class TestHasIndexedRepo:
     """Tests for has_indexed_repo() method."""
@@ -303,9 +293,7 @@ class TestHasIndexedRepo:
         assert limiter.has_indexed_repo("token") is False
 
 
-# =============================================================================
 # CLEAR INDEXED REPO TESTS
-# =============================================================================
 
 class TestClearIndexedRepo:
     """Tests for clear_indexed_repo() method."""
@@ -325,9 +313,7 @@ class TestClearIndexedRepo:
         assert limiter.clear_indexed_repo(None) is False
 
 
-# =============================================================================
 # LEGACY MIGRATION TESTS
-# =============================================================================
 
 class TestLegacyMigration:
     """Tests for legacy string format migration."""
@@ -366,9 +352,7 @@ class TestLegacyMigration:
         limiter._ensure_hash_format("new_token")
 
 
-# =============================================================================
 # RATE LIMITING WITH HASH STORAGE TESTS
-# =============================================================================
 
 class TestRateLimitingWithHash:
     """Tests to verify rate limiting still works with hash storage."""
@@ -404,9 +388,7 @@ class TestRateLimitingWithHash:
         mock_redis.hset.assert_called()
 
 
-# =============================================================================
 # CREATE SESSION TESTS
-# =============================================================================
 
 class TestCreateSession:
     """Tests for create_session() method."""
@@ -432,9 +414,7 @@ class TestCreateSession:
         assert limiter_no_redis.create_session("token") is False
 
 
-# =============================================================================
 # HELPER METHOD TESTS
-# =============================================================================
 
 class TestHelperMethods:
     """Tests for helper methods."""
@@ -462,9 +442,7 @@ class TestHelperMethods:
         assert len(token1) > 20  # Should be reasonably long
 
 
-# =============================================================================
 # INTEGRATION-STYLE TESTS
-# =============================================================================
 
 class TestSessionWorkflow:
     """End-to-end workflow tests."""

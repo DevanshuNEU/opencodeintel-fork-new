@@ -399,8 +399,7 @@ class DependencyAnalyzer:
         return test_files
 
     
-    # ===== SUPABASE CACHING =====
-    
+    # SUPABASE CACHING
     def save_to_cache(self, repo_id: str, graph_data: Dict):
         """Save dependency graph to Supabase for caching"""
         from services.supabase_service import get_supabase_service
