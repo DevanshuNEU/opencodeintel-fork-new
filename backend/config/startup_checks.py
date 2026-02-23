@@ -23,6 +23,8 @@ OPTIONAL_VARS: List[Tuple[str, str, str]] = [
     ("COHERE_API_KEY", "Cohere API key for reranking", "Search reranking disabled"),
     ("VOYAGE_API_KEY", "Voyage AI key for code embeddings", "Using OpenAI embeddings"),
     ("SENTRY_DSN", "Sentry DSN for error tracking", "Error tracking disabled"),
+    ("SENTRY_SEND_PII", "Send user emails to Sentry", "PII disabled (privacy safe)"),
+    ("SENTRY_INCLUDE_LOCAL_VARS", "Include local vars in Sentry traces", "Local vars excluded"),
     ("REDIS_HOST", "Redis host for caching", "Using default localhost"),
 ]
 

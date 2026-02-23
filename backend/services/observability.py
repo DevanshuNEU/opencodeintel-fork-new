@@ -20,7 +20,7 @@ import sys
 import time
 import logging
 import json
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, Deque
 from functools import wraps
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -315,12 +315,13 @@ class Metrics:
     
     def __init__(self) -> None:
         self._counters: Dict[str, int] = {}
-        self._timings: Dict[str, list] = {}
+        self._timings: Dict[str, Deque[float]] = {}
         self._gauges: Dict[str, float] = {}
         # Domain-specific tracking (replaces PerformanceMetrics)
         self._indexing_times: deque = deque(maxlen=100)
         self._search_times: deque = deque(maxlen=100)
         self._total_searches: int = 0
+        self._total_indexing_ops: int = 0
     
     def increment(self, name: str, value: int = 1, **tags) -> None:
         """Increment a counter"""
@@ -345,6 +346,7 @@ class Metrics:
             "speed": function_count / duration if duration > 0 else 0,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
+        self._total_indexing_ops += 1
     
     def record_search(self, duration: float, cached: bool) -> None:
         """Record search performance for dashboard metrics."""
@@ -357,14 +359,13 @@ class Metrics:
         # cache hit/miss counting handled by cache.py via metrics.increment()
         # to avoid double counting now that we're a single Metrics instance
     
-    def get_metrics(self) -> Dict:
+    def get_metrics(self) -> Dict[str, Any]:
         """Dashboard-friendly performance summary (used by /health and /metrics)."""
         indexing_speeds = [m["speed"] for m in self._indexing_times]
         search_durations = [m["duration"] for m in self._search_times]
         avg_indexing_speed = (
             sum(indexing_speeds) / len(indexing_speeds) if indexing_speeds else 0
         )
-        # Cache hits/misses come from _counters (set by cache.py)
         cache_hits = self._counters.get("cache_hits", 0)
         cache_misses = self._counters.get("cache_misses", 0)
         cache_total = cache_hits + cache_misses
@@ -372,7 +373,7 @@ class Metrics:
         
         return {
             "indexing": {
-                "total_operations": len(self._indexing_times),
+                "total_operations": self._total_indexing_ops,
                 "avg_speed_functions_per_sec": avg_indexing_speed,
                 "max_speed": max(indexing_speeds) if indexing_speeds else 0,
                 "min_speed": min(indexing_speeds) if indexing_speeds else 0,
@@ -398,7 +399,7 @@ class Metrics:
             },
         }
     
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Raw counters, timings, and gauges for internal debugging."""
         stats = {
             "counters": self._counters.copy(),
@@ -423,6 +424,7 @@ class Metrics:
         self._indexing_times.clear()
         self._search_times.clear()
         self._total_searches = 0
+        self._total_indexing_ops = 0
 
 
 # SENTRY INITIALIZATION (moved from services/sentry.py)
@@ -497,7 +499,11 @@ def set_user_context(user_id: Optional[str] = None, email: Optional[str] = None)
     """Set Sentry user context for error attribution."""
     try:
         import sentry_sdk
-        sentry_sdk.set_user({"id": user_id, "email": email})
+        user_data: Dict[str, Any] = {"id": user_id}
+        # Only include email if PII opt-in is enabled
+        if email and os.getenv("SENTRY_SEND_PII", "false").lower() in ("true", "1"):
+            user_data["email"] = email
+        sentry_sdk.set_user(user_data)
     except ImportError:
         pass
 
