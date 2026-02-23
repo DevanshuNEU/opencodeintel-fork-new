@@ -145,7 +145,7 @@ async def add_repository(
     except Exception as e:
         logger.error("Failed to add repository", error=str(e), user_id=user_id)
         capture_exception(e)
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Failed to add repository")
 
 
 @router.delete("/{repo_id}")
@@ -174,7 +174,7 @@ async def delete_repository(
     except Exception as e:
         logger.error("Failed to delete repository", repo_id=repo_id, error=str(e))
         capture_exception(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete repository")
 
 
 @router.post("/{repo_id}/index")
@@ -268,7 +268,7 @@ async def index_repository(
         logger.error("Indexing failed", repo_id=repo_id, error=str(e))
         capture_exception(e)
         repo_manager.update_status(repo_id, "error")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Indexing failed")
 
 
 async def _run_async_indexing(
@@ -478,7 +478,7 @@ async def index_repository_async(
     except Exception as e:
         logger.error("Failed to start async indexing", repo_id=repo_id, error=str(e))
         capture_exception(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to start indexing")
 
 
 async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:

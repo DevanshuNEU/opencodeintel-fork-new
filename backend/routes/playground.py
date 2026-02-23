@@ -487,7 +487,7 @@ async def playground_search(
         raise
     except Exception as e:
         logger.error("Playground search failed", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Search failed")
 
 
 @router.get("/repos")

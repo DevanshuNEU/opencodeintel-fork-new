@@ -117,7 +117,7 @@ async def search_code(
             error=str(e)
         )
         capture_exception(e, operation="search", repo_id=request.repo_id, user_id=auth.user_id)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Search failed")
 
 
 @router.post("/explain")
@@ -177,4 +177,4 @@ async def explain_code(
             user_id=auth.user_id,
             file_path=request.file_path
         )
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to generate explanation")
