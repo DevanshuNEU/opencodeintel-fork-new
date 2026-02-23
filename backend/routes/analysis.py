@@ -78,7 +78,7 @@ async def analyze_impact(
         raise
     except Exception as e:
         logger.error("Impact analysis failed", repo_id=repo_id, file_path=request.file_path, error=str(e))
-        capture_exception(e, operation="impact_analysis", repo_id=repo_id)
+        capture_exception(e, operation="impact_analysis", repo_id=repo_id, file_path=request.file_path)
         raise HTTPException(status_code=500, detail="Failed to analyze impact")
 
 

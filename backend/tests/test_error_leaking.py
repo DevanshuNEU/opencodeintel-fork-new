@@ -8,7 +8,9 @@ class TestErrorResponsesHideInternals:
 
     def test_search_error_hides_details(self, client, valid_headers):
         """Search failure should not expose Pinecone/OpenAI error strings."""
-        with patch("routes.search.indexer") as mock_indexer:
+        with patch("routes.search.indexer") as mock_indexer, \
+             patch("routes.search.cache") as mock_cache:
+            mock_cache.get_search_results.return_value = None
             mock_indexer.semantic_search.side_effect = RuntimeError(
                 "Pinecone connection refused at pinecone-prod.svc.us-east1.aws:443"
             )
@@ -21,9 +23,9 @@ class TestErrorResponsesHideInternals:
 
         assert resp.status_code == 500
         body = resp.json()["detail"]
+        assert body == "Search failed"
         assert "Pinecone" not in body
         assert "pinecone-prod" not in body
-        assert "443" not in body
 
     def test_dependency_graph_error_hides_details(self, client, valid_headers):
         """Dependency graph failure should not expose file paths."""
@@ -41,8 +43,8 @@ class TestErrorResponsesHideInternals:
 
         assert resp.status_code == 500
         body = resp.json()["detail"]
+        assert body == "Failed to build dependency graph"
         assert "/srv/repos" not in body
-        assert ".git/config" not in body
 
     def test_repo_add_error_hides_details(self, client, valid_headers):
         """Add repo failure should not expose git credentials or paths."""
@@ -60,7 +62,7 @@ class TestErrorResponsesHideInternals:
                 headers=valid_headers,
             )
 
-        assert resp.status_code == 400
+        assert resp.status_code == 500
         body = resp.json()["detail"]
+        assert body == "Failed to add repository"
         assert "ghp_secret" not in body
-        assert "Authentication failed" not in body

@@ -145,7 +145,7 @@ async def add_repository(
     except Exception as e:
         logger.error("Failed to add repository", error=str(e), user_id=user_id)
         capture_exception(e)
-        raise HTTPException(status_code=400, detail="Failed to add repository")
+        raise HTTPException(status_code=500, detail="Failed to add repository")
 
 
 @router.delete("/{repo_id}")
@@ -395,7 +395,7 @@ async def _run_async_indexing(
             publisher.publish_error(
                 repo_id,
                 error="indexing_failed",
-                message=str(e),
+                message="An error occurred during indexing",
                 recoverable=True
             )
 
@@ -573,7 +573,7 @@ async def websocket_index(websocket: WebSocket, repo_id: str):
         logger.error("WebSocket indexing error", repo_id=repo_id, error=str(e))
         capture_exception(e, operation="websocket_indexing", repo_id=repo_id)
         try:
-            await websocket.send_json({"type": "error", "message": str(e)})
+            await websocket.send_json({"type": "error", "message": "An error occurred during indexing"})
         except Exception:
             pass
         repo_manager.update_status(repo_id, "error")

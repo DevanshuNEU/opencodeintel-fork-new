@@ -17,7 +17,7 @@ import time
 from dependencies import indexer, cache, repo_manager, redis_client
 from services.input_validator import InputValidator
 from services.repo_validator import RepoValidator
-from services.observability import logger
+from services.observability import logger, capture_exception
 from services.playground_limiter import PlaygroundLimiter, get_playground_limiter, IndexedRepoData
 from services.anonymous_indexer import (
     AnonymousIndexingJob,
@@ -486,6 +486,7 @@ async def playground_search(
     except HTTPException:
         raise
     except Exception as e:
+        capture_exception(e, operation="playground_search")
         logger.error("Playground search failed", error=str(e))
         raise HTTPException(status_code=500, detail="Search failed")
 
@@ -579,7 +580,7 @@ async def _fetch_repo_metadata(owner: str, repo: str) -> dict:
             return {"error": "timeout", "message": "GitHub API request timed out"}
         except Exception as e:
             logger.error("GitHub API request failed", error=str(e))
-            return {"error": "request_failed", "message": str(e)}
+            return {"error": "request_failed", "message": "Failed to fetch repository metadata"}
 
 
 async def _count_code_files(
