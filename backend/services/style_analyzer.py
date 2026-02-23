@@ -3,7 +3,7 @@ Code Style Analyzer
 Analyzes team coding patterns, naming conventions, and best practices
 """
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 from collections import defaultdict, Counter
 import re
 
@@ -137,7 +137,7 @@ class StyleAnalyzer:
         if language == 'python':
             return '->' in source_code or ': ' in source_code
         else:
-            return ': ' in source_code and 'interface' in source_code or 'type ' in source_code
+            return ': ' in source_code and ('interface' in source_code or 'type ' in source_code)
     
     def analyze_repository_style(self, repo_path: str) -> Dict:
         """Analyze coding style patterns across repository"""
@@ -264,14 +264,14 @@ class StyleAnalyzer:
 
     
     # SUPABASE CACHING
-    def save_to_cache(self, repo_id: str, style_data: Dict):
+    def save_to_cache(self, repo_id: str, style_data: Dict) -> None:
         """Save style analysis to Supabase for caching"""
         from services.supabase_service import get_supabase_service
         
         db = get_supabase_service()
         
-        # Group by language
-        for language, data in style_data.get("languages", {}).items():
+        # analyze_repository_style returns "language_distribution" not "languages"
+        for language, data in style_data.get("language_distribution", {}).items():
             analysis = {
                 "naming_convention": data.get("naming_conventions"),
                 "async_usage": data.get("async_usage"),
@@ -284,7 +284,7 @@ class StyleAnalyzer:
         
         logger.debug("Cached code style analysis in Supabase", repo_id=repo_id)
     
-    def load_from_cache(self, repo_id: str) -> Dict:
+    def load_from_cache(self, repo_id: str) -> Optional[Dict]:
         """Load style analysis from Supabase cache"""
         from services.supabase_service import get_supabase_service
         
@@ -318,7 +318,7 @@ class StyleAnalyzer:
         logger.debug("Loaded cached code style from Supabase", repo_id=repo_id)
         
         return {
-            "languages": languages,
+            "language_distribution": languages,
             "top_imports": common_imports,
             "patterns": patterns
         }

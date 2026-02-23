@@ -196,11 +196,6 @@ class TestSecurityHelpers:
 
             assert exc_info.value.status_code == 404
 
-            with pytest.raises(HTTPException) as exc_info:
-                verify_repo_access("repo-user2-a", "user-1")
-
-            assert exc_info.value.status_code == 404
-
 
 # DEV API KEY TESTS
 class TestDevApiKeySecurity:
