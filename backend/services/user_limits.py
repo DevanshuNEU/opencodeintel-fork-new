@@ -16,8 +16,7 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any
 from enum import Enum
 
-from services.observability import logger, metrics
-from services.sentry import capture_exception
+from services.observability import logger, metrics, capture_exception
 
 
 class UserTier(str, Enum):

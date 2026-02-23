@@ -1,11 +1,12 @@
 """
 Observability Module
-Centralized logging, tracing, and metrics for CodeIntel
+Centralized logging, tracing, metrics, and error tracking for CodeIntel
 
-Usage:
-    from services.observability import logger, trace_operation, track_time
+Single import for all observability needs:
+    from services.observability import logger, metrics, capture_exception, track_time
 
     logger.info("Starting indexing", repo_id="abc", files=100)
+    metrics.record_search(duration, cached=True)
     
     @trace_operation("indexing")
     async def index_repo(repo_id: str):
@@ -23,6 +24,7 @@ from typing import Optional, Any, Dict
 from functools import wraps
 from contextlib import contextmanager
 from datetime import datetime
+from collections import deque
 
 # Environment
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
@@ -301,58 +303,130 @@ def trace_operation(operation: str):
     return decorator
 
 
-# SIMPLE METRICS (in-memory counters)
+# METRICS (unified counters + performance tracking)
 
 class Metrics:
     """
-    Simple in-memory metrics counters.
+    Unified metrics: generic counters/timings/gauges plus
+    domain-specific search and indexing performance tracking.
     
     Usage:
-        metrics.increment("search_requests", repo_id="abc")
+        metrics.increment("search_requests")
         metrics.timing("search_latency_ms", 150)
-        metrics.get_stats()  # Returns all metrics
+        metrics.record_search(duration, cached=True)
+        metrics.record_indexing(repo_id, duration, function_count)
+        metrics.get_metrics()  # dashboard-friendly summary
+        metrics.get_stats()    # raw counters/timings/gauges
     """
     
     def __init__(self):
         self._counters: Dict[str, int] = {}
         self._timings: Dict[str, list] = {}
         self._gauges: Dict[str, float] = {}
+        # Domain-specific tracking (replaces PerformanceMetrics)
+        self._indexing_times: deque = deque(maxlen=100)
+        self._search_times: deque = deque(maxlen=100)
+        self._total_searches: int = 0
+        self._cache_hits: int = 0
+        self._cache_misses: int = 0
     
     def increment(self, name: str, value: int = 1, **tags):
         """Increment a counter"""
-        key = f"{name}"
-        self._counters[key] = self._counters.get(key, 0) + value
+        self._counters[name] = self._counters.get(name, 0) + value
     
     def timing(self, name: str, value_ms: float):
         """Record a timing measurement"""
         if name not in self._timings:
             self._timings[name] = []
         self._timings[name].append(value_ms)
-        # Keep only last 1000 timings
         if len(self._timings[name]) > 1000:
             self._timings[name] = self._timings[name][-1000:]
     
     def gauge(self, name: str, value: float):
-        """Record a point-in-time value (like avg score, current queue size)"""
+        """Record a point-in-time value"""
         self._gauges[name] = value
     
+    def record_indexing(self, repo_id: str, duration: float, function_count: int):
+        """Record indexing performance for dashboard metrics."""
+        self._indexing_times.append({
+            "repo_id": repo_id,
+            "duration": duration,
+            "function_count": function_count,
+            "speed": function_count / duration if duration > 0 else 0,
+            "timestamp": datetime.now().isoformat(),
+        })
+    
+    def record_search(self, duration: float, cached: bool):
+        """Record search performance for dashboard metrics."""
+        self._search_times.append({
+            "duration": duration,
+            "cached": cached,
+            "timestamp": datetime.now().isoformat(),
+        })
+        self._total_searches += 1
+        if cached:
+            self._cache_hits += 1
+        else:
+            self._cache_misses += 1
+    
+    def get_metrics(self) -> Dict:
+        """Dashboard-friendly performance summary (used by /health and /metrics)."""
+        indexing_speeds = [m["speed"] for m in self._indexing_times]
+        search_durations = [m["duration"] for m in self._search_times]
+        cache_hit_rate = (
+            (self._cache_hits / self._total_searches * 100)
+            if self._total_searches > 0 else 0
+        )
+        
+        return {
+            "indexing": {
+                "total_operations": len(self._indexing_times),
+                "avg_speed_functions_per_sec": (
+                    sum(indexing_speeds) / len(indexing_speeds)
+                    if indexing_speeds else 0
+                ),
+                "max_speed": max(indexing_speeds) if indexing_speeds else 0,
+                "min_speed": min(indexing_speeds) if indexing_speeds else 0,
+                "recent_operations": list(self._indexing_times)[-10:],
+            },
+            "search": {
+                "total_searches": self._total_searches,
+                "cache_hit_rate": f"{cache_hit_rate:.1f}%",
+                "cache_hits": self._cache_hits,
+                "cache_misses": self._cache_misses,
+                "avg_duration_ms": (
+                    sum(search_durations) / len(search_durations) * 1000
+                    if search_durations else 0
+                ),
+                "recent_searches": list(self._search_times)[-10:],
+            },
+            "summary": {
+                "health": "healthy",
+                "cache_working": cache_hit_rate > 0,
+                "indexing_performance": (
+                    "good" if (
+                        sum(indexing_speeds) / len(indexing_speeds)
+                        if indexing_speeds else 0
+                    ) > 10 else "needs_improvement"
+                ),
+            },
+        }
+    
     def get_stats(self) -> Dict:
-        """Get all metrics with basic stats"""
+        """Raw counters, timings, and gauges for internal debugging."""
         stats = {
             "counters": self._counters.copy(),
             "gauges": self._gauges.copy(),
-            "timings": {}
+            "timings": {},
         }
-        
         for name, values in self._timings.items():
             if values:
                 stats["timings"][name] = {
                     "count": len(values),
                     "avg_ms": round(sum(values) / len(values), 2),
                     "min_ms": round(min(values), 2),
-                    "max_ms": round(max(values), 2)
+                    "max_ms": round(max(values), 2),
                 }
-        
         return stats
     
     def reset(self):
@@ -360,7 +434,99 @@ class Metrics:
         self._counters = {}
         self._timings = {}
         self._gauges = {}
+        self._indexing_times.clear()
+        self._search_times.clear()
+        self._total_searches = 0
+        self._cache_hits = 0
+        self._cache_misses = 0
 
 
-# Global metrics instance
+# SENTRY INITIALIZATION (moved from services/sentry.py)
+
+def init_sentry() -> bool:
+    """Initialize Sentry SDK if SENTRY_DSN is configured."""
+    sentry_dsn = os.getenv("SENTRY_DSN")
+
+    if not sentry_dsn:
+        print("[INFO] Sentry DSN not configured - error tracking disabled")
+        return False
+
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+
+        environment = os.getenv("ENVIRONMENT", "development")
+
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            environment=environment,
+            traces_sample_rate=0.1 if environment == "production" else 1.0,
+            profiles_sample_rate=0.1 if environment == "production" else 1.0,
+            send_default_pii=True,
+            integrations=[
+                FastApiIntegration(transaction_style="endpoint"),
+                StarletteIntegration(transaction_style="endpoint"),
+            ],
+            before_send=_filter_events,
+            debug=environment == "development",
+            attach_stacktrace=True,
+            include_local_variables=True,
+        )
+
+        print(f"[OK] Sentry initialized (environment: {environment})")
+        return True
+
+    except ImportError:
+        print("[WARN] sentry-sdk not installed - error tracking disabled")
+        return False
+    except Exception as e:
+        print(f"[WARN] Failed to initialize Sentry: {e}")
+        return False
+
+
+def _filter_events(event, hint):
+    """Filter out noisy events before sending to Sentry."""
+    request_url = event.get("request", {}).get("url", "")
+    if "/health" in request_url:
+        return None
+
+    exception_values = event.get("exception", {}).get("values", [])
+    if exception_values:
+        exception_value = str(exception_values[0].get("value", ""))
+        bot_paths = ["/wp-admin", "/wp-login", "/.env", "/config", "/admin", "/phpmyadmin", "/.git"]
+        if any(path in exception_value for path in bot_paths):
+            return None
+
+    if exception_values:
+        exception_type = exception_values[0].get("type", "")
+        if exception_type in ("RequestValidationError", "ValidationError"):
+            return None
+
+    return event
+
+
+def set_user_context(user_id: Optional[str] = None, email: Optional[str] = None):
+    """Set Sentry user context for error attribution."""
+    try:
+        import sentry_sdk
+        sentry_sdk.set_user({"id": user_id, "email": email})
+    except ImportError:
+        pass
+
+
+def capture_http_exception(request, exc: Exception, status_code: int):
+    """Capture HTTP exception with request context for Sentry."""
+    try:
+        import sentry_sdk
+        with sentry_sdk.push_scope() as scope:
+            scope.set_extra("status_code", status_code)
+            scope.set_extra("path", str(request.url.path))
+            scope.set_extra("method", request.method)
+            sentry_sdk.capture_exception(exc)
+    except ImportError:
+        pass
+
+
+# Global instances
 metrics = Metrics()
