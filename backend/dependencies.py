@@ -3,10 +3,6 @@ Shared dependencies and service instances.
 All route modules import from here to avoid circular imports.
 """
 from fastapi import HTTPException, Depends
-from dotenv import load_dotenv
-
-# Load env vars first
-load_dotenv()
 
 from services.indexer_optimized import OptimizedCodeIndexer
 from services.repo_manager import RepositoryManager

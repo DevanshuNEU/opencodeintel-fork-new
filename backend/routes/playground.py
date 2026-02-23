@@ -785,9 +785,7 @@ async def validate_github_repo(request: ValidateRepoRequest, req: Request):
     return result
 
 
-# =============================================================================
 # Anonymous Indexing Endpoint (#125)
-# =============================================================================
 
 @router.post("/index", status_code=202)
 async def start_anonymous_indexing(
@@ -1030,9 +1028,7 @@ async def start_anonymous_indexing(
     return response_data
 
 
-# =============================================================================
 # GET /playground/index/{job_id} - Check indexing job status (#126)
-# =============================================================================
 
 @router.get(
     "/index/{job_id}",

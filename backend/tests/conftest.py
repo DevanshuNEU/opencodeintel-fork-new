@@ -20,9 +20,7 @@ os.environ["SUPABASE_KEY"] = "test-key"
 os.environ["SUPABASE_ANON_KEY"] = "test-anon-key"
 os.environ["SUPABASE_JWT_SECRET"] = "test-jwt-secret"
 
-# =============================================================================
 # EARLY PATCHING - runs during collection, before any imports
-# =============================================================================
 # These patches prevent external service initialization during test collection
 
 _pinecone_patcher = patch('pinecone.Pinecone')
@@ -47,7 +45,6 @@ _auth_response.user = None
 _supabase_client.auth.get_user.return_value = _auth_response
 _mock_supabase.return_value = _supabase_client
 
-# =============================================================================
 
 # Add backend to path
 backend_dir = Path(__file__).parent.parent

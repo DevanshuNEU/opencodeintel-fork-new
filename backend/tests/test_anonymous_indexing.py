@@ -22,9 +22,7 @@ from services.anonymous_indexer import (
 )
 
 
-# =============================================================================
 # REQUEST MODEL TESTS
-# =============================================================================
 
 class TestIndexRepoRequest:
     """Tests for IndexRepoRequest validation."""
@@ -76,9 +74,7 @@ class TestIndexRepoRequest:
         assert req.github_url == "https://github.com/user/repo"
 
 
-# =============================================================================
 # JOB MANAGER TESTS
-# =============================================================================
 
 class TestAnonymousIndexingJob:
     """Tests for AnonymousIndexingJob service."""
@@ -230,9 +226,7 @@ class TestAnonymousIndexingJob:
         assert result is True
 
 
-# =============================================================================
 # JOB DATACLASS TESTS
-# =============================================================================
 
 class TestJobDataclasses:
     """Tests for JobProgress and JobStats."""
@@ -268,9 +262,7 @@ class TestJobDataclasses:
         assert d["indexing_time_seconds"] == 45.5
 
 
-# =============================================================================
 # ENDPOINT TESTS (Integration)
-# =============================================================================
 
 class TestIndexEndpoint:
     """Integration tests for POST /playground/index."""
@@ -428,9 +420,7 @@ class TestIndexEndpoint:
         assert response.status_code == 429
 
 
-# =============================================================================
 # SESSION CONFLICT TESTS
-# =============================================================================
 
 class TestSessionConflict:
     """Tests for session-already-has-repo behavior."""
@@ -514,9 +504,7 @@ class TestSessionConflict:
         assert response.json()["job_id"] == "idx_new123456"
 
 
-# =============================================================================
 # STATUS ENDPOINT TESTS (GET /playground/index/{job_id})
-# =============================================================================
 
 class TestStatusEndpoint:
     """Tests for GET /playground/index/{job_id} status endpoint."""
@@ -682,9 +670,7 @@ class TestStatusEndpoint:
 
 
 
-# =============================================================================
 # Issue #128: Search User-Indexed Repos Tests
-# =============================================================================
 
 class TestSearchUserRepos:
     """Tests for searching user-indexed repositories."""

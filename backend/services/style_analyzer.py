@@ -263,8 +263,7 @@ class StyleAnalyzer:
         }
 
     
-    # ===== SUPABASE CACHING =====
-    
+    # SUPABASE CACHING
     def save_to_cache(self, repo_id: str, style_data: Dict):
         """Save style analysis to Supabase for caching"""
         from services.supabase_service import get_supabase_service

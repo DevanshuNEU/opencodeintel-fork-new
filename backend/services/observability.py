@@ -30,9 +30,7 @@ IS_PRODUCTION = ENVIRONMENT == "production"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO" if IS_PRODUCTION else "DEBUG")
 
 
-# =============================================================================
 # STRUCTURED LOGGER
-# =============================================================================
 
 class StructuredLogger:
     """
@@ -112,9 +110,7 @@ class StructuredLogger:
 logger = StructuredLogger()
 
 
-# =============================================================================
 # SENTRY INTEGRATION HELPERS
-# =============================================================================
 
 def set_operation_context(operation: str, **kwargs):
     """
@@ -191,9 +187,7 @@ def capture_message(message: str, level: str = "info", **context):
         pass
 
 
-# =============================================================================
 # PERFORMANCE TRACKING
-# =============================================================================
 
 @contextmanager
 def track_time(operation: str, **tags):
@@ -307,9 +301,7 @@ def trace_operation(operation: str):
     return decorator
 
 
-# =============================================================================
 # SIMPLE METRICS (in-memory counters)
-# =============================================================================
 
 class Metrics:
     """

@@ -27,7 +27,6 @@ from pinecone import Pinecone, ServerlessSpec
 
 # Utils
 import hashlib
-from dotenv import load_dotenv
 import time
 
 # Search enhancement
@@ -38,8 +37,6 @@ from services.search_v2 import TreeSitterExtractor, FunctionFilter, ExtractedFun
 
 # Observability
 from services.observability import logger, trace_operation, track_time, capture_exception, add_breadcrumb, metrics
-
-load_dotenv()
 
 # Configuration
 # Note: If using existing Pinecone index, match the dimension (1536 for small, 3072 for large)

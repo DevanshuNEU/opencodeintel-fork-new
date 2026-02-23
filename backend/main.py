@@ -2,6 +2,10 @@
 CodeIntel Backend API
 FastAPI backend for codebase intelligence
 """
+# Load env vars once, before any service reads them
+from dotenv import load_dotenv
+load_dotenv()
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,8 +55,7 @@ app = FastAPI(
 )
 
 
-# ===== MIDDLEWARE =====
-
+# MIDDLEWARE
 class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     """Limit request body size to prevent abuse."""
     MAX_REQUEST_SIZE = 10 * 1024 * 1024  # 10MB
@@ -81,7 +84,7 @@ app.add_middleware(
 )
 
 
-# ===== ROUTERS =====
+# ROUTERS
 # All API routes are prefixed with API_PREFIX (e.g., /api/v1)
 # Route files define their sub-path (e.g., /auth, /repos)
 # Final paths: /api/v1/auth, /api/v1/repos, etc.
@@ -104,8 +107,7 @@ app.add_api_websocket_route(f"{API_PREFIX}/ws/playground/{{job_id}}", websocket_
 app.add_api_websocket_route(f"{API_PREFIX}/ws/repos/{{repo_id}}/indexing", websocket_repo_indexing)
 
 
-# ===== ERROR HANDLERS =====
-
+# ERROR HANDLERS
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle validation errors with clear messages."""

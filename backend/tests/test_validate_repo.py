@@ -16,9 +16,7 @@ from routes.playground import (
 )
 
 
-# =============================================================================
 # URL PARSING TESTS
-# =============================================================================
 
 class TestParseGitHubUrl:
     """Tests for URL parsing."""
@@ -89,9 +87,7 @@ class TestGitHubUrlPattern:
         assert match is None
 
 
-# =============================================================================
 # REQUEST MODEL TESTS
-# =============================================================================
 
 class TestValidateRepoRequest:
     """Tests for the request model validation."""
@@ -128,9 +124,7 @@ class TestValidateRepoRequest:
         assert req.github_url == "https://github.com/user/repo"
 
 
-# =============================================================================
 # GITHUB API TESTS
-# =============================================================================
 
 class TestFetchRepoMetadata:
     """Tests for GitHub API interaction."""
@@ -217,9 +211,7 @@ class TestFetchRepoMetadata:
             assert result["error"] == "timeout"
 
 
-# =============================================================================
 # FILE COUNTING TESTS
-# =============================================================================
 
 class TestCountCodeFiles:
     """Tests for file counting logic."""
@@ -359,9 +351,7 @@ class TestCountCodeFiles:
             assert error is None
 
 
-# =============================================================================
 # CONSTANTS TESTS
-# =============================================================================
 
 class TestAnonymousFileLimit:
     """Tests for file limit constant."""

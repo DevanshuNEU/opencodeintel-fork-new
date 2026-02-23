@@ -29,9 +29,7 @@ from fastapi.security import HTTPBearer
 from fastapi.security.http import HTTPAuthorizationCredentials
 
 
-# ---------------------------------------------------------------------------
 # Auth Context - unified return type for all auth methods
-# ---------------------------------------------------------------------------
 
 @dataclass
 class AuthContext:
@@ -52,17 +50,13 @@ class AuthContext:
         return self.user_id or self.api_key_name or "anonymous"
 
 
-# ---------------------------------------------------------------------------
 # Bearer token scheme (auto_error=False allows optional auth)
-# ---------------------------------------------------------------------------
 
 _bearer = HTTPBearer(auto_error=False)
 _bearer_required = HTTPBearer(auto_error=True)
 
 
-# ---------------------------------------------------------------------------
 # Core validation functions
-# ---------------------------------------------------------------------------
 
 def _validate_jwt(token: str) -> Optional[AuthContext]:
     """Validate Supabase JWT token"""
@@ -143,9 +137,7 @@ def _authenticate(token: str) -> AuthContext:
     )
 
 
-# ---------------------------------------------------------------------------
 # FastAPI Dependencies - use these in your routes
-# ---------------------------------------------------------------------------
 
 async def require_auth(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_required)
@@ -177,9 +169,7 @@ async def public_auth(
         return AuthContext(is_public=True)
 
 
-# ---------------------------------------------------------------------------
 # Legacy functions - kept for backwards compatibility
-# ---------------------------------------------------------------------------
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_required)
