@@ -262,6 +262,7 @@ class TestJobDataclasses:
 
 # ENDPOINT TESTS (Integration)
 
+@patch('routes.playground.indexing.redis_client', MagicMock())
 class TestIndexEndpoint:
     """Integration tests for POST /playground/index."""
 
@@ -420,6 +421,7 @@ class TestIndexEndpoint:
 
 # SESSION CONFLICT TESTS
 
+@patch('routes.playground.indexing.redis_client', MagicMock())
 class TestSessionConflict:
     """Tests for session-already-has-repo behavior."""
 
@@ -504,6 +506,7 @@ class TestSessionConflict:
 
 # STATUS ENDPOINT TESTS (GET /playground/index/{job_id})
 
+@patch('routes.playground.indexing.redis_client', MagicMock(get=MagicMock(return_value=None)))
 class TestStatusEndpoint:
     """Tests for GET /playground/index/{job_id} status endpoint."""
 
