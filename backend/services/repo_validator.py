@@ -9,8 +9,7 @@ from dataclasses import dataclass
 from typing import Set, Optional
 import random
 
-from services.observability import logger
-from services.sentry import capture_exception
+from services.observability import logger, capture_exception
 
 
 @dataclass

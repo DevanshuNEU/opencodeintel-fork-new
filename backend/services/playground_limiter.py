@@ -21,8 +21,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Tuple, Dict, Any
 from dataclasses import dataclass
 
-from services.observability import logger, metrics, track_time
-from services.sentry import capture_exception
+from services.observability import logger, metrics, track_time, capture_exception
 
 
 # DATA CLASSES

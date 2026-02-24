@@ -1,11 +1,12 @@
 """
 Observability Module
-Centralized logging, tracing, and metrics for CodeIntel
+Centralized logging, tracing, metrics, and error tracking for CodeIntel
 
-Usage:
-    from services.observability import logger, trace_operation, track_time
+Single import for all observability needs:
+    from services.observability import logger, metrics, capture_exception, track_time
 
     logger.info("Starting indexing", repo_id="abc", files=100)
+    metrics.record_search(duration, cached=True)
     
     @trace_operation("indexing")
     async def index_repo(repo_id: str):
@@ -19,10 +20,11 @@ import sys
 import time
 import logging
 import json
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, Deque
 from functools import wraps
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
+from collections import deque
 
 # Environment
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
@@ -41,7 +43,7 @@ class StructuredLogger:
         logger.error("Failed to index", repo_id="xyz", error=str(e))
     """
     
-    def __init__(self, name: str = "codeintel"):
+    def __init__(self, name: str = "codeintel") -> None:
         self.name = name
         self.level = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
         self._context: Dict[str, Any] = {}
@@ -49,7 +51,7 @@ class StructuredLogger:
     def _format_message(self, level: str, message: str, **kwargs) -> str:
         """Format log message based on environment"""
         data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": level,
             "service": self.name,
             "message": message,
@@ -71,7 +73,7 @@ class StructuredLogger:
                 parts.append(extras)
             return " ".join(parts)
     
-    def _log(self, level: str, level_num: int, message: str, **kwargs):
+    def _log(self, level: str, level_num: int, message: str, **kwargs) -> None:
         """Internal log method"""
         if level_num < self.level:
             return
@@ -82,27 +84,27 @@ class StructuredLogger:
         output = sys.stderr if level_num >= logging.ERROR else sys.stdout
         print(formatted, file=output)
     
-    def set_context(self, **kwargs):
+    def set_context(self, **kwargs) -> None:
         """Set persistent context for all subsequent logs"""
         self._context.update(kwargs)
     
-    def clear_context(self):
+    def clear_context(self) -> None:
         """Clear all context"""
         self._context = {}
     
-    def debug(self, message: str, **kwargs):
+    def debug(self, message: str, **kwargs) -> None:
         self._log("DEBUG", logging.DEBUG, message, **kwargs)
     
-    def info(self, message: str, **kwargs):
+    def info(self, message: str, **kwargs) -> None:
         self._log("INFO", logging.INFO, message, **kwargs)
     
-    def warning(self, message: str, **kwargs):
+    def warning(self, message: str, **kwargs) -> None:
         self._log("WARNING", logging.WARNING, message, **kwargs)
     
-    def error(self, message: str, **kwargs):
+    def error(self, message: str, **kwargs) -> None:
         self._log("ERROR", logging.ERROR, message, **kwargs)
     
-    def critical(self, message: str, **kwargs):
+    def critical(self, message: str, **kwargs) -> None:
         self._log("CRITICAL", logging.CRITICAL, message, **kwargs)
 
 
@@ -112,7 +114,7 @@ logger = StructuredLogger()
 
 # SENTRY INTEGRATION HELPERS
 
-def set_operation_context(operation: str, **kwargs):
+def set_operation_context(operation: str, **kwargs) -> None:
     """
     Set Sentry context for current operation.
     
@@ -133,7 +135,7 @@ def set_operation_context(operation: str, **kwargs):
         pass
 
 
-def add_breadcrumb(message: str, category: str = "custom", level: str = "info", **data):
+def add_breadcrumb(message: str, category: str = "custom", level: str = "info", **data) -> None:
     """
     Add breadcrumb for Sentry error context.
     
@@ -151,35 +153,29 @@ def add_breadcrumb(message: str, category: str = "custom", level: str = "info", 
         pass
 
 
-def capture_exception(error: Exception, **context):
+def capture_exception(error: Exception, **context) -> None:
     """
-    Capture exception with additional context.
+    Capture exception to Sentry with additional context.
     
-    Args:
-        error: The exception to capture
-        **context: Additional context to attach
+    Does NOT log to stdout -- callers are responsible for logging.
+    This avoids double-logging when callers do logger.error() + capture_exception().
     """
     try:
         import sentry_sdk
-        with sentry_sdk.push_scope() as scope:
+        with sentry_sdk.new_scope() as scope:
             for key, value in context.items():
                 scope.set_extra(key, value)
             sentry_sdk.capture_exception(error)
-        
-        # Also log it
-        logger.error(
-            f"Exception captured: {type(error).__name__}: {str(error)}",
-            **context
-        )
     except ImportError:
-        logger.error(f"Exception: {error}", **context)
+        # No Sentry -- log as fallback so errors aren't silently lost
+        logger.error(f"Exception (no Sentry): {type(error).__name__}: {error}", **context)
 
 
-def capture_message(message: str, level: str = "info", **context):
+def capture_message(message: str, level: str = "info", **context) -> None:
     """Capture a message (not exception) to Sentry"""
     try:
         import sentry_sdk
-        with sentry_sdk.push_scope() as scope:
+        with sentry_sdk.new_scope() as scope:
             for key, value in context.items():
                 scope.set_extra(key, value)
             sentry_sdk.capture_message(message, level=level)
@@ -301,66 +297,229 @@ def trace_operation(operation: str):
     return decorator
 
 
-# SIMPLE METRICS (in-memory counters)
+# METRICS (unified counters + performance tracking)
 
 class Metrics:
     """
-    Simple in-memory metrics counters.
+    Unified metrics: generic counters/timings/gauges plus
+    domain-specific search and indexing performance tracking.
     
     Usage:
-        metrics.increment("search_requests", repo_id="abc")
+        metrics.increment("search_requests")
         metrics.timing("search_latency_ms", 150)
-        metrics.get_stats()  # Returns all metrics
+        metrics.record_search(duration, cached=True)
+        metrics.record_indexing(repo_id, duration, function_count)
+        metrics.get_metrics()  # dashboard-friendly summary
+        metrics.get_stats()    # raw counters/timings/gauges
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._counters: Dict[str, int] = {}
-        self._timings: Dict[str, list] = {}
+        self._timings: Dict[str, Deque[float]] = {}
         self._gauges: Dict[str, float] = {}
+        # Domain-specific tracking (replaces PerformanceMetrics)
+        self._indexing_times: deque = deque(maxlen=100)
+        self._search_times: deque = deque(maxlen=100)
+        self._total_searches: int = 0
+        self._total_indexing_ops: int = 0
     
-    def increment(self, name: str, value: int = 1, **tags):
+    def increment(self, name: str, value: int = 1, **tags) -> None:
         """Increment a counter"""
-        key = f"{name}"
-        self._counters[key] = self._counters.get(key, 0) + value
+        self._counters[name] = self._counters.get(name, 0) + value
     
-    def timing(self, name: str, value_ms: float):
+    def timing(self, name: str, value_ms: float) -> None:
         """Record a timing measurement"""
         if name not in self._timings:
-            self._timings[name] = []
+            self._timings[name] = deque(maxlen=1000)
         self._timings[name].append(value_ms)
-        # Keep only last 1000 timings
-        if len(self._timings[name]) > 1000:
-            self._timings[name] = self._timings[name][-1000:]
     
-    def gauge(self, name: str, value: float):
-        """Record a point-in-time value (like avg score, current queue size)"""
+    def gauge(self, name: str, value: float) -> None:
+        """Record a point-in-time value"""
         self._gauges[name] = value
     
-    def get_stats(self) -> Dict:
-        """Get all metrics with basic stats"""
+    def record_indexing(self, repo_id: str, duration: float, function_count: int) -> None:
+        """Record indexing performance for dashboard metrics."""
+        self._indexing_times.append({
+            "repo_id": repo_id,
+            "duration": duration,
+            "function_count": function_count,
+            "speed": function_count / duration if duration > 0 else 0,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        self._total_indexing_ops += 1
+    
+    def record_search(self, duration: float, cached: bool) -> None:
+        """Record search performance for dashboard metrics."""
+        self._search_times.append({
+            "duration": duration,
+            "cached": cached,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        self._total_searches += 1
+        # cache hit/miss counting handled by cache.py via metrics.increment()
+        # to avoid double counting now that we're a single Metrics instance
+    
+    def get_metrics(self) -> Dict[str, Any]:
+        """Dashboard-friendly performance summary (used by /health and /metrics)."""
+        indexing_speeds = [m["speed"] for m in self._indexing_times]
+        search_durations = [m["duration"] for m in self._search_times]
+        avg_indexing_speed = (
+            sum(indexing_speeds) / len(indexing_speeds) if indexing_speeds else 0
+        )
+        cache_hits = self._counters.get("cache_hits", 0)
+        cache_misses = self._counters.get("cache_misses", 0)
+        cache_total = cache_hits + cache_misses
+        cache_hit_rate = (cache_hits / cache_total * 100) if cache_total > 0 else 0
+        
+        return {
+            "indexing": {
+                "total_operations": self._total_indexing_ops,
+                "avg_speed_functions_per_sec": avg_indexing_speed,
+                "max_speed": max(indexing_speeds) if indexing_speeds else 0,
+                "min_speed": min(indexing_speeds) if indexing_speeds else 0,
+                "recent_operations": list(self._indexing_times)[-10:],
+            },
+            "search": {
+                "total_searches": self._total_searches,
+                "cache_hit_rate": f"{cache_hit_rate:.1f}%",
+                "cache_hits": cache_hits,
+                "cache_misses": cache_misses,
+                "avg_duration_ms": (
+                    sum(search_durations) / len(search_durations) * 1000
+                    if search_durations else 0
+                ),
+                "recent_searches": list(self._search_times)[-10:],
+            },
+            "summary": {
+                "health": "healthy",
+                "cache_working": cache_hit_rate > 0,
+                "indexing_performance": (
+                    "good" if avg_indexing_speed > 10 else "needs_improvement"
+                ),
+            },
+        }
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Raw counters, timings, and gauges for internal debugging."""
         stats = {
             "counters": self._counters.copy(),
             "gauges": self._gauges.copy(),
-            "timings": {}
+            "timings": {},
         }
-        
         for name, values in self._timings.items():
             if values:
                 stats["timings"][name] = {
                     "count": len(values),
                     "avg_ms": round(sum(values) / len(values), 2),
                     "min_ms": round(min(values), 2),
-                    "max_ms": round(max(values), 2)
+                    "max_ms": round(max(values), 2),
                 }
-        
         return stats
     
-    def reset(self):
+    def reset(self) -> None:
         """Reset all metrics"""
         self._counters = {}
         self._timings = {}
         self._gauges = {}
+        self._indexing_times.clear()
+        self._search_times.clear()
+        self._total_searches = 0
+        self._total_indexing_ops = 0
 
 
-# Global metrics instance
+# SENTRY INITIALIZATION (moved from services/sentry.py)
+
+def init_sentry() -> bool:
+    """Initialize Sentry SDK if SENTRY_DSN is configured."""
+    sentry_dsn = os.getenv("SENTRY_DSN")
+
+    if not sentry_dsn:
+        print("[INFO] Sentry DSN not configured - error tracking disabled")
+        return False
+
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+
+        environment = os.getenv("ENVIRONMENT", "development")
+
+        # PII and debug settings -- opt-in via env vars, default to safe
+        send_pii = os.getenv("SENTRY_SEND_PII", "false").lower() in ("true", "1")
+        include_locals = os.getenv("SENTRY_INCLUDE_LOCAL_VARS", "false").lower() in ("true", "1")
+
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            environment=environment,
+            traces_sample_rate=0.1 if environment == "production" else 1.0,
+            profiles_sample_rate=0.1 if environment == "production" else 1.0,
+            send_default_pii=send_pii,
+            integrations=[
+                FastApiIntegration(transaction_style="endpoint"),
+                StarletteIntegration(transaction_style="endpoint"),
+            ],
+            before_send=_filter_events,
+            debug=environment == "development",
+            attach_stacktrace=True,
+            include_local_variables=include_locals,
+        )
+
+        print(f"[OK] Sentry initialized (environment: {environment})")
+        return True
+
+    except ImportError:
+        print("[WARN] sentry-sdk not installed - error tracking disabled")
+        return False
+    except Exception as e:
+        print(f"[WARN] Failed to initialize Sentry: {e}")
+        return False
+
+
+def _filter_events(event: Dict[str, Any], hint: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Filter out noisy events before sending to Sentry."""
+    request_url = event.get("request", {}).get("url", "")
+    if "/health" in request_url:
+        return None
+
+    exception_values = event.get("exception", {}).get("values", [])
+    if exception_values:
+        exception_value = str(exception_values[0].get("value", ""))
+        bot_paths = ["/wp-admin", "/wp-login", "/.env", "/config", "/admin", "/phpmyadmin", "/.git"]
+        if any(path in exception_value for path in bot_paths):
+            return None
+
+        exception_type = exception_values[0].get("type", "")
+        if exception_type in ("RequestValidationError", "ValidationError"):
+            return None
+
+    return event
+
+
+def set_user_context(user_id: Optional[str] = None, email: Optional[str] = None) -> None:
+    """Set Sentry user context for error attribution."""
+    try:
+        import sentry_sdk
+        user_data: Dict[str, Any] = {"id": user_id}
+        # Only include email if PII opt-in is enabled
+        if email and os.getenv("SENTRY_SEND_PII", "false").lower() in ("true", "1"):
+            user_data["email"] = email
+        sentry_sdk.set_user(user_data)
+    except ImportError:
+        pass
+
+
+def capture_http_exception(request: Any, exc: Exception, status_code: int) -> None:
+    """Capture HTTP exception with request context for Sentry."""
+    try:
+        import sentry_sdk
+        with sentry_sdk.new_scope() as scope:
+            scope.set_extra("status_code", status_code)
+            scope.set_extra("path", str(request.url.path))
+            scope.set_extra("method", request.method)
+            sentry_sdk.capture_exception(exc)
+    except ImportError:
+        pass
+
+
+# Global instances
 metrics = Metrics()

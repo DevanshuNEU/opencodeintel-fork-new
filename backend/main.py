@@ -15,7 +15,7 @@ from starlette.responses import JSONResponse
 import os
 
 # Initialize Sentry FIRST (before other imports to catch all errors)
-from services.sentry import init_sentry
+from services.observability import init_sentry
 init_sentry()
 
 # Import API config (single source of truth for versioning)
@@ -146,7 +146,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
     Catch-all handler for unhandled exceptions.
     Captures to Sentry and returns 500.
     """
-    from services.sentry import capture_http_exception
+    from services.observability import capture_http_exception
     capture_http_exception(request, exc, 500)
     
     return JSONResponse(
