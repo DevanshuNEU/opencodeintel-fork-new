@@ -4,6 +4,11 @@ __pycache__/
 venv/
 env/
 
+# Test/coverage artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+
 # Node
 node_modules/
 dist/
