@@ -8,12 +8,8 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 # Import directly - conftest.py handles external service mocking
-from routes.playground import (
-    _parse_github_url,
-    GITHUB_URL_PATTERN,
-    ANONYMOUS_FILE_LIMIT,
-    ValidateRepoRequest,
-)
+from routes.playground.validation import parse_github_url, ValidateRepoRequest
+from routes.playground.helpers import GITHUB_URL_PATTERN, ANONYMOUS_FILE_LIMIT
 
 
 # URL PARSING TESTS
@@ -22,25 +18,25 @@ class TestParseGitHubUrl:
     """Tests for URL parsing."""
 
     def test_valid_https_url(self):
-        owner, repo, error = _parse_github_url("https://github.com/facebook/react")
+        owner, repo, error = parse_github_url("https://github.com/facebook/react")
         assert owner == "facebook"
         assert repo == "react"
         assert error is None
 
     def test_valid_http_url(self):
-        owner, repo, error = _parse_github_url("http://github.com/user/repo")
+        owner, repo, error = parse_github_url("http://github.com/user/repo")
         assert owner == "user"
         assert repo == "repo"
         assert error is None
 
     def test_url_with_trailing_slash(self):
-        owner, repo, error = _parse_github_url("https://github.com/owner/repo/")
+        owner, repo, error = parse_github_url("https://github.com/owner/repo/")
         assert owner == "owner"
         assert repo == "repo"
         assert error is None
 
     def test_url_with_dots_and_dashes(self):
-        owner, repo, error = _parse_github_url(
+        owner, repo, error = parse_github_url(
             "https://github.com/my-org/my.repo-name"
         )
         assert owner == "my-org"
@@ -48,25 +44,25 @@ class TestParseGitHubUrl:
         assert error is None
 
     def test_invalid_url_wrong_domain(self):
-        owner, repo, error = _parse_github_url("https://gitlab.com/user/repo")
+        owner, repo, error = parse_github_url("https://gitlab.com/user/repo")
         assert owner is None
         assert repo is None
         assert "Invalid GitHub URL format" in error
 
     def test_invalid_url_no_repo(self):
-        owner, repo, error = _parse_github_url("https://github.com/justowner")
+        owner, repo, error = parse_github_url("https://github.com/justowner")
         assert owner is None
         assert error is not None
 
     def test_invalid_url_with_path(self):
-        owner, repo, error = _parse_github_url(
+        owner, repo, error = parse_github_url(
             "https://github.com/owner/repo/tree/main"
         )
         assert owner is None
         assert error is not None
 
     def test_invalid_url_blob_path(self):
-        owner, repo, error = _parse_github_url(
+        owner, repo, error = parse_github_url(
             "https://github.com/owner/repo/blob/main/file.py"
         )
         assert owner is None
@@ -132,43 +128,43 @@ class TestFetchRepoMetadata:
     @pytest.mark.asyncio
     async def test_repo_not_found(self):
         """Test handling of 404 response."""
-        from routes.playground import _fetch_repo_metadata
+        from routes.playground.validation import fetch_repo_metadata
 
         mock_response = MagicMock()
         mock_response.status_code = 404
 
-        with patch("routes.playground.httpx.AsyncClient") as mock_client:
+        with patch("routes.playground.validation.httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.get.return_value = mock_response
             mock_instance.__aenter__.return_value = mock_instance
             mock_instance.__aexit__.return_value = None
             mock_client.return_value = mock_instance
 
-            result = await _fetch_repo_metadata("nonexistent", "repo")
+            result = await fetch_repo_metadata("nonexistent", "repo")
             assert result["error"] == "not_found"
 
     @pytest.mark.asyncio
     async def test_rate_limited(self):
         """Test handling of 403 rate limit response."""
-        from routes.playground import _fetch_repo_metadata
+        from routes.playground.validation import fetch_repo_metadata
 
         mock_response = MagicMock()
         mock_response.status_code = 403
 
-        with patch("routes.playground.httpx.AsyncClient") as mock_client:
+        with patch("routes.playground.validation.httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.get.return_value = mock_response
             mock_instance.__aenter__.return_value = mock_instance
             mock_instance.__aexit__.return_value = None
             mock_client.return_value = mock_instance
 
-            result = await _fetch_repo_metadata("user", "repo")
+            result = await fetch_repo_metadata("user", "repo")
             assert result["error"] == "rate_limited"
 
     @pytest.mark.asyncio
     async def test_successful_fetch(self):
         """Test successful metadata fetch."""
-        from routes.playground import _fetch_repo_metadata
+        from routes.playground.validation import fetch_repo_metadata
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -182,14 +178,14 @@ class TestFetchRepoMetadata:
             "size": 1024,
         }
 
-        with patch("routes.playground.httpx.AsyncClient") as mock_client:
+        with patch("routes.playground.validation.httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.get.return_value = mock_response
             mock_instance.__aenter__.return_value = mock_instance
             mock_instance.__aexit__.return_value = None
             mock_client.return_value = mock_instance
 
-            result = await _fetch_repo_metadata("user", "repo")
+            result = await fetch_repo_metadata("user", "repo")
             assert result["name"] == "repo"
             assert result["private"] is False
             assert result["stargazers_count"] == 100
@@ -197,17 +193,17 @@ class TestFetchRepoMetadata:
     @pytest.mark.asyncio
     async def test_timeout_handling(self):
         """Test timeout is handled gracefully."""
-        from routes.playground import _fetch_repo_metadata
+        from routes.playground.validation import fetch_repo_metadata
         import httpx
 
-        with patch("routes.playground.httpx.AsyncClient") as mock_client:
+        with patch("routes.playground.validation.httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.get.side_effect = httpx.TimeoutException("timeout")
             mock_instance.__aenter__.return_value = mock_instance
             mock_instance.__aexit__.return_value = None
             mock_client.return_value = mock_instance
 
-            result = await _fetch_repo_metadata("user", "repo")
+            result = await fetch_repo_metadata("user", "repo")
             assert result["error"] == "timeout"
 
 
@@ -219,7 +215,7 @@ class TestCountCodeFiles:
     @pytest.mark.asyncio
     async def test_count_python_files(self):
         """Test counting Python files."""
-        from routes.playground import _count_code_files
+        from routes.playground.validation import count_code_files
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -233,21 +229,21 @@ class TestCountCodeFiles:
             ]
         }
 
-        with patch("routes.playground.httpx.AsyncClient") as mock_client:
+        with patch("routes.playground.validation.httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.get.return_value = mock_response
             mock_instance.__aenter__.return_value = mock_instance
             mock_instance.__aexit__.return_value = None
             mock_client.return_value = mock_instance
 
-            count, error = await _count_code_files("user", "repo", "main")
+            count, error = await count_code_files("user", "repo", "main")
             assert count == 2  # Only .py files
             assert error is None
 
     @pytest.mark.asyncio
     async def test_skip_node_modules(self):
         """Test that node_modules is skipped."""
-        from routes.playground import _count_code_files
+        from routes.playground.validation import count_code_files
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -260,21 +256,21 @@ class TestCountCodeFiles:
             ]
         }
 
-        with patch("routes.playground.httpx.AsyncClient") as mock_client:
+        with patch("routes.playground.validation.httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.get.return_value = mock_response
             mock_instance.__aenter__.return_value = mock_instance
             mock_instance.__aexit__.return_value = None
             mock_client.return_value = mock_instance
 
-            count, error = await _count_code_files("user", "repo", "main")
+            count, error = await count_code_files("user", "repo", "main")
             assert count == 2  # index.js and src/app.js, not node_modules
             assert error is None
 
     @pytest.mark.asyncio
     async def test_truncated_tree(self):
         """Test handling of truncated tree response."""
-        from routes.playground import _count_code_files
+        from routes.playground.validation import count_code_files
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -283,21 +279,21 @@ class TestCountCodeFiles:
             "tree": []
         }
 
-        with patch("routes.playground.httpx.AsyncClient") as mock_client:
+        with patch("routes.playground.validation.httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.get.return_value = mock_response
             mock_instance.__aenter__.return_value = mock_instance
             mock_instance.__aexit__.return_value = None
             mock_client.return_value = mock_instance
 
-            count, error = await _count_code_files("user", "repo", "main")
+            count, error = await count_code_files("user", "repo", "main")
             assert count == -1
             assert error == "truncated"
 
     @pytest.mark.asyncio
     async def test_multiple_extensions(self):
         """Test counting multiple file types."""
-        from routes.playground import _count_code_files
+        from routes.playground.validation import count_code_files
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -313,21 +309,21 @@ class TestCountCodeFiles:
             ]
         }
 
-        with patch("routes.playground.httpx.AsyncClient") as mock_client:
+        with patch("routes.playground.validation.httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.get.return_value = mock_response
             mock_instance.__aenter__.return_value = mock_instance
             mock_instance.__aexit__.return_value = None
             mock_client.return_value = mock_instance
 
-            count, error = await _count_code_files("user", "repo", "main")
+            count, error = await count_code_files("user", "repo", "main")
             assert count == 4  # py, js, go, rs
             assert error is None
 
     @pytest.mark.asyncio
     async def test_skip_git_directory(self):
         """Test that .git directory is skipped."""
-        from routes.playground import _count_code_files
+        from routes.playground.validation import count_code_files
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -339,14 +335,14 @@ class TestCountCodeFiles:
             ]
         }
 
-        with patch("routes.playground.httpx.AsyncClient") as mock_client:
+        with patch("routes.playground.validation.httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.get.return_value = mock_response
             mock_instance.__aenter__.return_value = mock_instance
             mock_instance.__aexit__.return_value = None
             mock_client.return_value = mock_instance
 
-            count, error = await _count_code_files("user", "repo", "main")
+            count, error = await count_code_files("user", "repo", "main")
             assert count == 1  # Only app.py
             assert error is None
 

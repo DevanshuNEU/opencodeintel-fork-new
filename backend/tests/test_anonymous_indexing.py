@@ -10,10 +10,8 @@ from datetime import datetime, timezone, timedelta
 import json
 
 # Import directly - conftest.py handles external service mocking
-from routes.playground import (
-    IndexRepoRequest,
-    ANONYMOUS_FILE_LIMIT,
-)
+from routes.playground.indexing import IndexRepoRequest
+from routes.playground.helpers import ANONYMOUS_FILE_LIMIT
 from services.anonymous_indexer import (
     AnonymousIndexingJob,
     JobStatus,
@@ -264,6 +262,7 @@ class TestJobDataclasses:
 
 # ENDPOINT TESTS (Integration)
 
+@patch('routes.playground.indexing.redis_client', MagicMock())
 class TestIndexEndpoint:
     """Integration tests for POST /playground/index."""
 
@@ -290,8 +289,8 @@ class TestIndexEndpoint:
         )
         assert response.status_code == 422
 
-    @patch('routes.playground._fetch_repo_metadata')
-    @patch('routes.playground._count_code_files')
+    @patch('routes.playground.indexing.fetch_repo_metadata')
+    @patch('routes.playground.indexing.count_code_files')
     def test_private_repo_returns_400(
         self, mock_count, mock_metadata, client
     ):
@@ -307,8 +306,8 @@ class TestIndexEndpoint:
         assert response.status_code == 400
         assert "private" in response.json()["detail"]["reason"]
 
-    @patch('routes.playground._fetch_repo_metadata')
-    @patch('routes.playground._count_code_files')
+    @patch('routes.playground.indexing.fetch_repo_metadata')
+    @patch('routes.playground.indexing.count_code_files')
     def test_too_large_repo_without_partial_returns_400(
         self, mock_count, mock_metadata, client
     ):
@@ -330,9 +329,9 @@ class TestIndexEndpoint:
         assert detail["reason"] == "too_large"
         assert "partial" in detail.get("hint", "").lower()
 
-    @patch('routes.playground._fetch_repo_metadata')
-    @patch('routes.playground._count_code_files')
-    @patch('routes.playground.AnonymousIndexingJob')
+    @patch('routes.playground.indexing.fetch_repo_metadata')
+    @patch('routes.playground.indexing.count_code_files')
+    @patch('routes.playground.indexing.AnonymousIndexingJob')
     def test_large_repo_with_partial_returns_202(
         self, mock_job_class, mock_count, mock_metadata, client
     ):
@@ -364,9 +363,9 @@ class TestIndexEndpoint:
         assert data["partial"] is True
         assert data["file_count"] == ANONYMOUS_FILE_LIMIT  # Capped at 200
 
-    @patch('routes.playground._fetch_repo_metadata')
-    @patch('routes.playground._count_code_files')
-    @patch('routes.playground.AnonymousIndexingJob')
+    @patch('routes.playground.indexing.fetch_repo_metadata')
+    @patch('routes.playground.indexing.count_code_files')
+    @patch('routes.playground.indexing.AnonymousIndexingJob')
     def test_valid_request_returns_202_with_job_id(
         self, mock_job_class, mock_count, mock_metadata, client
     ):
@@ -394,7 +393,7 @@ class TestIndexEndpoint:
         assert data["status"] == "queued"
         assert "estimated_time_seconds" in data
 
-    @patch('routes.playground._fetch_repo_metadata')
+    @patch('routes.playground.indexing.fetch_repo_metadata')
     def test_repo_not_found_returns_400(self, mock_metadata, client):
         """Repository not found returns 400."""
         mock_metadata.return_value = {"error": "not_found"}
@@ -407,7 +406,7 @@ class TestIndexEndpoint:
         assert response.status_code == 400
         assert response.json()["detail"]["reason"] == "not_found"
 
-    @patch('routes.playground._fetch_repo_metadata')
+    @patch('routes.playground.indexing.fetch_repo_metadata')
     def test_github_rate_limit_returns_429(self, mock_metadata, client):
         """GitHub rate limit returns 429."""
         mock_metadata.return_value = {"error": "rate_limited"}
@@ -422,6 +421,7 @@ class TestIndexEndpoint:
 
 # SESSION CONFLICT TESTS
 
+@patch('routes.playground.indexing.redis_client', MagicMock())
 class TestSessionConflict:
     """Tests for session-already-has-repo behavior."""
 
@@ -431,9 +431,9 @@ class TestSessionConflict:
         from main import app
         return TestClient(app)
 
-    @patch('routes.playground._fetch_repo_metadata')
-    @patch('routes.playground._count_code_files')
-    @patch('routes.playground._get_limiter')
+    @patch('routes.playground.indexing.fetch_repo_metadata')
+    @patch('routes.playground.indexing.count_code_files')
+    @patch('routes.playground.indexing.get_limiter')
     def test_session_with_existing_repo_returns_409(
         self, mock_get_limiter, mock_count, mock_metadata, client
     ):
@@ -464,10 +464,10 @@ class TestSessionConflict:
         assert response.status_code == 409
         assert response.json()["detail"]["error"] == "already_indexed"
 
-    @patch('routes.playground._fetch_repo_metadata')
-    @patch('routes.playground._count_code_files')
-    @patch('routes.playground._get_limiter')
-    @patch('routes.playground.AnonymousIndexingJob')
+    @patch('routes.playground.indexing.fetch_repo_metadata')
+    @patch('routes.playground.indexing.count_code_files')
+    @patch('routes.playground.indexing.get_limiter')
+    @patch('routes.playground.indexing.AnonymousIndexingJob')
     def test_expired_repo_allows_new_indexing(
         self, mock_job_class, mock_get_limiter, mock_count, mock_metadata, client
     ):
@@ -506,6 +506,7 @@ class TestSessionConflict:
 
 # STATUS ENDPOINT TESTS (GET /playground/index/{job_id})
 
+@patch('routes.playground.indexing.redis_client', MagicMock(get=MagicMock(return_value=None)))
 class TestStatusEndpoint:
     """Tests for GET /playground/index/{job_id} status endpoint."""
 
@@ -528,7 +529,7 @@ class TestStatusEndpoint:
         assert response.status_code == 404
         assert response.json()["detail"]["error"] == "job_not_found"
 
-    @patch('routes.playground.AnonymousIndexingJob')
+    @patch('routes.playground.indexing.AnonymousIndexingJob')
     def test_queued_job_returns_status(self, mock_job_class, client):
         """Queued job returns correct status."""
         mock_job_manager = MagicMock()
@@ -551,7 +552,7 @@ class TestStatusEndpoint:
         assert data["status"] == "queued"
         assert data["message"] == "Job is queued for processing"
 
-    @patch('routes.playground.AnonymousIndexingJob')
+    @patch('routes.playground.indexing.AnonymousIndexingJob')
     def test_processing_job_returns_progress(self, mock_job_class, client):
         """Processing job returns progress info."""
         mock_job_manager = MagicMock()
@@ -581,7 +582,7 @@ class TestStatusEndpoint:
         assert data["progress"]["files_processed"] == 50
         assert data["progress"]["percent_complete"] == 50
 
-    @patch('routes.playground.AnonymousIndexingJob')
+    @patch('routes.playground.indexing.AnonymousIndexingJob')
     def test_completed_job_returns_repo_id(self, mock_job_class, client):
         """Completed job returns repo_id and stats."""
         mock_job_manager = MagicMock()
@@ -611,7 +612,7 @@ class TestStatusEndpoint:
         assert data["repo_id"] == "anon_idx_test123456"
         assert data["stats"]["files_processed"] == 100
 
-    @patch('routes.playground.AnonymousIndexingJob')
+    @patch('routes.playground.indexing.AnonymousIndexingJob')
     def test_failed_job_returns_error(self, mock_job_class, client):
         """Failed job returns error details."""
         mock_job_manager = MagicMock()
@@ -637,7 +638,7 @@ class TestStatusEndpoint:
         assert data["error"] == "clone_failed"
         assert "not found" in data["error_message"].lower()
 
-    @patch('routes.playground.AnonymousIndexingJob')
+    @patch('routes.playground.indexing.AnonymousIndexingJob')
     def test_partial_job_includes_partial_info(self, mock_job_class, client):
         """Partial indexing job includes partial flag."""
         mock_job_manager = MagicMock()
@@ -675,8 +676,8 @@ class TestStatusEndpoint:
 class TestSearchUserRepos:
     """Tests for searching user-indexed repositories."""
 
-    @patch('routes.playground._get_limiter')
-    @patch('routes.playground.indexer')
+    @patch('routes.playground.search.get_limiter')
+    @patch('routes.playground.search.indexer')
     def test_search_with_repo_id_user_owns(self, mock_indexer, mock_get_limiter, client):
         """User can search their own indexed repo via repo_id."""
         mock_limiter = MagicMock()
@@ -712,7 +713,7 @@ class TestSearchUserRepos:
         data = response.json()
         assert data["count"] == 1
 
-    @patch('routes.playground._get_limiter')
+    @patch('routes.playground.search.get_limiter')
     def test_search_repo_id_not_owned_returns_403(self, mock_get_limiter, client):
         """Searching repo_id user doesn't own returns 403."""
         mock_limiter = MagicMock()
@@ -744,7 +745,7 @@ class TestSearchUserRepos:
         data = response.json()
         assert data["detail"]["error"] == "access_denied"
 
-    @patch('routes.playground._get_limiter')
+    @patch('routes.playground.search.get_limiter')
     def test_search_repo_id_no_session_repo_returns_403(self, mock_get_limiter, client):
         """Searching repo_id when session has no indexed repo returns 403."""
         mock_limiter = MagicMock()
@@ -765,7 +766,7 @@ class TestSearchUserRepos:
 
         assert response.status_code == 403
 
-    @patch('routes.playground._get_limiter')
+    @patch('routes.playground.search.get_limiter')
     def test_search_expired_repo_returns_410(self, mock_get_limiter, client):
         """Searching expired repo returns 410 with can_reindex hint."""
         mock_limiter = MagicMock()
@@ -798,8 +799,8 @@ class TestSearchUserRepos:
         assert data["detail"]["error"] == "repo_expired"
         assert data["detail"]["can_reindex"] is True
 
-    @patch('routes.playground._get_limiter')
-    @patch('routes.playground.indexer')
+    @patch('routes.playground.search.get_limiter')
+    @patch('routes.playground.search.indexer')
     def test_search_demo_repo_via_repo_id_allowed(self, mock_indexer, mock_get_limiter, client):
         """Demo repos can be accessed via repo_id without ownership check."""
         mock_limiter = MagicMock()
@@ -813,7 +814,7 @@ class TestSearchUserRepos:
         mock_indexer.semantic_search = AsyncMock(return_value=[])
 
         # Use the flask demo repo ID
-        from routes.playground import DEMO_REPO_IDS
+        from routes.playground.helpers import DEMO_REPO_IDS
         flask_repo_id = DEMO_REPO_IDS.get("flask")
         
         if flask_repo_id:
@@ -823,8 +824,8 @@ class TestSearchUserRepos:
             )
             assert response.status_code == 200
 
-    @patch('routes.playground._get_limiter')
-    @patch('routes.playground.indexer')
+    @patch('routes.playground.search.get_limiter')
+    @patch('routes.playground.search.indexer')
     def test_search_backward_compat_demo_repo(self, mock_indexer, mock_get_limiter, client):
         """Backward compat: demo_repo parameter still works."""
         mock_limiter = MagicMock()
@@ -845,8 +846,8 @@ class TestSearchUserRepos:
         # Should work (200) or 404 if flask not indexed - but not 4xx auth error
         assert response.status_code in [200, 404]
 
-    @patch('routes.playground._get_limiter')
-    @patch('routes.playground.indexer')
+    @patch('routes.playground.search.get_limiter')
+    @patch('routes.playground.search.indexer')
     def test_search_default_to_flask_when_no_repo_specified(self, mock_indexer, mock_get_limiter, client):
         """When neither repo_id nor demo_repo provided, defaults to flask."""
         mock_limiter = MagicMock()
