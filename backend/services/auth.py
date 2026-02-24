@@ -97,7 +97,7 @@ class SupabaseAuthService:
             raise
         except Exception as e:
             logger.debug("API-based JWT verification failed", error=str(e))
-            raise AuthenticationError("Token verification failed")
+            raise AuthenticationError("Token verification failed") from e
     
     async def signup(self, email: str, password: str, github_username: Optional[str] = None) -> Dict[str, Any]:
         """
