@@ -98,7 +98,11 @@ def _validate_user_repo_access(
                         expired_at=indexed_repo.get("expires_at"), session_token=token_preview)
         raise HTTPException(
             status_code=410,
-            detail={"error": "repo_expired", "message": "Repository index expired. Re-index to continue searching.", "can_reindex": True}
+            detail={
+                "error": "repo_expired",
+                "message": "Repository index expired. Re-index to continue searching.",
+                "can_reindex": True,
+            }
         )
 
     logger.info("Search on user-indexed repo", repo_id=repo_id[:16],
@@ -204,9 +208,21 @@ async def list_playground_repos() -> dict:
     """List available demo repositories."""
     return {
         "repos": [
-            {"id": "flask", "name": "Flask", "description": "Python web framework", "available": "flask" in DEMO_REPO_IDS},
-            {"id": "fastapi", "name": "FastAPI", "description": "Modern Python API", "available": "fastapi" in DEMO_REPO_IDS},
-            {"id": "express", "name": "Express", "description": "Node.js framework", "available": "express" in DEMO_REPO_IDS},
+            {
+                "id": "flask", "name": "Flask",
+                "description": "Python web framework",
+                "available": "flask" in DEMO_REPO_IDS,
+            },
+            {
+                "id": "fastapi", "name": "FastAPI",
+                "description": "Modern Python API",
+                "available": "fastapi" in DEMO_REPO_IDS,
+            },
+            {
+                "id": "express", "name": "Express",
+                "description": "Node.js framework",
+                "available": "express" in DEMO_REPO_IDS,
+            },
         ]
     }
 

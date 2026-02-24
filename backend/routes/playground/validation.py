@@ -137,7 +137,10 @@ async def validate_github_repo(request: ValidateRepoRequest) -> dict:
         elif error_type == "rate_limited":
             raise HTTPException(status_code=429, detail={"message": "GitHub API rate limit exceeded. Try again later."})
         else:
-            raise HTTPException(status_code=502, detail={"message": metadata.get("message", "Failed to fetch repository info")})
+            raise HTTPException(
+                status_code=502,
+                detail={"message": metadata.get("message", "Failed to fetch repository info")},
+            )
 
     if metadata.get("private", False):
         return {
