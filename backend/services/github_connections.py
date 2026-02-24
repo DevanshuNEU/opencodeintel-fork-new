@@ -8,12 +8,12 @@ from typing import Optional
 from datetime import datetime, timezone
 
 from services.observability import logger
+from services.supabase_service import get_supabase_service
 
 
 def get_connection(user_id: str) -> Optional[dict]:
     """Get user's GitHub connection from database."""
     try:
-        from services.supabase_service import get_supabase_service
         db = get_supabase_service().client
         result = db.table("github_connections").select("*").eq("user_id", user_id).execute()
         return result.data[0] if result.data else None
@@ -32,7 +32,6 @@ def save_connection(
 ) -> bool:
     """Save or update GitHub connection in database."""
     try:
-        from services.supabase_service import get_supabase_service
         db = get_supabase_service().client
 
         data = {
@@ -54,7 +53,6 @@ def save_connection(
 def delete_connection(user_id: str) -> bool:
     """Remove GitHub connection."""
     try:
-        from services.supabase_service import get_supabase_service
         db = get_supabase_service().client
         db.table("github_connections").delete().eq("user_id", user_id).execute()
         return True
@@ -66,10 +64,9 @@ def delete_connection(user_id: str) -> bool:
 def update_last_used(user_id: str) -> None:
     """Update last_used_at timestamp."""
     try:
-        from services.supabase_service import get_supabase_service
         db = get_supabase_service().client
         db.table("github_connections").update(
             {"last_used_at": datetime.now(timezone.utc).isoformat()}
         ).eq("user_id", user_id).execute()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed to update last_used_at", user_id=user_id, error=str(e))
