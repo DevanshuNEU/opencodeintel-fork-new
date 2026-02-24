@@ -17,6 +17,9 @@ from urllib.parse import urlencode
 
 from middleware.auth import require_auth, AuthContext
 from services.github import GitHubService
+from services.github_connections import (
+    get_connection, save_connection, delete_connection, update_last_used,
+)
 from services.observability import logger
 
 
@@ -62,79 +65,13 @@ class GitHubRepoResponse(BaseModel):
     owner_avatar: str
 
 
-async def _get_github_connection(user_id: str) -> Optional[dict]:
-    """Get user's GitHub connection from database"""
-    try:
-        from services.supabase_service import get_supabase_service
-        db = get_supabase_service().client
-        result = db.table("github_connections").select("*").eq("user_id", user_id).execute()
-        return result.data[0] if result.data else None
-    except Exception as e:
-        logger.error("Failed to get GitHub connection", error=str(e), user_id=user_id)
-        return None
-
-
-async def _save_github_connection(
-    user_id: str,
-    access_token: str,
-    github_user_id: int,
-    github_username: str,
-    github_avatar_url: Optional[str],
-    scope: str
-) -> bool:
-    """Save or update GitHub connection in database"""
-    try:
-        from services.supabase_service import get_supabase_service
-        db = get_supabase_service().client
-        
-        data = {
-            "user_id": user_id,
-            "access_token": access_token,
-            "github_user_id": github_user_id,
-            "github_username": github_username,
-            "github_avatar_url": github_avatar_url,
-            "token_scope": scope,
-        }
-        
-        db.table("github_connections").upsert(data, on_conflict="user_id").execute()
-        return True
-    except Exception as e:
-        logger.error("Failed to save GitHub connection", error=str(e), user_id=user_id)
-        return False
-
-
-async def _delete_github_connection(user_id: str) -> bool:
-    """Remove GitHub connection"""
-    try:
-        from services.supabase_service import get_supabase_service
-        db = get_supabase_service().client
-        db.table("github_connections").delete().eq("user_id", user_id).execute()
-        return True
-    except Exception as e:
-        logger.error("Failed to delete GitHub connection", error=str(e), user_id=user_id)
-        return False
-
-
-async def _update_last_used(user_id: str) -> None:
-    """Update last_used_at timestamp"""
-    try:
-        from datetime import datetime, timezone
-        from services.supabase_service import get_supabase_service
-        db = get_supabase_service().client
-        db.table("github_connections").update(
-            {"last_used_at": datetime.now(timezone.utc).isoformat()}
-        ).eq("user_id", user_id).execute()
-    except Exception:
-        pass
-
-
 @router.get("/status", response_model=GitHubStatusResponse)
 async def get_github_status(auth: AuthContext = Depends(require_auth)):
     """Check if user has GitHub connected and token is valid"""
     if not auth.user_id:
         raise HTTPException(status_code=401, detail="User ID required")
 
-    connection = await _get_github_connection(auth.user_id)
+    connection = get_connection(auth.user_id)
     if not connection:
         return GitHubStatusResponse(connected=False)
 
@@ -145,7 +82,7 @@ async def get_github_status(auth: AuthContext = Depends(require_auth)):
         
         if not is_valid:
             # Token expired or revoked, clean up
-            await _delete_github_connection(auth.user_id)
+            delete_connection(auth.user_id)
             return GitHubStatusResponse(connected=False)
 
         return GitHubStatusResponse(
@@ -262,7 +199,7 @@ async def github_oauth_callback(
         raise HTTPException(status_code=400, detail="Failed to get GitHub user info")
 
     # Save connection to database
-    saved = await _save_github_connection(
+    saved = save_connection(
         user_id=auth.user_id,
         access_token=access_token,
         github_user_id=user_info.id,
@@ -289,7 +226,7 @@ async def disconnect_github(auth: AuthContext = Depends(require_auth)):
     if not auth.user_id:
         raise HTTPException(status_code=401, detail="User ID required")
 
-    deleted = await _delete_github_connection(auth.user_id)
+    deleted = delete_connection(auth.user_id)
     return {"success": deleted}
 
 
@@ -309,7 +246,7 @@ async def list_github_repos(
     if not auth.user_id:
         raise HTTPException(status_code=401, detail="User ID required")
 
-    connection = await _get_github_connection(auth.user_id)
+    connection = get_connection(auth.user_id)
     if not connection:
         raise HTTPException(
             status_code=400,
@@ -325,7 +262,7 @@ async def list_github_repos(
         )
 
         # Update last used timestamp
-        await _update_last_used(auth.user_id)
+        update_last_used(auth.user_id)
 
         return [
             GitHubRepoResponse(
@@ -351,7 +288,7 @@ async def list_github_repos(
         
         # Check if token was revoked
         if "401" in str(e) or "Bad credentials" in str(e):
-            await _delete_github_connection(auth.user_id)
+            delete_connection(auth.user_id)
             raise HTTPException(
                 status_code=401,
                 detail="GitHub access revoked. Please reconnect your GitHub account."
