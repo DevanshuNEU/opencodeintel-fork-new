@@ -5,11 +5,17 @@ Handles JWT verification and user management
 from fastapi import HTTPException, status
 from typing import Optional, Dict, Any
 import os
-import jwt
+import jwt as pyjwt
 from datetime import datetime
 from supabase import create_client, Client
 
 from services.observability import logger
+from services.exceptions import (
+    AuthenticationError,
+    TokenExpiredError,
+    InvalidTokenError,
+    TokenMissingClaimError,
+)
 
 
 class SupabaseAuthService:
@@ -48,7 +54,7 @@ class SupabaseAuthService:
     def _verify_local(self, token: str) -> Dict[str, Any]:
         """Decode and verify JWT locally with HS256 secret."""
         try:
-            payload = jwt.decode(
+            payload = pyjwt.decode(
                 token,
                 self.jwt_secret,
                 algorithms=["HS256"],
@@ -58,10 +64,7 @@ class SupabaseAuthService:
             
             user_id = payload.get("sub")
             if not user_id:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Token missing subject claim",
-                )
+                raise TokenMissingClaimError("sub")
             
             return {
                 "user_id": user_id,
@@ -69,22 +72,13 @@ class SupabaseAuthService:
                 "metadata": payload.get("user_metadata") or {},
             }
         
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expired",
-            )
-        except jwt.InvalidAudienceError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token audience",
-            )
-        except jwt.InvalidTokenError as e:
+        except pyjwt.ExpiredSignatureError as e:
+            raise TokenExpiredError("Token expired") from e
+        except pyjwt.InvalidAudienceError as e:
+            raise InvalidTokenError("Invalid token audience") from e
+        except pyjwt.InvalidTokenError as e:
             logger.debug("JWT decode failed", error=str(e))
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-            )
+            raise InvalidTokenError("Invalid token") from e
     
     def _verify_via_api(self, token: str) -> Dict[str, Any]:
         """Fallback: verify via Supabase API call (requires network)."""
@@ -92,24 +86,18 @@ class SupabaseAuthService:
             response = self.client.auth.get_user(token)
             
             if not response.user:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid or expired token",
-                )
+                raise InvalidTokenError("Invalid or expired token")
             
             return {
                 "user_id": response.user.id,
                 "email": response.user.email,
                 "metadata": response.user.user_metadata or {},
             }
-        except HTTPException:
+        except AuthenticationError:
             raise
         except Exception as e:
             logger.debug("API-based JWT verification failed", error=str(e))
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token verification failed",
-            )
+            raise AuthenticationError("Token verification failed") from e
     
     async def signup(self, email: str, password: str, github_username: Optional[str] = None) -> Dict[str, Any]:
         """

@@ -50,40 +50,34 @@ class TestLocalJWTDecode:
 
         assert result["user_id"] == "user-456"
 
-    def test_expired_token_raises_401(self, auth_service):
+    def test_expired_token_raises_error(self, auth_service):
         token = _make_token({"sub": "user-789", "exp": int(time.time()) - 60})
 
-        from fastapi import HTTPException
-        with pytest.raises(HTTPException) as exc:
+        from services.exceptions import TokenExpiredError
+        with pytest.raises(TokenExpiredError):
             auth_service.verify_jwt(token)
-        assert exc.value.status_code == 401
-        assert "expired" in exc.value.detail.lower()
 
-    def test_wrong_secret_raises_401(self, auth_service):
+    def test_wrong_secret_raises_error(self, auth_service):
         token = _make_token({"sub": "user-000"}, secret="wrong-secret")
 
-        from fastapi import HTTPException
-        with pytest.raises(HTTPException) as exc:
+        from services.exceptions import InvalidTokenError
+        with pytest.raises(InvalidTokenError):
             auth_service.verify_jwt(token)
-        assert exc.value.status_code == 401
 
-    def test_missing_sub_claim_raises_401(self, auth_service):
+    def test_missing_sub_claim_raises_error(self, auth_service):
         token = _make_token({"email": "no-sub@test.com"})
 
-        from fastapi import HTTPException
-        with pytest.raises(HTTPException) as exc:
+        from services.exceptions import TokenMissingClaimError
+        with pytest.raises(TokenMissingClaimError):
             auth_service.verify_jwt(token)
-        assert exc.value.status_code == 401
-        assert "subject" in exc.value.detail.lower()
 
-    def test_wrong_audience_raises_401(self, auth_service):
+    def test_wrong_audience_raises_error(self, auth_service):
         payload = {"sub": "user-aud", "aud": "wrong-audience", "exp": int(time.time()) + 3600}
         token = pyjwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
-        from fastapi import HTTPException
-        with pytest.raises(HTTPException) as exc:
+        from services.exceptions import InvalidTokenError
+        with pytest.raises(InvalidTokenError):
             auth_service.verify_jwt(token)
-        assert exc.value.status_code == 401
 
     def test_no_network_call_made(self, auth_service):
         """The whole point of OPE-75: verify_jwt should NOT hit the network."""
