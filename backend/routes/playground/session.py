@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.get("/limits")
-async def get_playground_limits(req: Request):
+async def get_playground_limits(req: Request) -> dict:
     """
     Get current rate limit status for this user.
 
@@ -32,7 +32,7 @@ async def get_playground_limits(req: Request):
 
 
 @router.get("/session")
-async def get_session_info(req: Request, response: Response):
+async def get_session_info(req: Request, response: Response) -> dict:
     """
     Get current session state including indexed repo info.
 

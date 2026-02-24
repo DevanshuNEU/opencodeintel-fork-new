@@ -111,7 +111,7 @@ async def playground_search(
     request: PlaygroundSearchRequest,
     req: Request,
     response: Response,
-):
+) -> dict:
     """Public playground search - rate limited by session/IP."""
     session_token = get_session_token(req)
     client_ip = get_client_ip(req)
@@ -145,7 +145,7 @@ async def playground_search(
         cache_key = f"{sanitized_query}:v3={request.use_v3}:tests={request.include_tests}"
 
         cached_results = cache.get_search_results(cache_key, repo_id)
-        if cached_results:
+        if cached_results is not None:
             return {
                 "results": cached_results, "count": len(cached_results),
                 "cached": True, "remaining_searches": limit_result.remaining,
@@ -200,7 +200,7 @@ async def playground_search(
 
 
 @router.get("/repos")
-async def list_playground_repos():
+async def list_playground_repos() -> dict:
     """List available demo repositories."""
     return {
         "repos": [
@@ -212,7 +212,7 @@ async def list_playground_repos():
 
 
 @router.get("/stats")
-async def get_playground_stats():
+async def get_playground_stats() -> dict:
     """Get playground usage stats (for monitoring/debugging)."""
     limiter = get_limiter()
     return limiter.get_usage_stats()

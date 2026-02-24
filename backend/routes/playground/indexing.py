@@ -44,7 +44,7 @@ async def start_anonymous_indexing(
     req: Request,
     response: Response,
     background_tasks: BackgroundTasks,
-):
+) -> dict:
     """Start indexing a public GitHub repository for anonymous users."""
     start_time = time.time()
     limiter = get_limiter()
@@ -69,8 +69,11 @@ async def start_anonymous_indexing(
         if expires_at_str:
             try:
                 expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+                # Ensure timezone-aware comparison
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
                 is_expired = datetime.now(timezone.utc) > expires_at
-            except (ValueError, AttributeError):
+            except (ValueError, AttributeError, TypeError):
                 is_expired = True
 
         if not is_expired:
@@ -189,7 +192,7 @@ async def start_anonymous_indexing(
 
 
 @router.get("/index/{job_id}")
-async def get_indexing_status(job_id: str, req: Request):
+async def get_indexing_status(job_id: str, req: Request) -> dict:
     """Check the status of an anonymous indexing job."""
     if not job_id or not job_id.startswith("idx_"):
         raise HTTPException(status_code=400, detail={

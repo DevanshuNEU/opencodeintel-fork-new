@@ -115,7 +115,7 @@ async def count_code_files(
 
 
 @router.post("/validate-repo")
-async def validate_github_repo(request: ValidateRepoRequest, req: Request):
+async def validate_github_repo(request: ValidateRepoRequest, req: Request) -> dict:
     """Validate a GitHub repository URL for anonymous indexing."""
     start_time = time.time()
 
