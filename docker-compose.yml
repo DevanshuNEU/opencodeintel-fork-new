@@ -35,7 +35,13 @@ services:
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - API_KEY=${API_KEY}
+      - DEV_API_KEY=${DEV_API_KEY}
+      - DEBUG=${DEBUG:-false}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GITHUB_REDIRECT_URI=${GITHUB_REDIRECT_URI}
       - BACKEND_API_URL=http://backend:8000
       - DISCORD_FEEDBACK_WEBHOOK=${DISCORD_FEEDBACK_WEBHOOK}
       - COHERE_API_KEY=${COHERE_API_KEY}
@@ -96,7 +102,6 @@ services:
   #     - "8001:8001"
   #   environment:
   #     - BACKEND_API_URL=http://backend:8000
-  #     - API_KEY=${API_KEY}
   #   depends_on:
   #     - backend
   #   networks:

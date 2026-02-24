@@ -26,6 +26,9 @@ OPTIONAL_VARS: List[Tuple[str, str, str]] = [
     ("SENTRY_SEND_PII", "Send user emails to Sentry", "PII disabled (privacy safe)"),
     ("SENTRY_INCLUDE_LOCAL_VARS", "Include local vars in Sentry traces", "Local vars excluded"),
     ("REDIS_HOST", "Redis host for caching", "Using default localhost"),
+    ("GITHUB_CLIENT_ID", "GitHub OAuth client ID", "GitHub repo import disabled"),
+    ("GITHUB_CLIENT_SECRET", "GitHub OAuth client secret", "GitHub repo import disabled"),
+    ("DISCORD_FEEDBACK_WEBHOOK", "Discord webhook for feedback", "Feedback notifications disabled"),
 ]
 
 

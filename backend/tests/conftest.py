@@ -10,13 +10,11 @@ import os
 
 # Set test environment BEFORE imports
 os.environ["DEBUG"] = "true"
-os.environ["DEV_API_KEY"] = "test-secret-key"  # New env var for dev key
-os.environ["API_KEY"] = "test-secret-key"  # Legacy support
+os.environ["DEV_API_KEY"] = "test-secret-key"
 os.environ["OPENAI_API_KEY"] = "sk-test-key"
 os.environ["PINECONE_API_KEY"] = "pcsk-test"
 os.environ["PINECONE_INDEX_NAME"] = "test-index"
 os.environ["SUPABASE_URL"] = "https://test.supabase.co"
-os.environ["SUPABASE_KEY"] = "test-key"
 os.environ["SUPABASE_ANON_KEY"] = "test-anon-key"
 os.environ["SUPABASE_JWT_SECRET"] = "test-jwt-secret"
 
