@@ -7,20 +7,27 @@ class TestNullUserIdSafety:
     """API key users (no user_id) get 401, not confusing 404."""
 
     def test_search_with_null_user_id_returns_401(self, client, valid_headers):
-        """Search should reject None user_id, not pretend repo doesn't exist."""
-        with patch("routes.search.require_auth") as mock_auth, \
-             patch("routes.search.verify_repo_access") as mock_verify:
-            from middleware.auth import AuthContext
-            mock_auth.return_value = AuthContext(api_key_name="test-key", user_id=None)
-            # verify_repo_access should raise 401 when user_id is None
-            from fastapi import HTTPException
-            mock_verify.side_effect = HTTPException(status_code=401, detail="User ID required")
+        """Search should reject None user_id via the real verify_repo_access null guard."""
+        from fastapi.testclient import TestClient
+        from main import app
+        from middleware.auth import require_auth, AuthContext
+
+        # Mock auth to return a context with no user_id (API key user)
+        async def mock_auth_no_user():
+            return AuthContext(api_key_name="test-key", user_id=None)
+
+        app.dependency_overrides[require_auth] = mock_auth_no_user
+        try:
             resp = client.post(
                 "/api/v1/search",
                 json={"query": "auth", "repo_id": "test"},
                 headers=valid_headers,
             )
-        assert resp.status_code == 401
+            # verify_repo_access in dependencies.py should catch None user_id
+            assert resp.status_code == 401
+            assert "User ID required" in resp.json()["detail"]
+        finally:
+            app.dependency_overrides.pop(require_auth, None)
 
     def test_get_repo_or_404_rejects_none_user_id(self):
         """get_repo_or_404 should raise 401 when user_id is None."""

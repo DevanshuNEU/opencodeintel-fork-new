@@ -15,9 +15,6 @@ from services.exceptions import (
     TokenExpiredError,
     InvalidTokenError,
     TokenMissingClaimError,
-    InvalidCredentialsError,
-    SignupError,
-    SessionError,
 )
 
 
@@ -75,13 +72,13 @@ class SupabaseAuthService:
                 "metadata": payload.get("user_metadata") or {},
             }
         
-        except jwt.ExpiredSignatureError:
-            raise TokenExpiredError("Token expired")
-        except jwt.InvalidAudienceError:
-            raise InvalidTokenError("Invalid token audience")
+        except jwt.ExpiredSignatureError as e:
+            raise TokenExpiredError("Token expired") from e
+        except jwt.InvalidAudienceError as e:
+            raise InvalidTokenError("Invalid token audience") from e
         except jwt.InvalidTokenError as e:
             logger.debug("JWT decode failed", error=str(e))
-            raise InvalidTokenError("Invalid token")
+            raise InvalidTokenError("Invalid token") from e
     
     def _verify_via_api(self, token: str) -> Dict[str, Any]:
         """Fallback: verify via Supabase API call (requires network)."""

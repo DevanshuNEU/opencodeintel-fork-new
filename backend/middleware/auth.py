@@ -201,7 +201,12 @@ async def get_current_user(
     """
     from services.auth import get_auth_service
     auth_service = get_auth_service()
-    return auth_service.verify_jwt(credentials.credentials)
+    try:
+        return auth_service.verify_jwt(credentials.credentials)
+    except (TokenExpiredError, TokenMissingClaimError) as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except AuthenticationError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
 async def get_optional_user(
