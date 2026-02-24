@@ -152,6 +152,8 @@ async def start_anonymous_indexing(
 
     # Create job and start background indexing
     response_time_ms = int((time.time() - start_time) * 1000)
+    if not redis_client:
+        raise HTTPException(status_code=503, detail="Indexing service unavailable (Redis down)")
     job_manager = AnonymousIndexingJob(redis_client)
     job_id = job_manager.generate_job_id()
 
@@ -199,6 +201,8 @@ async def get_indexing_status(job_id: str, req: Request) -> dict:
             "error": "invalid_job_id", "message": "Invalid job ID format"
         })
 
+    if not redis_client:
+        raise HTTPException(status_code=503, detail="Indexing service unavailable (Redis down)")
     job_manager = AnonymousIndexingJob(redis_client)
     job = job_manager.get_job(job_id)
 

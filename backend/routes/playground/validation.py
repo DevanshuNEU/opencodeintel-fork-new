@@ -3,7 +3,7 @@ import os
 import time
 from typing import Optional
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 
 from dependencies import cache
@@ -42,18 +42,22 @@ def parse_github_url(url: str) -> tuple[Optional[str], Optional[str], Optional[s
     return match.group("owner"), match.group("repo"), None
 
 
-async def fetch_repo_metadata(owner: str, repo: str) -> dict:
-    """Fetch repository metadata from GitHub API."""
-    url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}"
+def _github_headers() -> dict:
+    """Build GitHub API request headers with optional auth token."""
     headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "OpenCodeIntel/1.0"}
-
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token:
         headers["Authorization"] = f"token {github_token}"
+    return headers
+
+
+async def fetch_repo_metadata(owner: str, repo: str) -> dict:
+    """Fetch repository metadata from GitHub API."""
+    url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}"
 
     async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT) as client:
         try:
-            response = await client.get(url, headers=headers)
+            response = await client.get(url, headers=_github_headers())
             if response.status_code == 404:
                 return {"error": "not_found", "message": "Repository not found"}
             if response.status_code == 403:
@@ -73,15 +77,10 @@ async def count_code_files(
 ) -> tuple[int, Optional[str]]:
     """Count code files using GitHub tree API. Returns (file_count, error)."""
     url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/git/trees/{default_branch}?recursive=1"
-    headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "OpenCodeIntel/1.0"}
-
-    github_token = os.getenv("GITHUB_TOKEN")
-    if github_token:
-        headers["Authorization"] = f"token {github_token}"
 
     async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT) as client:
         try:
-            response = await client.get(url, headers=headers)
+            response = await client.get(url, headers=_github_headers())
             if response.status_code == 404:
                 return 0, "Could not fetch repository tree"
             if response.status_code == 403:
@@ -115,7 +114,7 @@ async def count_code_files(
 
 
 @router.post("/validate-repo")
-async def validate_github_repo(request: ValidateRepoRequest, req: Request) -> dict:
+async def validate_github_repo(request: ValidateRepoRequest) -> dict:
     """Validate a GitHub repository URL for anonymous indexing."""
     start_time = time.time()
 
