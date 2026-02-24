@@ -24,6 +24,13 @@ from typing import Optional
 import os
 import hashlib
 
+from services.exceptions import (
+    AuthenticationError,
+    TokenExpiredError,
+    InvalidTokenError,
+    TokenMissingClaimError,
+)
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from fastapi.security.http import HTTPAuthorizationCredentials
@@ -59,7 +66,11 @@ _bearer_required = HTTPBearer(auto_error=True)
 # Core validation functions
 
 def _validate_jwt(token: str) -> Optional[AuthContext]:
-    """Validate Supabase JWT token"""
+    """Validate Supabase JWT token.
+    
+    Returns AuthContext on success, None if token isn't a JWT (allows API key fallback).
+    Raises HTTPException for specific JWT failures (expired, bad audience, missing claim).
+    """
     try:
         from services.auth import get_auth_service
         auth_service = get_auth_service()
@@ -70,6 +81,15 @@ def _validate_jwt(token: str) -> Optional[AuthContext]:
             email=user.get("email"),
             tier=user.get("metadata", {}).get("tier", "free")
         )
+    except TokenExpiredError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except TokenMissingClaimError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except InvalidTokenError:
+        # Could be a non-JWT token (API key) -- allow fallback
+        return None
+    except AuthenticationError as e:
+        raise HTTPException(status_code=401, detail=str(e))
     except Exception:
         return None
 

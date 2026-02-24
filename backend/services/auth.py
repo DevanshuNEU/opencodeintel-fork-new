@@ -10,6 +10,15 @@ from datetime import datetime
 from supabase import create_client, Client
 
 from services.observability import logger
+from services.exceptions import (
+    AuthenticationError,
+    TokenExpiredError,
+    InvalidTokenError,
+    TokenMissingClaimError,
+    InvalidCredentialsError,
+    SignupError,
+    SessionError,
+)
 
 
 class SupabaseAuthService:
@@ -58,10 +67,7 @@ class SupabaseAuthService:
             
             user_id = payload.get("sub")
             if not user_id:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Token missing subject claim",
-                )
+                raise TokenMissingClaimError("sub")
             
             return {
                 "user_id": user_id,
@@ -70,21 +76,12 @@ class SupabaseAuthService:
             }
         
         except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expired",
-            )
+            raise TokenExpiredError("Token expired")
         except jwt.InvalidAudienceError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token audience",
-            )
+            raise InvalidTokenError("Invalid token audience")
         except jwt.InvalidTokenError as e:
             logger.debug("JWT decode failed", error=str(e))
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-            )
+            raise InvalidTokenError("Invalid token")
     
     def _verify_via_api(self, token: str) -> Dict[str, Any]:
         """Fallback: verify via Supabase API call (requires network)."""
@@ -92,24 +89,18 @@ class SupabaseAuthService:
             response = self.client.auth.get_user(token)
             
             if not response.user:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid or expired token",
-                )
+                raise InvalidTokenError("Invalid or expired token")
             
             return {
                 "user_id": response.user.id,
                 "email": response.user.email,
                 "metadata": response.user.user_metadata or {},
             }
-        except HTTPException:
+        except AuthenticationError:
             raise
         except Exception as e:
             logger.debug("API-based JWT verification failed", error=str(e))
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token verification failed",
-            )
+            raise AuthenticationError("Token verification failed")
     
     async def signup(self, email: str, password: str, github_username: Optional[str] = None) -> Dict[str, Any]:
         """
