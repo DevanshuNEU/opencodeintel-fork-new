@@ -49,7 +49,7 @@ def get_repo_or_404(repo_id: str, user_id: Optional[str]) -> dict:
     Get repository with ownership verification.
     Raises 401 if user_id is None, 404 if not found or user doesn't own it.
     """
-    if not user_id:
+    if user_id is None:
         raise HTTPException(status_code=401, detail="User ID required for this operation")
     repo = repo_manager.get_repo_for_user(repo_id, user_id)
     if not repo:
@@ -62,7 +62,7 @@ def verify_repo_access(repo_id: str, user_id: Optional[str]) -> None:
     Verify user has access to repository.
     Raises 401 if user_id is None, 404 if no access.
     """
-    if not user_id:
+    if user_id is None:
         raise HTTPException(status_code=401, detail="User ID required for this operation")
     if not repo_manager.verify_ownership(repo_id, user_id):
         raise HTTPException(status_code=404, detail="Repository not found")

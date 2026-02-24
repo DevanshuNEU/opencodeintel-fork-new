@@ -1,6 +1,7 @@
 """Tests for auth hardening -- domain exceptions + null safety (OPE-76, OPE-77)."""
 import pytest
 from unittest.mock import patch, MagicMock
+from fastapi import HTTPException
 
 
 class TestNullUserIdSafety:
@@ -55,7 +56,7 @@ class TestDomainExceptions:
         """Auth service should raise TokenExpiredError, not HTTPException."""
         from services.exceptions import TokenExpiredError
         assert issubclass(TokenExpiredError, Exception)
-        assert not issubclass(TokenExpiredError, __import__('fastapi').HTTPException)
+        assert not issubclass(TokenExpiredError, HTTPException)
 
     def test_exception_hierarchy(self):
         """All auth exceptions inherit from AuthenticationError."""

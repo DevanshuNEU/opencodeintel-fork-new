@@ -5,7 +5,7 @@ Handles JWT verification and user management
 from fastapi import HTTPException, status
 from typing import Optional, Dict, Any
 import os
-import jwt
+import jwt as pyjwt
 from datetime import datetime
 from supabase import create_client, Client
 
@@ -54,7 +54,7 @@ class SupabaseAuthService:
     def _verify_local(self, token: str) -> Dict[str, Any]:
         """Decode and verify JWT locally with HS256 secret."""
         try:
-            payload = jwt.decode(
+            payload = pyjwt.decode(
                 token,
                 self.jwt_secret,
                 algorithms=["HS256"],
@@ -72,11 +72,11 @@ class SupabaseAuthService:
                 "metadata": payload.get("user_metadata") or {},
             }
         
-        except jwt.ExpiredSignatureError as e:
+        except pyjwt.ExpiredSignatureError as e:
             raise TokenExpiredError("Token expired") from e
-        except jwt.InvalidAudienceError as e:
+        except pyjwt.InvalidAudienceError as e:
             raise InvalidTokenError("Invalid token audience") from e
-        except jwt.InvalidTokenError as e:
+        except pyjwt.InvalidTokenError as e:
             logger.debug("JWT decode failed", error=str(e))
             raise InvalidTokenError("Invalid token") from e
     
