@@ -135,7 +135,7 @@ async def explain_code(
     add_breadcrumb("Explain request received", category="explain", file_path=request.file_path)
     
     try:
-        repo = get_repo_or_404(request.repo_id, auth.user_id)
+        get_repo_or_404(request.repo_id, auth.user_id)
         
         logger.info(
             "Generating code explanation",

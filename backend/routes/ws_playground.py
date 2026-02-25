@@ -9,7 +9,6 @@ Message types: connected, cloning, progress, completed, error
 """
 import json
 import asyncio
-from typing import Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
 

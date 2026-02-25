@@ -16,24 +16,20 @@ class EmbeddingProvider(ABC):
     @abstractmethod
     async def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Embed a list of documents (code chunks)"""
-        pass
     
     @abstractmethod
     async def embed_query(self, query: str) -> List[float]:
         """Embed a search query"""
-        pass
     
     @property
     @abstractmethod
     def dimension(self) -> int:
         """Return embedding dimension"""
-        pass
     
     @property
     @abstractmethod
     def model_name(self) -> str:
         """Return model name for logging"""
-        pass
 
 
 class VoyageCodeEmbedding(EmbeddingProvider):

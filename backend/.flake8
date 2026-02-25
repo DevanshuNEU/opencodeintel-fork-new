@@ -1,0 +1,26 @@
+[flake8]
+max-line-length = 120
+
+# Only check for real bugs, not style.
+# F = pyflakes (unused imports, undefined names, shadowed vars)
+# E9 = runtime errors (syntax errors, indentation)
+# W6 = deprecated features
+# Style codes (E1/E2/E3/E5/W1/W2/W3/W5) are intentionally excluded.
+select = E9,F,W6
+
+# Directories to skip
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    repos,
+    scripts,
+    migrations
+
+# Per-file ignores
+per-file-ignores =
+    # main.py loads dotenv before imports (intentional)
+    main.py:E402
+    # __init__.py often has unused imports for re-export
+    __init__.py:F401

@@ -11,7 +11,7 @@ import tree_sitter_python as tspython
 import tree_sitter_javascript as tsjavascript
 from tree_sitter import Language, Parser
 
-from services.observability import logger, capture_exception, track_time, metrics
+from services.observability import logger, metrics
 
 
 class DependencyAnalyzer:

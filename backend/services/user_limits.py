@@ -106,7 +106,6 @@ class LimitCheckResult:
 
 class LimitCheckError(Exception):
     """Raised when limit check fails due to system error (not limit exceeded)"""
-    pass
 
 
 class UserLimitsService:
@@ -256,7 +255,7 @@ class UserLimitsService:
         
         try:
             current_count = self.get_user_repo_count(user_id, raise_on_error=True)
-        except LimitCheckError as e:
+        except LimitCheckError:
             # Fail CLOSED - don't allow if we can't verify
             return LimitCheckResult(
                 allowed=False,
@@ -434,7 +433,6 @@ _user_limits_service: Optional[UserLimitsService] = None
 
 def get_user_limits_service() -> UserLimitsService:
     """Get or create UserLimitsService instance"""
-    global _user_limits_service
     if _user_limits_service is None:
         raise RuntimeError("UserLimitsService not initialized. Call init_user_limits_service first.")
     return _user_limits_service

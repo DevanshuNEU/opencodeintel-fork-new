@@ -6,7 +6,6 @@ from fastapi import HTTPException, status
 from typing import Optional, Dict, Any
 import os
 import jwt as pyjwt
-from datetime import datetime
 from supabase import create_client, Client
 
 from services.observability import logger

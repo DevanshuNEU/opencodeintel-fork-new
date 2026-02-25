@@ -1,6 +1,5 @@
 """Generate concise summaries for functions using GPT-4o-mini."""
-import asyncio
-from typing import List, Optional
+from typing import List
 from openai import AsyncOpenAI
 
 from services.search_v2.types import ExtractedFunction

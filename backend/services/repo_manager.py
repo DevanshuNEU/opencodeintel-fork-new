@@ -3,12 +3,11 @@ Repository Manager (Supabase Edition)
 Handles repository CRUD operations with PostgreSQL via Supabase
 """
 import uuid
-from typing import Dict, List, Optional
-import os
+from typing import List, Optional
 import git
 from pathlib import Path
 from services.supabase_service import get_supabase_service
-from services.observability import logger, capture_exception, metrics
+from services.observability import logger, metrics
 
 
 class RepositoryManager:

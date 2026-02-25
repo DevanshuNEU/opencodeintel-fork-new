@@ -8,7 +8,7 @@ Channel format: indexing:{entity_id}:events
 Entity can be job_id (playground) or repo_id (dashboard).
 """
 import json
-from typing import Optional, Any
+from typing import Optional
 from enum import Enum
 from dataclasses import dataclass, asdict
 

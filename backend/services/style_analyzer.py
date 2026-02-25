@@ -3,8 +3,8 @@ Code Style Analyzer
 Analyzes team coding patterns, naming conventions, and best practices
 """
 from pathlib import Path
-from typing import Dict, List, Optional, Set
-from collections import defaultdict, Counter
+from typing import Dict, List, Optional
+from collections import Counter
 import re
 
 # Tree-sitter

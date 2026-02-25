@@ -4,7 +4,6 @@ Prevents malicious inputs and abuse
 """
 from typing import Optional, Set
 from urllib.parse import urlparse
-from pathlib import Path, PurePosixPath
 import re
 import os
 import ipaddress

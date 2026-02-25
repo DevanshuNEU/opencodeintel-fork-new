@@ -19,7 +19,7 @@ from services.observability import init_sentry
 init_sentry()
 
 # Import API config (single source of truth for versioning)
-from config.api import API_PREFIX, API_VERSION
+from config.api import API_PREFIX
 from config.startup_checks import validate_environment
 
 # Import routers

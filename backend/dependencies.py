@@ -3,7 +3,7 @@ Shared dependencies and service instances.
 All route modules import from here to avoid circular imports.
 """
 from typing import Optional
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException
 
 from services.indexer_optimized import OptimizedCodeIndexer
 from services.repo_manager import RepositoryManager
@@ -13,10 +13,10 @@ from services.style_analyzer import StyleAnalyzer
 from services.dna_extractor import DNAExtractor
 from services.rate_limiter import RateLimiter, APIKeyManager
 from services.supabase_service import get_supabase_service
-from services.input_validator import InputValidator, CostController
-from services.user_limits import init_user_limits_service, get_user_limits_service
+from services.input_validator import CostController
+from services.user_limits import init_user_limits_service
 from services.repo_validator import get_repo_validator
-from services.observability import metrics
+from services.observability import metrics  # noqa: F401 -- re-exported for routes
 
 # Service instances (singleton pattern)
 indexer = OptimizedCodeIndexer()

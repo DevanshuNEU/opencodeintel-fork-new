@@ -3,7 +3,7 @@ Code Graph Ranker - Boost search results based on code importance
 Uses dependency graph to calculate "PageRank-style" importance scores
 """
 import re
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Set
 from dataclasses import dataclass
 
 from services.observability import logger

@@ -4,7 +4,7 @@ Determines WHAT the user wants and HOW to search for it
 """
 import re
 from enum import Enum
-from typing import Dict, List, Tuple, Optional
+from typing import List, Tuple
 from dataclasses import dataclass
 
 from services.observability import logger

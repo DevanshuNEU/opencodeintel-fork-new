@@ -10,7 +10,6 @@ import re
 import secrets
 import httpx
 from fastapi import APIRouter, HTTPException, Depends, Query
-from fastapi.responses import RedirectResponse
 from typing import Optional
 from pydantic import BaseModel
 from urllib.parse import urlencode
