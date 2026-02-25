@@ -36,6 +36,8 @@ def get_tool_schemas() -> list[types.Tool]:
                         "type": "integer",
                         "description": "Maximum number of results (default: 10)",
                         "default": 10,
+                        "minimum": 1,
+                        "maximum": 100,
                     },
                 },
                 "required": ["query", "repo_id"],

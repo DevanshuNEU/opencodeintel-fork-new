@@ -4,10 +4,13 @@ Maps tool names to their API calls and response formatters.
 Each handler follows the same pattern: call API, format response.
 Error handling is centralized in call_tool() so individual handlers stay clean.
 """
+import logging
 from typing import Any
 
 import httpx
 import mcp.types as types
+
+logger = logging.getLogger(__name__)
 
 from api_client import api_get, api_post
 from formatters import (
@@ -21,12 +24,22 @@ from formatters import (
 )
 
 
+def _clamp_max_results(raw: Any) -> int:
+    """Validate and clamp max_results to [1, 100]."""
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return 10
+    return max(1, min(value, 100))
+
+
 async def _handle_search(args: dict[str, Any]) -> str:
     # Map tool schema's max_results to v2 API's top_k
+    top_k = _clamp_max_results(args.get("max_results", 10))
     payload = {
         "query": args["query"],
         "repo_id": args["repo_id"],
-        "top_k": args.get("max_results", 10),
+        "top_k": top_k,
         "use_reranking": True,
     }
     result = await api_post("/search/v2", json=payload)
@@ -89,7 +102,9 @@ def _safe_error_message(tool_name: str, args: dict[str, Any], error: Exception) 
     if isinstance(error, httpx.ConnectError):
         return f"Cannot connect to backend for tool '{tool_name}'. Is the server running?"
     if isinstance(error, ValueError):
-        return str(error)
+        logger.warning("ValueError in tool '%s' (repo: %s): %s", tool_name, repo_id, error)
+        return f"Tool input error for '{tool_name}' (repo: {repo_id})"
+    logger.exception("Unexpected error in tool '%s' (repo: %s)", tool_name, repo_id)
     return f"Unexpected error in tool '{tool_name}' (repo: {repo_id})"
 
 

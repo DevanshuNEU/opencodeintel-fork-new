@@ -2,7 +2,9 @@
 
 Uses a module-level client to avoid creating new TCP connections per tool call.
 The client is initialized lazily on first use and reused for all subsequent calls.
+Concurrent access is serialized via asyncio.Lock to prevent duplicate clients.
 """
+import asyncio
 from typing import Any, Optional
 
 import httpx
@@ -12,10 +14,14 @@ from config import BACKEND_API_URL, API_KEY
 
 # Persistent client reused across all tool calls
 _client: Optional[httpx.AsyncClient] = None
+_client_lock: asyncio.Lock = asyncio.Lock()
 
 
 def _get_headers() -> dict[str, str]:
-    """Build auth headers. Warns if no API key is configured."""
+    """Return Authorization header with the configured API_KEY.
+
+    Raises ValueError if API_KEY is empty or unset.
+    """
     if not API_KEY:
         raise ValueError(
             "No API_KEY configured. Set API_KEY in .env or environment."
@@ -26,12 +32,13 @@ def _get_headers() -> dict[str, str]:
 async def get_client() -> httpx.AsyncClient:
     """Get or create the persistent HTTP client."""
     global _client
-    if _client is None or _client.is_closed:
-        _client = httpx.AsyncClient(
-            base_url=BACKEND_API_URL,
-            timeout=120.0,
-            headers=_get_headers(),
-        )
+    async with _client_lock:
+        if _client is None or _client.is_closed:
+            _client = httpx.AsyncClient(
+                base_url=BACKEND_API_URL,
+                timeout=120.0,
+                headers=_get_headers(),
+            )
     return _client
 
 

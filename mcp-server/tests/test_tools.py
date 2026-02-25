@@ -4,10 +4,6 @@ Validates that tool schemas follow MCP protocol requirements
 and that adding/removing tools doesn't break the schema contract.
 """
 import pytest
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools import get_tool_schemas
 
@@ -61,6 +57,14 @@ class TestToolSchemas:
         for name in repo_tools:
             required = schemas[name].inputSchema.get("required", [])
             assert "repo_id" in required, f"{name} should require repo_id"
+
+    def test_search_max_results_bounded(self):
+        """max_results schema should have min/max to prevent invalid searches."""
+        schemas = {t.name: t for t in get_tool_schemas()}
+        max_results = schemas["search_code"].inputSchema["properties"]["max_results"]
+        assert max_results["type"] == "integer"
+        assert max_results["minimum"] >= 1
+        assert max_results["maximum"] > max_results["minimum"]
 
     def test_list_repos_has_no_required_fields(self):
         schemas = {t.name: t for t in get_tool_schemas()}

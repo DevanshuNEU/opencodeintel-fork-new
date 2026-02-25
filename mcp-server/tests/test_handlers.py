@@ -4,16 +4,11 @@ Handlers call the API client, so we mock api_get/api_post to test
 dispatch logic and error handling without network calls.
 """
 import pytest
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from unittest.mock import AsyncMock, patch
 import httpx
 import mcp.types as types
 
-from handlers import call_tool, _safe_error_message
+from handlers import call_tool, _safe_error_message, _clamp_max_results
 
 
 # -- Dispatch --
@@ -68,11 +63,35 @@ class TestCallTool:
         assert "/repos/r1/dna" in call_path
 
     @pytest.mark.asyncio
-    async def test_none_arguments_handled(self):
+    @patch("handlers.api_get", new_callable=AsyncMock)
+    async def test_none_arguments_handled(self, mock_get):
         """call_tool(name, None) should not crash."""
+        mock_get.return_value = {"repositories": []}
         result = await call_tool("list_repositories", None)
-        # Will fail on network, but should not crash on None args
         assert len(result) == 1
+        assert "No repositories indexed" in result[0].text
+
+
+# -- Input validation --
+
+class TestClampMaxResults:
+    def test_default_on_none(self):
+        assert _clamp_max_results(None) == 10
+
+    def test_default_on_string(self):
+        assert _clamp_max_results("abc") == 10
+
+    def test_clamps_zero_to_one(self):
+        assert _clamp_max_results(0) == 1
+
+    def test_clamps_negative(self):
+        assert _clamp_max_results(-5) == 1
+
+    def test_clamps_over_max(self):
+        assert _clamp_max_results(500) == 100
+
+    def test_valid_value_passes(self):
+        assert _clamp_max_results(25) == 25
 
 
 # -- Error handling --
@@ -99,11 +118,14 @@ class TestSafeErrorMessage:
         msg = _safe_error_message("search_code", {}, error)
         assert "Cannot connect" in msg
 
-    def test_value_error_passthrough(self):
-        """ValueError messages are user-facing (e.g. missing API key)."""
+    def test_value_error_sanitized(self):
+        """ValueError should not leak internal details."""
         error = ValueError("No API_KEY configured")
-        msg = _safe_error_message("search_code", {}, error)
-        assert "No API_KEY configured" in msg
+        msg = _safe_error_message("search_code", {"repo_id": "r1"}, error)
+        assert "Tool input error" in msg
+        assert "search_code" in msg
+        # Internal message should NOT be in output
+        assert "No API_KEY" not in msg
 
     def test_generic_error_hides_details(self):
         error = RuntimeError("internal traceback info")

@@ -20,7 +20,11 @@ def format_search_results(result: dict) -> str:
         return output + "No results found.\n"
 
     for idx, res in enumerate(result["results"], 1):
-        score = res.get("score", 0) * 100
+        score_raw = res.get("score")
+        try:
+            score = float(score_raw) * 100
+        except (TypeError, ValueError):
+            score = 0
         name = res.get("name", "unknown")
         file_path = res.get("file_path", "unknown")
         lang = res.get("language", "unknown")
@@ -97,7 +101,7 @@ def format_dependency_graph(result: dict) -> str:
     if high_import:
         output += "## Files with Most Imports\n\n"
         for f in sorted(high_import, key=lambda x: x.get("imports", 0), reverse=True)[:5]:
-            output += f"- `{f['id']}` - imports {f['imports']} files\n"
+            output += f"- `{f.get('id', '<unknown>')}` - imports {f.get('imports', 0)} files\n"
 
     return output
 
@@ -115,14 +119,14 @@ def format_code_style(result: dict) -> str:
     if naming:
         output += "## Function Naming Conventions\n\n"
         for conv, info in naming.items():
-            output += f"- **{conv}:** {info['percentage']} ({info['count']} functions)\n"
+            output += f"- **{conv}:** {info.get('percentage', '?')} ({info.get('count', 0)} functions)\n"
         output += "\n"
 
     top_imports = result.get("top_imports")
     if top_imports:
         output += "## Most Common Imports\n\n"
         for item in top_imports[:10]:
-            output += f"- `{item['module']}` (used {item['count']}x)\n"
+            output += f"- `{item.get('module', '<unknown>')}` (used {item.get('count', 0)}x)\n"
 
     return output
 
@@ -168,7 +172,7 @@ def format_repository_insights(result: dict) -> str:
     if critical:
         output += "## Most Critical Files\n"
         for item in critical[:5]:
-            output += f"- `{item['file']}` ({item['dependents']} dependents)\n"
+            output += f"- `{item.get('file', '<unknown>')}` ({item.get('dependents', 0)} dependents)\n"
 
     return output
 

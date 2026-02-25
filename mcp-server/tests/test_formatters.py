@@ -4,11 +4,6 @@ Formatters are pure functions (dict -> str) so they're straightforward to test
 without any mocking or network calls.
 """
 import pytest
-import sys
-import os
-
-# Add parent directory to path so we can import the modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from formatters import (
     format_search_results,
@@ -68,6 +63,15 @@ class TestFormatSearchResults:
         output = format_search_results(result)
         assert "Found 0 results" in output
         assert "(v1)" in output
+
+    def test_none_score_handled(self):
+        """score=None should not crash the formatter."""
+        result = {"total": 1, "cached": False, "search_version": "v2", "results": [{
+            "name": "test", "file_path": "t.py", "code": "pass",
+            "language": "python", "score": None, "line_start": 1, "line_end": 1,
+        }]}
+        output = format_search_results(result)
+        assert "0% match" in output
 
     def test_no_emoji_in_output(self):
         """CLAUDE.md violation check: no emojis anywhere in formatted output."""

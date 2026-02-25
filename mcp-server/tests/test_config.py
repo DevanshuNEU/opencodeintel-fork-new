@@ -1,9 +1,5 @@
 """Tests for MCP server configuration."""
 import pytest
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import API_PREFIX, SERVER_NAME, SERVER_VERSION, BACKEND_API_URL
 
