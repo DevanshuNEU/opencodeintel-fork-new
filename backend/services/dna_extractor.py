@@ -822,9 +822,6 @@ class DNAExtractor:
         conftest_files = list(repo_path.rglob('conftest.py'))
         pattern.has_conftest = len(conftest_files) > 0
         
-        # Check for test directory structure
-        [d for d in ['tests', 'test'] if (repo_path / d).exists()]
-        
         for file_path in files:
             try:
                 content = file_path.read_text(encoding='utf-8', errors='ignore')

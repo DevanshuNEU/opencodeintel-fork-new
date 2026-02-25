@@ -1,18 +1,12 @@
 [flake8]
 max-line-length = 120
 
-# What we check (F = pyflakes errors, E9 = runtime errors, W6 = deprecated)
+# Only check for real bugs, not style.
+# F = pyflakes (unused imports, undefined names, shadowed vars)
+# E9 = runtime errors (syntax errors, indentation)
+# W6 = deprecated features
+# Style codes (E1/E2/E3/E5/W1/W2/W3/W5) are intentionally excluded.
 select = E9,F,W6
-
-# What we ignore
-# E501: line too long (handled by max-line-length for selected codes)
-# W503/W504: line break before/after binary operator (PEP8 contradicts itself)
-# E128/E127: continuation line indentation (style preference)
-# E226: missing whitespace around operator (style preference)
-# E261: spacing before inline comment (style preference)
-# E301/E302/E303: blank line issues (style preference)
-# E402: module level import not at top (needed for dotenv loading in main.py)
-extend-ignore = E501,W503,W504
 
 # Directories to skip
 exclude =
