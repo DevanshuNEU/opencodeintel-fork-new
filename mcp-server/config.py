@@ -1,19 +1,16 @@
-"""
-API Configuration - Single Source of Truth for API Versioning
+"""MCP server configuration from environment variables."""
+import os
 
-Change API_VERSION here to update all API calls across the MCP server.
-Example: "v1" -> "v2" will change /api/v1/* to /api/v2/*
-"""
+from dotenv import load_dotenv
 
-# =============================================================================
-# API VERSION CONFIGURATION
-# =============================================================================
+load_dotenv()
 
 API_VERSION = "v1"
-
-# =============================================================================
-# DERIVED PREFIXES (auto-calculated from version)
-# =============================================================================
-
-# Current versioned API prefix: /api/v1
 API_PREFIX = f"/api/{API_VERSION}"
+
+BACKEND_BASE_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
+BACKEND_API_URL = f"{BACKEND_BASE_URL}{API_PREFIX}"
+API_KEY = os.getenv("API_KEY", "")
+
+SERVER_NAME = "codeintel-mcp"
+SERVER_VERSION = "0.3.0"
