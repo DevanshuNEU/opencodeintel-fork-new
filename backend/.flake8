@@ -1,0 +1,32 @@
+[flake8]
+max-line-length = 120
+
+# What we check (F = pyflakes errors, E9 = runtime errors, W6 = deprecated)
+select = E9,F,W6
+
+# What we ignore
+# E501: line too long (handled by max-line-length for selected codes)
+# W503/W504: line break before/after binary operator (PEP8 contradicts itself)
+# E128/E127: continuation line indentation (style preference)
+# E226: missing whitespace around operator (style preference)
+# E261: spacing before inline comment (style preference)
+# E301/E302/E303: blank line issues (style preference)
+# E402: module level import not at top (needed for dotenv loading in main.py)
+extend-ignore = E501,W503,W504
+
+# Directories to skip
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    repos,
+    scripts,
+    migrations
+
+# Per-file ignores
+per-file-ignores =
+    # main.py loads dotenv before imports (intentional)
+    main.py:E402
+    # __init__.py often has unused imports for re-export
+    __init__.py:F401

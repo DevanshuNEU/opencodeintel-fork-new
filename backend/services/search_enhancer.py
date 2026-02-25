@@ -4,7 +4,7 @@ Improves semantic search quality through query expansion,
 rich embeddings, and hybrid search techniques.
 """
 import re
-from typing import List, Dict, Optional
+from typing import List, Dict
 from openai import AsyncOpenAI
 import os
 

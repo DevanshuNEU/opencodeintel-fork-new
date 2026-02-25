@@ -3,7 +3,7 @@ Supabase Service
 Handles all database operations for CodeIntel
 """
 import os
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from datetime import datetime
 from supabase import create_client, Client, ClientOptions
 import uuid

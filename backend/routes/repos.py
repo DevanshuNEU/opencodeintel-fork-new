@@ -159,8 +159,8 @@ async def delete_repository(
     if not user_id:
         raise HTTPException(status_code=401, detail="User ID required")
     
-    # Verify ownership
-    repo = get_repo_or_404(repo_id, user_id)
+    # Verify ownership (raises 404 if not found)
+    get_repo_or_404(repo_id, user_id)
     
     try:
         success = repo_manager.delete_repo(repo_id)

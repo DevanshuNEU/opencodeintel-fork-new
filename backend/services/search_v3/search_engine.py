@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from services.observability import logger, capture_exception, track_time, metrics
 from services.search_v3.embedding_provider import EmbeddingProvider, get_embedding_provider
-from services.search_v3.query_understanding import QueryUnderstanding, QueryAnalysis, QueryIntent
+from services.search_v3.query_understanding import QueryUnderstanding
 from services.search_v3.code_graph_ranker import CodeGraphRanker
 
 

@@ -2,7 +2,7 @@
 Authentication Routes
 Handles user signup, login, and session management
 """
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any
 from services.auth import get_auth_service

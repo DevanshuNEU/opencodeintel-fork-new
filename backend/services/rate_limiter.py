@@ -4,7 +4,7 @@ Prevents abuse and manages request quotas
 """
 import time
 from typing import Optional, Dict, Callable
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import wraps
 import hashlib
 import secrets

@@ -4,11 +4,10 @@ Extracts architectural patterns, conventions, and constraints from a codebase.
 Generates a DNA document that helps AI understand how to write consistent code.
 """
 from pathlib import Path
-from typing import Dict, List, Set, Optional, Any
-from collections import defaultdict, Counter
+from typing import Dict, List, Optional
+from collections import Counter
 from dataclasses import dataclass, field, asdict
 import re
-import json
 
 import tree_sitter_python as tspython
 import tree_sitter_javascript as tsjavascript
@@ -122,7 +121,7 @@ class CodebaseDNA:
     
     def to_markdown(self) -> str:
         """Generate markdown DNA document for AI consumption"""
-        md = f"# Codebase DNA\n\n"
+        md = "# Codebase DNA\n\n"
         
         # Framework detection
         if self.detected_framework:
@@ -824,7 +823,7 @@ class DNAExtractor:
         pattern.has_conftest = len(conftest_files) > 0
         
         # Check for test directory structure
-        test_dirs = [d for d in ['tests', 'test'] if (repo_path / d).exists()]
+        [d for d in ['tests', 'test'] if (repo_path / d).exists()]
         
         for file_path in files:
             try:

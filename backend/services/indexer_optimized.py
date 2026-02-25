@@ -10,11 +10,10 @@ Improvements (v2):
 """
 import os
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 import asyncio
-from collections import defaultdict
 
-from utils.test_detection import is_test_file, filter_test_files
+from utils.test_detection import filter_test_files
 
 # Tree-sitter for parsing
 import tree_sitter_python as tspython
@@ -36,7 +35,7 @@ from services.search_enhancer import SearchEnhancer
 from services.search_v2 import TreeSitterExtractor, FunctionFilter, ExtractedFunction
 
 # Observability
-from services.observability import logger, trace_operation, track_time, capture_exception, add_breadcrumb, metrics
+from services.observability import logger, track_time, capture_exception, add_breadcrumb, metrics
 
 # Configuration
 # Note: If using existing Pinecone index, match the dimension (1536 for small, 3072 for large)
