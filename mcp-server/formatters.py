@@ -6,10 +6,15 @@ This makes them independently testable without any HTTP calls.
 
 
 def format_search_results(result: dict) -> str:
-    """Format semantic search results as markdown."""
-    count = result.get("count", 0)
+    """Format semantic search results as markdown.
+
+    Supports both v1 (count/results) and v2 (total/results) response shapes
+    so the formatter stays resilient across API versions.
+    """
+    total = result.get("total") or result.get("count", 0)
     cached = " (cached)" if result.get("cached") else ""
-    output = f"# Code Search Results\n\nFound {count} results{cached}\n\n"
+    version = result.get("search_version", "v1")
+    output = f"# Code Search Results ({version})\n\nFound {total} results{cached}\n\n"
 
     if not result.get("results"):
         return output + "No results found.\n"
@@ -18,7 +23,6 @@ def format_search_results(result: dict) -> str:
         score = res.get("score", 0) * 100
         name = res.get("name", "unknown")
         file_path = res.get("file_path", "unknown")
-        file_type = res.get("type", "unknown")
         lang = res.get("language", "unknown")
         line_start = res.get("line_start", 0)
         line_end = res.get("line_end", 0)
@@ -26,9 +30,22 @@ def format_search_results(result: dict) -> str:
 
         output += f"## {idx}. {name} ({score:.0f}% match)\n"
         output += f"**File:** `{file_path}`\n"
-        output += f"**Type:** {file_type} | **Language:** {lang}\n"
-        output += f"**Lines:** {line_start}-{line_end}\n\n"
-        output += f"```{lang}\n{code}\n```\n\n"
+
+        # v2 adds qualified_name and signature
+        qualified = res.get("qualified_name")
+        if qualified and qualified != name:
+            output += f"**Qualified:** `{qualified}`\n"
+        signature = res.get("signature")
+        if signature:
+            output += f"**Signature:** `{signature}`\n"
+
+        output += f"**Language:** {lang} | **Lines:** {line_start}-{line_end}\n"
+
+        reason = res.get("match_reason")
+        if reason:
+            output += f"**Why:** {reason}\n"
+
+        output += f"\n```{lang}\n{code}\n```\n\n"
 
     return output
 

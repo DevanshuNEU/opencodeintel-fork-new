@@ -22,7 +22,14 @@ from formatters import (
 
 
 async def _handle_search(args: dict[str, Any]) -> str:
-    result = await api_post("/search", json=args)
+    # Map tool schema's max_results to v2 API's top_k
+    payload = {
+        "query": args["query"],
+        "repo_id": args["repo_id"],
+        "top_k": args.get("max_results", 10),
+        "use_reranking": True,
+    }
+    result = await api_post("/search/v2", json=payload)
     return format_search_results(result)
 
 
