@@ -61,6 +61,8 @@ async def api_post(path: str, json: dict, **kwargs: Any) -> dict:
 async def close_client() -> None:
     """Close the persistent client. Call on server shutdown."""
     global _client
-    if _client and not _client.is_closed:
-        await _client.aclose()
+    async with _client_lock:
+        local = _client
         _client = None
+    if local and not local.is_closed:
+        await local.aclose()
