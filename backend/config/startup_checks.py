@@ -53,4 +53,15 @@ def validate_environment() -> None:
         if not os.getenv(var_name):
             logger.warning(f"{var_name} not set ({description}). {fallback_msg}")
 
+    # Validate JWT secret looks real (not a placeholder)
+    jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "")
+    if jwt_secret and len(jwt_secret) < 32:
+        logger.error(
+            "SUPABASE_JWT_SECRET is too short -- likely a placeholder. "
+            "Real Supabase JWT secrets are 40+ characters. "
+            "Auth will fall back to slow API verification until this is fixed. "
+            "Get the real secret: Supabase dashboard -> Settings -> API -> JWT Secret",
+            secret_length=len(jwt_secret),
+        )
+
     logger.info("Environment validation passed")

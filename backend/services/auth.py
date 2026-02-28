@@ -30,6 +30,19 @@ class SupabaseAuthService:
         
         if not self.jwt_secret:
             logger.warning("SUPABASE_JWT_SECRET not set -- falling back to API-based verification")
+        elif len(self.jwt_secret) < 32 or self.jwt_secret in (
+            "dev-secret-key", "secret", "your-jwt-secret", "change-me",
+            "test-secret-key", "super-secret-jwt-token-with-at-least-32-characters",
+        ):
+            logger.error(
+                "SUPABASE_JWT_SECRET looks like a placeholder. "
+                "Local JWT verification will fail for real Supabase tokens. "
+                "Get the real secret from Supabase dashboard -> Settings -> API -> JWT Secret. "
+                "Falling back to API-based verification until fixed.",
+                secret_length=len(self.jwt_secret),
+            )
+            # Null out the secret so verify_jwt takes the API path directly
+            self.jwt_secret = None
         
         self.client: Client = create_client(self.supabase_url, self.supabase_key)
     
@@ -38,16 +51,33 @@ class SupabaseAuthService:
         Verify Supabase JWT token locally using the signing secret.
         
         No network call required -- instant verification using HS256.
-        Falls back to Supabase API call if JWT_SECRET is not configured.
+        Falls back to Supabase API call if JWT_SECRET is not configured,
+        or if local decode fails (wrong secret, config mismatch).
         """
         if token.lower().startswith("bearer "):
             token = token[7:]
         
-        # local decode when secret is available (fast path, no network)
+        # Local decode when secret is available (fast path, no network)
         if self.jwt_secret:
-            return self._verify_local(token)
+            try:
+                return self._verify_local(token)
+            except TokenExpiredError:
+                # Expired is expired -- no point retrying via API
+                raise
+            except TokenMissingClaimError:
+                # Token decoded but missing required claims -- won't help to retry
+                raise
+            except InvalidTokenError:
+                # Could be wrong secret, config mismatch, or genuinely bad token.
+                # Try API verification before giving up -- a wrong JWT_SECRET
+                # should degrade to slow auth, not broken auth.
+                logger.warning(
+                    "Local JWT decode failed, falling back to API verification. "
+                    "Check SUPABASE_JWT_SECRET if this persists."
+                )
+                return self._verify_via_api(token)
         
-        # fallback: API call to Supabase (slow path, requires network)
+        # No secret configured -- API call to Supabase (slow path)
         return self._verify_via_api(token)
     
     def _verify_local(self, token: str) -> Dict[str, Any]:

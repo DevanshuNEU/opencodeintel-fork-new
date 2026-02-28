@@ -5,7 +5,7 @@ import time
 from unittest.mock import patch, MagicMock
 
 
-JWT_SECRET = "test-jwt-secret-for-unit-tests"
+JWT_SECRET = "test-jwt-secret-for-unit-tests-must-be-32-chars-or-longer"
 
 
 def _make_token(payload: dict, secret: str = JWT_SECRET) -> str:
@@ -57,12 +57,22 @@ class TestLocalJWTDecode:
         with pytest.raises(TokenExpiredError):
             auth_service.verify_jwt(token)
 
-    def test_wrong_secret_raises_error(self, auth_service):
+    def test_wrong_secret_falls_back_not_raises(self, auth_service):
+        """Wrong secret should trigger API fallback, not raise."""
         token = _make_token({"sub": "user-000"}, secret="wrong-secret")
 
-        from services.exceptions import InvalidTokenError
-        with pytest.raises(InvalidTokenError):
-            auth_service.verify_jwt(token)
+        # Set up API fallback mock
+        user = MagicMock()
+        user.id = "user-000"
+        user.email = "fallback@test.com"
+        user.user_metadata = {}
+        response = MagicMock()
+        response.user = user
+        auth_service.client.auth.get_user.return_value = response
+
+        result = auth_service.verify_jwt(token)
+        assert result["user_id"] == "user-000"
+        auth_service.client.auth.get_user.assert_called_once()
 
     def test_missing_sub_claim_raises_error(self, auth_service):
         token = _make_token({"email": "no-sub@test.com"})
@@ -71,13 +81,23 @@ class TestLocalJWTDecode:
         with pytest.raises(TokenMissingClaimError):
             auth_service.verify_jwt(token)
 
-    def test_wrong_audience_raises_error(self, auth_service):
+    def test_wrong_audience_falls_back_not_raises(self, auth_service):
+        """Wrong audience should trigger API fallback, not raise."""
         payload = {"sub": "user-aud", "aud": "wrong-audience", "exp": int(time.time()) + 3600}
         token = pyjwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
-        from services.exceptions import InvalidTokenError
-        with pytest.raises(InvalidTokenError):
-            auth_service.verify_jwt(token)
+        # Set up API fallback mock
+        user = MagicMock()
+        user.id = "user-aud"
+        user.email = "aud@test.com"
+        user.user_metadata = {}
+        response = MagicMock()
+        response.user = user
+        auth_service.client.auth.get_user.return_value = response
+
+        result = auth_service.verify_jwt(token)
+        assert result["user_id"] == "user-aud"
+        auth_service.client.auth.get_user.assert_called_once()
 
     def test_no_network_call_made(self, auth_service):
         """The whole point of OPE-75: verify_jwt should NOT hit the network."""
@@ -134,3 +154,106 @@ class TestAPIFallback:
 
                 assert result["user_id"] == "api-user-123"
                 client.auth.get_user.assert_called_once_with("some-token")
+
+    def test_wrong_secret_falls_back_to_api(self):
+        """
+        POSTMORTEM TEST -- Feb 2026 production auth outage.
+        
+        Scenario: SUPABASE_JWT_SECRET is set but WRONG (doesn't match
+        what Supabase uses to sign tokens). Local decode fails.
+        System MUST fall back to API verification instead of returning 401.
+        
+        Before this fix, wrong secret = broken auth for all users.
+        After this fix, wrong secret = slow auth (API call) but working.
+        """
+        with patch("services.auth.create_client") as mock_client:
+            client = MagicMock()
+            user = MagicMock()
+            user.id = "fallback-user-456"
+            user.email = "fallback@test.com"
+            user.user_metadata = {"tier": "pro"}
+            response = MagicMock()
+            response.user = user
+            client.auth.get_user.return_value = response
+            mock_client.return_value = client
+
+            with patch.dict("os.environ", {
+                "SUPABASE_URL": "https://test.supabase.co",
+                "SUPABASE_ANON_KEY": "test-key",
+                # Real-length secret but WRONG -- simulates production mismatch
+                "SUPABASE_JWT_SECRET": "a" * 64,
+            }):
+                from services.auth import SupabaseAuthService
+                service = SupabaseAuthService()
+                
+                # Token signed with a DIFFERENT secret (like Supabase would)
+                token = _make_token(
+                    {"sub": "fallback-user-456", "email": "fallback@test.com"},
+                    secret="the-real-supabase-secret-that-we-dont-have",
+                )
+                
+                result = service.verify_jwt(token)
+                
+                # Should succeed via API fallback, not 401
+                assert result["user_id"] == "fallback-user-456"
+                assert result["email"] == "fallback@test.com"
+                # Verify it actually used the API path
+                client.auth.get_user.assert_called_once()
+
+    def test_expired_token_does_not_fallback(self):
+        """Expired tokens should NOT try API fallback -- expired is expired."""
+        with patch("services.auth.create_client") as mock_client:
+            mock_client.return_value = MagicMock()
+
+            with patch.dict("os.environ", {
+                "SUPABASE_URL": "https://test.supabase.co",
+                "SUPABASE_ANON_KEY": "test-key",
+                "SUPABASE_JWT_SECRET": JWT_SECRET,
+            }):
+                from services.auth import SupabaseAuthService
+                service = SupabaseAuthService()
+                
+                expired_token = pyjwt.encode(
+                    {"sub": "expired-user", "aud": "authenticated",
+                     "exp": int(time.time()) - 120, "iat": int(time.time()) - 3720},
+                    JWT_SECRET, algorithm="HS256",
+                )
+                
+                from services.exceptions import TokenExpiredError
+                with pytest.raises(TokenExpiredError):
+                    service.verify_jwt(expired_token)
+                
+                # Should NOT have tried API fallback
+                service.client.auth.get_user.assert_not_called()
+
+    def test_placeholder_secret_nulled_at_startup(self):
+        """
+        Placeholder secrets like 'dev-secret-key' should be detected
+        at init time and nulled out, forcing API verification path.
+        """
+        with patch("services.auth.create_client") as mock_client:
+            client = MagicMock()
+            user = MagicMock()
+            user.id = "placeholder-user"
+            user.email = "ph@test.com"
+            user.user_metadata = {}
+            response = MagicMock()
+            response.user = user
+            client.auth.get_user.return_value = response
+            mock_client.return_value = client
+
+            with patch.dict("os.environ", {
+                "SUPABASE_URL": "https://test.supabase.co",
+                "SUPABASE_ANON_KEY": "test-key",
+                "SUPABASE_JWT_SECRET": "dev-secret-key",
+            }):
+                from services.auth import SupabaseAuthService
+                service = SupabaseAuthService()
+                
+                # Secret should have been nulled out
+                assert service.jwt_secret is None
+                
+                # Should work via API path directly
+                result = service.verify_jwt("any-token")
+                assert result["user_id"] == "placeholder-user"
+                client.auth.get_user.assert_called_once()
