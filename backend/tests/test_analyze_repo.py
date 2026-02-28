@@ -131,6 +131,30 @@ class TestFetchDirectoryTree:
         assert result["total_files"] == 3  # README.md has no code ext
 
     @pytest.mark.asyncio
+    async def test_includes_estimated_functions(self):
+        tree = _make_tree([
+            "src/main.py",
+            "src/utils.py",
+            "lib/helpers.ts",
+        ])
+        with patch("routes.repos.httpx.AsyncClient") as mock_client:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = tree
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=MagicMock(
+                get=AsyncMock(return_value=mock_resp)
+            ))
+
+            result = await _fetch_directory_tree("owner", "repo", "main")
+
+        # 3 files * 25 avg functions per file = 75
+        assert result["total_estimated_functions"] == 75
+        src_dir = next(d for d in result["directories"] if d["name"] == "src")
+        assert src_dir["estimated_functions"] == 50  # 2 files * 25
+        lib_dir = next(d for d in result["directories"] if d["name"] == "lib")
+        assert lib_dir["estimated_functions"] == 25  # 1 file * 25
+
+    @pytest.mark.asyncio
     async def test_monorepo_groups_at_package_level(self):
         tree = _make_tree([
             "packages/core/src/index.ts",

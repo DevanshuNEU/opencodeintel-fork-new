@@ -227,15 +227,32 @@ async def _fetch_directory_tree(
                 key = top
             dir_counts[key] = dir_counts.get(key, 0) + 1
 
-    # Build sorted directory list
+    # Indexing is function-level, not file-level. Estimate function counts
+    # using the same multiplier the tier system uses for limit checks.
+    avg_fn = RepoValidator.AVG_FUNCTIONS_PER_FILE  # 25
+
+    # Build sorted directory list with estimated function counts
     directories = sorted(
-        [{"name": d, "path": d, "file_count": c} for d, c in dir_counts.items() if d != "(root)"],
+        [
+            {
+                "name": d, "path": d,
+                "file_count": c,
+                "estimated_functions": c * avg_fn,
+            }
+            for d, c in dir_counts.items() if d != "(root)"
+        ],
         key=lambda x: -x["file_count"],
     )
 
     root_files = dir_counts.get("(root)", 0)
     if root_files > 0:
-        directories.append({"name": "(root files)", "path": ".", "file_count": root_files})
+        directories.append({
+            "name": "(root files)", "path": ".",
+            "file_count": root_files,
+            "estimated_functions": root_files * avg_fn,
+        })
+
+    total_estimated = total_files * avg_fn
 
     # Suggest directory picker for large repos
     suggestion = None
@@ -245,6 +262,7 @@ async def _fetch_directory_tree(
     return {
         "directories": directories,
         "total_files": total_files,
+        "total_estimated_functions": total_estimated,
         "total_directories": len(directories),
         "truncated": truncated,
         "suggestion": suggestion,
