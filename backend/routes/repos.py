@@ -295,7 +295,7 @@ class AnalyzeRepoRequest(BaseModel):
         return v
 
 
-_ANALYZE_CACHE_TTL = 300  # 5 minutes, same as validate-repo
+_ANALYZE_CACHE_TTL = 86400  # 24 hours -- directory structure rarely changes
 
 
 @router.post("/analyze")
