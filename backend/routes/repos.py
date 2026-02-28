@@ -171,29 +171,40 @@ def _github_headers() -> dict:
 
 async def _fetch_directory_tree(
     owner: str, repo: str, branch: str,
+    client: Optional[httpx.AsyncClient] = None,
 ) -> dict:
     """Fetch directory structure from GitHub Tree API.
 
     Returns a dict with directories (name, path, file_count) grouped
     at the most useful level -- top-level for flat repos, package-level
     for monorepos with a packages/ directory.
+
+    Args:
+        client: Reuse an existing httpx client to avoid opening a second
+            connection. If None, creates and closes its own.
     """
     from services.repo_validator import RepoValidator
 
     url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/git/trees/{branch}?recursive=1"
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        response = await client.get(url, headers=_github_headers())
+    async def _get(c: httpx.AsyncClient) -> httpx.Response:
+        return await c.get(url, headers=_github_headers())
 
-        if response.status_code == 404:
-            raise HTTPException(status_code=404, detail="Repository or branch not found")
-        if response.status_code == 403:
-            raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded")
-        if response.status_code != 200:
-            raise HTTPException(status_code=502, detail=f"GitHub API error: {response.status_code}")
+    if client:
+        response = await _get(client)
+    else:
+        async with httpx.AsyncClient(timeout=15.0) as c:
+            response = await _get(c)
 
-        data = response.json()
-        truncated = data.get("truncated", False)
+    if response.status_code == 404:
+        raise HTTPException(status_code=404, detail="Repository or branch not found")
+    if response.status_code == 403:
+        raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded")
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"GitHub API error: {response.status_code}")
+
+    data = response.json()
+    truncated = data.get("truncated", False)
 
     code_extensions = RepoValidator.CODE_EXTENSIONS
     skip_dirs = RepoValidator.SKIP_DIRS
@@ -284,12 +295,17 @@ class AnalyzeRepoRequest(BaseModel):
         return v
 
 
+_ANALYZE_CACHE_TTL = 300  # 5 minutes, same as validate-repo
+
+
 @router.post("/analyze")
 async def analyze_repository(request: AnalyzeRepoRequest) -> dict:
     """Analyze a GitHub repo's directory structure WITHOUT cloning.
 
     Returns directory tree with file counts so the user can select
     which directories to index (monorepo subset selection).
+
+    Results are cached for 5 minutes to avoid redundant GitHub API calls.
     """
     match = _GITHUB_URL_RE.match(request.github_url)
     if not match:
@@ -301,25 +317,34 @@ async def analyze_repository(request: AnalyzeRepoRequest) -> dict:
     owner = match.group("owner")
     repo_name = match.group("repo").removesuffix(".git")
 
-    # Fetch repo metadata for default branch and size
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    # Check cache first (same pattern as validate-repo)
+    from dependencies import cache
+    cache_key = f"analyze:{owner}/{repo_name}"
+    cached = cache.get(cache_key) if cache else None
+    if cached:
+        logger.info("Returning cached analysis", owner=owner, repo=repo_name)
+        return cached
+
+    # Single httpx client for both GitHub API calls
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        # 1. Fetch repo metadata for default branch and size
         meta_resp = await client.get(
             f"{_GITHUB_API_BASE}/repos/{owner}/{repo_name}",
             headers=_github_headers(),
         )
 
-    if meta_resp.status_code == 404:
-        raise HTTPException(status_code=404, detail="Repository not found")
-    if meta_resp.status_code == 403:
-        raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded")
-    if meta_resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Failed to fetch repository metadata")
+        if meta_resp.status_code == 404:
+            raise HTTPException(status_code=404, detail="Repository not found")
+        if meta_resp.status_code == 403:
+            raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded")
+        if meta_resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Failed to fetch repository metadata")
 
-    metadata = meta_resp.json()
-    default_branch = metadata.get("default_branch", "main")
+        metadata = meta_resp.json()
+        default_branch = metadata.get("default_branch", "main")
 
-    # Fetch directory tree
-    tree_data = await _fetch_directory_tree(owner, repo_name, default_branch)
+        # 2. Fetch directory tree (reuse same client)
+        tree_data = await _fetch_directory_tree(owner, repo_name, default_branch, client=client)
 
     logger.info(
         "Analyzed repo structure",
@@ -329,7 +354,7 @@ async def analyze_repository(request: AnalyzeRepoRequest) -> dict:
         suggestion=tree_data.get("suggestion"),
     )
 
-    return {
+    result = {
         "owner": owner,
         "repo": repo_name,
         "default_branch": default_branch,
@@ -338,6 +363,12 @@ async def analyze_repository(request: AnalyzeRepoRequest) -> dict:
         "language": metadata.get("language"),
         **tree_data,
     }
+
+    # Cache for 5 minutes
+    if cache:
+        cache.set(cache_key, result, ttl=_ANALYZE_CACHE_TTL)
+
+    return result
 
 
 @router.delete("/{repo_id}")
