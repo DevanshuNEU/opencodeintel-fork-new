@@ -319,7 +319,8 @@ async def analyze_repository(request: AnalyzeRepoRequest) -> dict:
     Returns directory tree with file counts so the user can select
     which directories to index (monorepo subset selection).
 
-    Results are cached for 5 minutes to avoid redundant GitHub API calls.
+    Results are cached for 24 hours (see _ANALYZE_CACHE_TTL) since
+    directory structure rarely changes.
     """
     match = _GITHUB_URL_RE.match(request.github_url)
     if not match:
@@ -359,6 +360,15 @@ async def analyze_repository(request: AnalyzeRepoRequest) -> dict:
                 metadata = meta_resp.json()
             except ValueError:
                 raise HTTPException(status_code=502, detail="Invalid response from GitHub API")
+
+            # Block private repos -- server GITHUB_TOKEN could access them,
+            # but we must not leak private repo structure to unauthenticated callers
+            if metadata.get("private", False):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Private repositories are not supported. Use authenticated indexing instead.",
+                )
+
             default_branch = metadata.get("default_branch", "main")
 
             # 2. Fetch directory tree (reuse same client)
@@ -389,7 +399,7 @@ async def analyze_repository(request: AnalyzeRepoRequest) -> dict:
         **tree_data,
     }
 
-    # Cache for 5 minutes
+    # Cache result
     if cache:
         cache.set(cache_key, result, ttl=_ANALYZE_CACHE_TTL)
 
