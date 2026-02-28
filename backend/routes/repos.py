@@ -1,6 +1,6 @@
 """Repository management routes - CRUD and indexing."""
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends, BackgroundTasks
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from typing import List, Optional
 from pathlib import Path
 import hashlib
@@ -461,16 +461,23 @@ class IndexConfig(BaseModel):
     include_paths: Optional[List[str]] = None  # e.g. ["packages/effect", "packages/schema"]
     incremental: bool = True
 
-    @validator("include_paths", each_item=True, pre=True)
+    @field_validator("include_paths", mode="before")
     @classmethod
-    def sanitize_path(cls, v: str) -> str:
+    def sanitize_paths(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         """Reject path traversal, empty strings, and normalize slashes."""
-        v = v.strip().strip("/")
-        if not v:
-            raise ValueError("include_paths entries must not be empty")
-        if ".." in v.split("/"):
-            raise ValueError(f"Path traversal not allowed: {v}")
-        return v
+        if v is None:
+            return v
+        cleaned = []
+        for item in v:
+            if not isinstance(item, str):
+                raise ValueError(f"include_paths entries must be strings, got {type(item).__name__}")
+            item = item.strip().strip("/")
+            if not item:
+                raise ValueError("include_paths entries must not be empty")
+            if ".." in item.split("/"):
+                raise ValueError(f"Path traversal not allowed: {item}")
+            cleaned.append(item)
+        return cleaned
 
 
 @router.post("/{repo_id}/index/async", status_code=202)
