@@ -213,11 +213,6 @@ class TestAPIFallback:
                 from services.auth import SupabaseAuthService
                 service = SupabaseAuthService()
                 
-                token = _make_token(
-                    {"sub": "expired-user"},
-                    secret=JWT_SECRET,
-                )
-                # Manually create expired token
                 expired_token = pyjwt.encode(
                     {"sub": "expired-user", "aud": "authenticated",
                      "exp": int(time.time()) - 120, "iat": int(time.time()) - 3720},
