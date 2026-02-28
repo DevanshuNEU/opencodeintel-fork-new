@@ -117,30 +117,44 @@ class OptimizedCodeIndexer:
         }
         return lang_map.get(ext)
     
-    def _discover_code_files(self, repo_path: str) -> List[Path]:
-        """Find all code files in repository"""
+    def _discover_code_files(
+        self, repo_path: str, include_paths: Optional[List[str]] = None
+    ) -> List[Path]:
+        """Find all code files in repository.
+
+        Args:
+            include_paths: If set, only include files under these relative
+                directories (e.g. ['packages/effect', 'packages/schema']).
+                Uses path-component-aware matching and only walks the
+                specified subtrees instead of the entire repo.
+        """
         repo_path = Path(repo_path)
         code_files = []
-        
-        # Extensions to index
+
         extensions = {'.py', '.js', '.jsx', '.ts', '.tsx'}
-        
-        # Directories to skip
         skip_dirs = {'node_modules', '.git', '__pycache__', 'venv', 'env', 'dist', 'build', '.next', '.vscode'}
-        
-        for file_path in repo_path.rglob('*'):
-            # Skip directories
-            if file_path.is_dir():
-                continue
-            
-            # Skip if in excluded directory
-            if any(skip in file_path.parts for skip in skip_dirs):
-                continue
-            
-            # Check extension
-            if file_path.suffix in extensions:
-                code_files.append(file_path)
-        
+
+        # When include_paths is set, only walk those subtrees
+        if include_paths:
+            roots = []
+            for p in include_paths:
+                subtree = repo_path / p
+                if subtree.is_dir():
+                    roots.append(subtree)
+                else:
+                    logger.warning("include_path not found, skipping: %s", p)
+        else:
+            roots = [repo_path]
+
+        for root in roots:
+            for file_path in root.rglob('*'):
+                if file_path.is_dir():
+                    continue
+                if any(skip in file_path.parts for skip in skip_dirs):
+                    continue
+                if file_path.suffix in extensions:
+                    code_files.append(file_path)
+
         return code_files
     
     async def _create_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
@@ -349,11 +363,16 @@ class OptimizedCodeIndexer:
             logger.error("Error processing file", file_path=file_path, error=str(e))
             return []
 
-    def extract_functions_v2(self, repo_path: str, max_functions: int = 5000) -> List[ExtractedFunction]:
+    def extract_functions_v2(
+        self, repo_path: str, max_functions: int = 5000,
+        include_paths: Optional[List[str]] = None,
+    ) -> List[ExtractedFunction]:
         """Extract and filter functions using tree-sitter."""
         from pathlib import Path
 
-        raw = self.tree_sitter_extractor.extract_from_repo(Path(repo_path), max_functions=max_functions)
+        raw = self.tree_sitter_extractor.extract_from_repo(
+            Path(repo_path), include_paths=include_paths, max_functions=max_functions,
+        )
         filtered = self.function_filter.filter_functions(raw)
 
         logger.info("V2 extraction", total=len(raw), kept=len(filtered))
@@ -397,15 +416,17 @@ class OptimizedCodeIndexer:
         repo_id: str,
         repo_path: str,
         progress_callback=None,
-        generate_summaries: bool = False
+        generate_summaries: bool = False,
+        include_paths: Optional[List[str]] = None,
     ) -> int:
         """Index repository using V2 function-level extraction."""
         from services.search_v2 import generate_summaries as gen_summaries
 
         start_time = time.time()
-        logger.info("V2 indexing started", repo_id=repo_id, with_summaries=generate_summaries)
+        logger.info("V2 indexing started", repo_id=repo_id, with_summaries=generate_summaries,
+                    include_paths=include_paths)
 
-        functions = self.extract_functions_v2(repo_path)
+        functions = self.extract_functions_v2(repo_path, include_paths=include_paths)
         if not functions:
             if progress_callback:
                 await progress_callback(0, 0, 0)
@@ -691,18 +712,21 @@ class OptimizedCodeIndexer:
         repo_id: str,
         repo_path: str,
         progress_callback,
-        max_files: int = None
-    ):
+        max_files: int = None,
+        include_paths: Optional[List[str]] = None,
+    ) -> int:
         """Index repository with real-time progress updates
 
         Args:
             max_files: If set, limit indexing to first N files (for partial indexing)
+            include_paths: If set, only index files under these directories
         """
         start_time = time.time()
-        logger.info("Starting optimized indexing with progress", repo_id=repo_id)
+        logger.info("Starting optimized indexing with progress", repo_id=repo_id,
+                    include_paths=include_paths)
 
-        # Discover code files
-        code_files = self._discover_code_files(repo_path)
+        # Discover code files (filtered by include_paths if set)
+        code_files = self._discover_code_files(repo_path, include_paths=include_paths)
 
         # Apply file limit if specified (partial indexing)
         if max_files and len(code_files) > max_files:
