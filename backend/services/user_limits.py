@@ -66,7 +66,7 @@ TIER_LIMITS: Dict[UserTier, TierLimits] = {
     UserTier.ENTERPRISE: TierLimits(
         max_repos=None,  # Unlimited
         max_files_per_repo=50000,
-        max_functions_per_repo=200000,
+        max_functions_per_repo=500000,
         playground_searches_per_day=None,
         max_team_members=None,
         priority_indexing=True,
