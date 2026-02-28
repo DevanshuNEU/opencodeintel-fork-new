@@ -1,6 +1,6 @@
 """Repository management routes - CRUD and indexing."""
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends, BackgroundTasks
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import List, Optional
 from pathlib import Path
 import hashlib
@@ -178,7 +178,7 @@ async def delete_repository(
         raise HTTPException(status_code=500, detail="Failed to delete repository")
 
 
-def _scan_directories(local_path: Path) -> list:
+def _scan_directories(local_path: Path) -> List[dict]:
     """Scan top-level directories and count code files in each.
 
     Runs synchronously -- call via asyncio.to_thread() from async handlers
@@ -206,7 +206,7 @@ def _scan_directories(local_path: Path) -> list:
 async def get_repo_directories(
     repo_id: str,
     auth: AuthContext = Depends(require_auth),
-):
+) -> dict:
     """Return the top-level directory tree of a cloned repo.
 
     Used for monorepo subset selection -- lets the user pick which
@@ -461,6 +461,17 @@ class IndexConfig(BaseModel):
     include_paths: Optional[List[str]] = None  # e.g. ["packages/effect", "packages/schema"]
     incremental: bool = True
 
+    @validator("include_paths", each_item=True, pre=True)
+    @classmethod
+    def sanitize_path(cls, v: str) -> str:
+        """Reject path traversal, empty strings, and normalize slashes."""
+        v = v.strip().strip("/")
+        if not v:
+            raise ValueError("include_paths entries must not be empty")
+        if ".." in v.split("/"):
+            raise ValueError(f"Path traversal not allowed: {v}")
+        return v
+
 
 @router.post("/{repo_id}/index/async", status_code=202)
 async def index_repository_async(
@@ -564,7 +575,13 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
 # Note: WebSocket routes need to be registered on the main app, not router
 # This function is exported and called from main.py
 async def websocket_index(websocket: WebSocket, repo_id: str):
-    """Real-time repository indexing with progress updates."""
+    """Real-time repository indexing with progress updates.
+
+    NOTE: This WebSocket-direct-indexing path does NOT support include_paths
+    (monorepo subset selection). Use the HTTP async endpoint instead:
+    POST /repos/{id}/index/async with IndexConfig body.
+    This handler is the older pattern -- kept for backward compatibility.
+    """
     user = await _authenticate_websocket(websocket)
     if not user:
         return
