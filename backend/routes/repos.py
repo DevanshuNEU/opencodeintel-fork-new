@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, De
 from pydantic import BaseModel, field_validator
 from typing import List, Optional
 from pathlib import Path
+from urllib.parse import quote
 import hashlib
 import os
 import re
@@ -185,16 +186,24 @@ async def _fetch_directory_tree(
     """
     from services.repo_validator import RepoValidator
 
-    url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/git/trees/{branch}?recursive=1"
+    # Encode branch for URL safety -- "feature/foo" -> "feature%2Ffoo"
+    encoded_branch = quote(branch, safe="")
+    url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/git/trees/{encoded_branch}?recursive=1"
 
     async def _get(c: httpx.AsyncClient) -> httpx.Response:
         return await c.get(url, headers=_github_headers())
 
-    if client:
-        response = await _get(client)
-    else:
-        async with httpx.AsyncClient(timeout=15.0) as c:
-            response = await _get(c)
+    try:
+        if client:
+            response = await _get(client)
+        else:
+            async with httpx.AsyncClient(timeout=15.0) as c:
+                response = await _get(c)
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="GitHub API request timed out")
+    except httpx.RequestError as e:
+        logger.error("GitHub tree API network error", error=str(e))
+        raise HTTPException(status_code=502, detail="Failed to connect to GitHub API")
 
     if response.status_code == 404:
         raise HTTPException(status_code=404, detail="Repository or branch not found")
@@ -203,7 +212,10 @@ async def _fetch_directory_tree(
     if response.status_code != 200:
         raise HTTPException(status_code=502, detail=f"GitHub API error: {response.status_code}")
 
-    data = response.json()
+    try:
+        data = response.json()
+    except ValueError:
+        raise HTTPException(status_code=502, detail="Invalid response from GitHub API")
     truncated = data.get("truncated", False)
 
     code_extensions = RepoValidator.CODE_EXTENSIONS
@@ -290,8 +302,10 @@ class AnalyzeRepoRequest(BaseModel):
         v = v.strip().rstrip("/")
         if not v:
             raise ValueError("GitHub URL is required")
-        if "github.com" not in v.lower():
-            raise ValueError("Only GitHub URLs are supported")
+        if not _GITHUB_URL_RE.match(v):
+            raise ValueError(
+                "Invalid GitHub URL. Expected: https://github.com/owner/repo"
+            )
         return v
 
 
@@ -326,25 +340,36 @@ async def analyze_repository(request: AnalyzeRepoRequest) -> dict:
         return cached
 
     # Single httpx client for both GitHub API calls
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        # 1. Fetch repo metadata for default branch and size
-        meta_resp = await client.get(
-            f"{_GITHUB_API_BASE}/repos/{owner}/{repo_name}",
-            headers=_github_headers(),
-        )
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            # 1. Fetch repo metadata for default branch and size
+            meta_resp = await client.get(
+                f"{_GITHUB_API_BASE}/repos/{owner}/{repo_name}",
+                headers=_github_headers(),
+            )
 
-        if meta_resp.status_code == 404:
-            raise HTTPException(status_code=404, detail="Repository not found")
-        if meta_resp.status_code == 403:
-            raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded")
-        if meta_resp.status_code != 200:
-            raise HTTPException(status_code=502, detail="Failed to fetch repository metadata")
+            if meta_resp.status_code == 404:
+                raise HTTPException(status_code=404, detail="Repository not found")
+            if meta_resp.status_code == 403:
+                raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded")
+            if meta_resp.status_code != 200:
+                raise HTTPException(status_code=502, detail="Failed to fetch repository metadata")
 
-        metadata = meta_resp.json()
-        default_branch = metadata.get("default_branch", "main")
+            try:
+                metadata = meta_resp.json()
+            except ValueError:
+                raise HTTPException(status_code=502, detail="Invalid response from GitHub API")
+            default_branch = metadata.get("default_branch", "main")
 
-        # 2. Fetch directory tree (reuse same client)
-        tree_data = await _fetch_directory_tree(owner, repo_name, default_branch, client=client)
+            # 2. Fetch directory tree (reuse same client)
+            tree_data = await _fetch_directory_tree(owner, repo_name, default_branch, client=client)
+    except HTTPException:
+        raise
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="GitHub API request timed out")
+    except httpx.RequestError as e:
+        logger.error("GitHub API network error", error=str(e))
+        raise HTTPException(status_code=502, detail="Failed to connect to GitHub API")
 
     logger.info(
         "Analyzed repo structure",

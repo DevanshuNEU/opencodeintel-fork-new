@@ -1,6 +1,7 @@
 """Tests for POST /repos/analyze -- pre-clone directory analysis (OPE-109)."""
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
+from pydantic import ValidationError
 
 # Import after conftest patches external services
 from routes.repos import (
@@ -50,12 +51,16 @@ class TestAnalyzeRepoRequest:
         assert req.github_url == "https://github.com/owner/repo"
 
     def test_rejects_empty(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             AnalyzeRepoRequest(github_url="")
 
     def test_rejects_non_github(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             AnalyzeRepoRequest(github_url="https://gitlab.com/owner/repo")
+
+    def test_rejects_malformed_github_domain(self):
+        with pytest.raises(ValidationError):
+            AnalyzeRepoRequest(github_url="https://fakegithub.com/owner/repo")
 
 
 # -- IndexConfig validation (from PR #266) ------------------------------------
@@ -74,19 +79,19 @@ class TestIndexConfig:
         assert cfg.include_paths == ["packages/effect"]
 
     def test_rejects_empty_string(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             IndexConfig(include_paths=["packages/effect", "  "])
 
     def test_rejects_path_traversal(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             IndexConfig(include_paths=["../etc/passwd"])
 
     def test_rejects_nested_traversal(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             IndexConfig(include_paths=["packages/../../etc"])
 
     def test_rejects_non_string(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             IndexConfig(include_paths=[123])
 
     def test_none_is_valid(self):
