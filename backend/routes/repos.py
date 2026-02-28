@@ -1,7 +1,8 @@
 """Repository management routes - CRUD and indexing."""
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends, BackgroundTasks
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
+from pathlib import Path
 import hashlib
 import time
 import asyncio
@@ -177,6 +178,47 @@ async def delete_repository(
         raise HTTPException(status_code=500, detail="Failed to delete repository")
 
 
+@router.get("/{repo_id}/directories")
+async def get_repo_directories(
+    repo_id: str,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Return the top-level directory tree of a cloned repo.
+
+    Used for monorepo subset selection -- lets the user pick which
+    directories to index instead of the entire repo.
+    """
+    repo = get_repo_or_404(repo_id, auth.user_id)
+    local_path = Path(repo["local_path"])
+
+    if not local_path.exists():
+        raise HTTPException(status_code=404, detail="Repo not cloned yet")
+
+    skip = {"node_modules", ".git", "__pycache__", "venv", ".next", "dist", "build"}
+    dirs = []
+    for item in sorted(local_path.iterdir()):
+        if item.is_dir() and item.name not in skip and not item.name.startswith("."):
+            # count code files in this directory
+            extensions = {".py", ".js", ".jsx", ".ts", ".tsx"}
+            file_count = sum(
+                1 for f in item.rglob("*")
+                if f.is_file() and f.suffix in extensions
+                and not any(s in f.parts for s in skip)
+            )
+            dirs.append({
+                "name": item.name,
+                "path": str(item.relative_to(local_path)),
+                "file_count": file_count,
+            })
+
+    return {
+        "repo_id": repo_id,
+        "repo_name": repo.get("name", local_path.name),
+        "directories": dirs,
+        "total_directories": len(dirs),
+    }
+
+
 @router.post("/{repo_id}/index")
 async def index_repository(
     repo_id: str,
@@ -275,7 +317,8 @@ async def _run_async_indexing(
     repo_id: str,
     repo: dict,
     user_id: str,
-    incremental: bool = True
+    incremental: bool = True,
+    include_paths: Optional[List[str]] = None,
 ):
     """
     Background task for async indexing with real-time progress.
@@ -349,7 +392,8 @@ async def _run_async_indexing(
             total_functions = await indexer.index_repository_with_progress(
                 repo_id,
                 repo["local_path"],
-                progress_callback
+                progress_callback,
+                include_paths=include_paths,
             )
             total_files = tracked_total_files
             index_type = "full"
@@ -400,11 +444,17 @@ async def _run_async_indexing(
             )
 
 
+class IndexConfig(BaseModel):
+    """Optional config for indexing -- supports monorepo subset selection."""
+    include_paths: Optional[List[str]] = None  # e.g. ["packages/effect", "packages/schema"]
+    incremental: bool = True
+
+
 @router.post("/{repo_id}/index/async", status_code=202)
 async def index_repository_async(
     repo_id: str,
     background_tasks: BackgroundTasks,
-    incremental: bool = True,
+    config: IndexConfig = IndexConfig(),
     auth: AuthContext = Depends(require_auth)
 ):
     """
@@ -463,14 +513,16 @@ async def index_repository_async(
             repo_id,
             repo,
             user_id,
-            incremental
+            incremental=config.incremental,
+            include_paths=config.include_paths,
         )
         
         return {
             "status": "indexing",
             "repo_id": repo_id,
             "message": "Indexing started. Connect to WebSocket for progress.",
-            "websocket_url": f"/api/v1/ws/repos/{repo_id}/indexing"
+            "websocket_url": f"/api/v1/ws/repos/{repo_id}/indexing",
+            "include_paths": config.include_paths,
         }
         
     except HTTPException:
