@@ -3,10 +3,14 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, De
 from pydantic import BaseModel, field_validator
 from typing import List, Optional
 from pathlib import Path
+from urllib.parse import quote
 import hashlib
+import os
+import re
 import time
 import asyncio
 import git
+import httpx
 
 from dependencies import (
     indexer, repo_manager, metrics, redis_client,
@@ -147,6 +151,259 @@ async def add_repository(
         logger.error("Failed to add repository", error=str(e), user_id=user_id)
         capture_exception(e)
         raise HTTPException(status_code=500, detail="Failed to add repository")
+
+
+# -- GitHub API helpers for pre-clone analysis --------------------------------
+
+_GITHUB_API_BASE = "https://api.github.com"
+_GITHUB_URL_RE = re.compile(
+    r"^https?://github\.com/(?P<owner>[a-zA-Z0-9_.\-]+)/(?P<repo>[a-zA-Z0-9_.\-]+)/?$"
+)
+
+
+def _github_headers() -> dict:
+    """Build GitHub API request headers with optional auth token."""
+    headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "OpenCodeIntel/1.0"}
+    token = os.getenv("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"token {token}"
+    return headers
+
+
+async def _fetch_directory_tree(
+    owner: str, repo: str, branch: str,
+    client: Optional[httpx.AsyncClient] = None,
+) -> dict:
+    """Fetch directory structure from GitHub Tree API.
+
+    Returns a dict with directories (name, path, file_count) grouped
+    at the most useful level -- top-level for flat repos, package-level
+    for monorepos with a packages/ directory.
+
+    Args:
+        client: Reuse an existing httpx client to avoid opening a second
+            connection. If None, creates and closes its own.
+    """
+    from services.repo_validator import RepoValidator
+
+    # Encode branch for URL safety -- "feature/foo" -> "feature%2Ffoo"
+    encoded_branch = quote(branch, safe="")
+    url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/git/trees/{encoded_branch}?recursive=1"
+
+    async def _get(c: httpx.AsyncClient) -> httpx.Response:
+        return await c.get(url, headers=_github_headers())
+
+    try:
+        if client:
+            response = await _get(client)
+        else:
+            async with httpx.AsyncClient(timeout=15.0) as c:
+                response = await _get(c)
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="GitHub API request timed out")
+    except httpx.RequestError as e:
+        logger.error("GitHub tree API network error", error=str(e))
+        raise HTTPException(status_code=502, detail="Failed to connect to GitHub API")
+
+    if response.status_code == 404:
+        raise HTTPException(status_code=404, detail="Repository or branch not found")
+    if response.status_code == 403:
+        raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded")
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"GitHub API error: {response.status_code}")
+
+    try:
+        data = response.json()
+    except ValueError:
+        raise HTTPException(status_code=502, detail="Invalid response from GitHub API")
+    truncated = data.get("truncated", False)
+
+    code_extensions = RepoValidator.CODE_EXTENSIONS
+    skip_dirs = RepoValidator.SKIP_DIRS
+
+    # Count code files per top-level directory
+    dir_counts: dict[str, int] = {}
+    total_files = 0
+
+    for item in data.get("tree", []):
+        if item.get("type") != "blob":
+            continue
+        path = item.get("path", "")
+        parts = path.split("/")
+        if any(part in skip_dirs for part in parts):
+            continue
+        ext = "." + path.rsplit(".", 1)[-1] if "." in path else ""
+        if ext.lower() not in code_extensions:
+            continue
+
+        total_files += 1
+
+        # Group by top-level dir, or "(root)" for root-level files
+        if len(parts) == 1:
+            dir_counts["(root)"] = dir_counts.get("(root)", 0) + 1
+        else:
+            top = parts[0]
+            # For monorepos: if top is packages/libs/apps, group one level deeper
+            if top in ("packages", "libs", "apps", "modules", "crates") and len(parts) >= 3:
+                key = f"{parts[0]}/{parts[1]}"
+            else:
+                key = top
+            dir_counts[key] = dir_counts.get(key, 0) + 1
+
+    # Indexing is function-level, not file-level. Estimate function counts
+    # using the same multiplier the tier system uses for limit checks.
+    avg_fn = RepoValidator.AVG_FUNCTIONS_PER_FILE  # 25
+
+    # Build sorted directory list with estimated function counts
+    directories = sorted(
+        [
+            {
+                "name": d, "path": d,
+                "file_count": c,
+                "estimated_functions": c * avg_fn,
+            }
+            for d, c in dir_counts.items() if d != "(root)"
+        ],
+        key=lambda x: -x["file_count"],
+    )
+
+    root_files = dir_counts.get("(root)", 0)
+    if root_files > 0:
+        directories.append({
+            "name": "(root files)", "path": ".",
+            "file_count": root_files,
+            "estimated_functions": root_files * avg_fn,
+        })
+
+    total_estimated = total_files * avg_fn
+
+    # Suggest directory picker for large repos
+    suggestion = None
+    if total_files > 500 or len(directories) > 10:
+        suggestion = "large_repo"
+
+    return {
+        "directories": directories,
+        "total_files": total_files,
+        "total_estimated_functions": total_estimated,
+        "total_directories": len(directories),
+        "truncated": truncated,
+        "suggestion": suggestion,
+    }
+
+
+class AnalyzeRepoRequest(BaseModel):
+    """Request body for pre-clone repo analysis."""
+    github_url: str
+
+    @field_validator("github_url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        v = v.strip().rstrip("/")
+        if not v:
+            raise ValueError("GitHub URL is required")
+        if not _GITHUB_URL_RE.match(v):
+            raise ValueError(
+                "Invalid GitHub URL. Expected: https://github.com/owner/repo"
+            )
+        return v
+
+
+_ANALYZE_CACHE_TTL = 86400  # 24 hours -- directory structure rarely changes
+
+
+@router.post("/analyze")
+async def analyze_repository(request: AnalyzeRepoRequest) -> dict:
+    """Analyze a GitHub repo's directory structure WITHOUT cloning.
+
+    Returns directory tree with file counts so the user can select
+    which directories to index (monorepo subset selection).
+
+    Results are cached for 24 hours (see _ANALYZE_CACHE_TTL) since
+    directory structure rarely changes.
+    """
+    match = _GITHUB_URL_RE.match(request.github_url)
+    if not match:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub URL. Expected: https://github.com/owner/repo",
+        )
+
+    owner = match.group("owner")
+    repo_name = match.group("repo").removesuffix(".git")
+
+    # Check cache first (same pattern as validate-repo)
+    from dependencies import cache
+    cache_key = f"analyze:{owner}/{repo_name}"
+    cached = cache.get(cache_key) if cache else None
+    if cached:
+        logger.info("Returning cached analysis", owner=owner, repo=repo_name)
+        return cached
+
+    # Single httpx client for both GitHub API calls
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            # 1. Fetch repo metadata for default branch and size
+            meta_resp = await client.get(
+                f"{_GITHUB_API_BASE}/repos/{owner}/{repo_name}",
+                headers=_github_headers(),
+            )
+
+            if meta_resp.status_code == 404:
+                raise HTTPException(status_code=404, detail="Repository not found")
+            if meta_resp.status_code == 403:
+                raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded")
+            if meta_resp.status_code != 200:
+                raise HTTPException(status_code=502, detail="Failed to fetch repository metadata")
+
+            try:
+                metadata = meta_resp.json()
+            except ValueError:
+                raise HTTPException(status_code=502, detail="Invalid response from GitHub API")
+
+            # Block private repos -- server GITHUB_TOKEN could access them,
+            # but we must not leak private repo structure to unauthenticated callers
+            if metadata.get("private", False):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Private repositories are not supported. Use authenticated indexing instead.",
+                )
+
+            default_branch = metadata.get("default_branch", "main")
+
+            # 2. Fetch directory tree (reuse same client)
+            tree_data = await _fetch_directory_tree(owner, repo_name, default_branch, client=client)
+    except HTTPException:
+        raise
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="GitHub API request timed out")
+    except httpx.RequestError as e:
+        logger.error("GitHub API network error", error=str(e))
+        raise HTTPException(status_code=502, detail="Failed to connect to GitHub API")
+
+    logger.info(
+        "Analyzed repo structure",
+        owner=owner, repo=repo_name,
+        total_files=tree_data["total_files"],
+        dirs=tree_data["total_directories"],
+        suggestion=tree_data.get("suggestion"),
+    )
+
+    result = {
+        "owner": owner,
+        "repo": repo_name,
+        "default_branch": default_branch,
+        "size_kb": metadata.get("size", 0),
+        "stars": metadata.get("stargazers_count", 0),
+        "language": metadata.get("language"),
+        **tree_data,
+    }
+
+    # Cache result
+    if cache:
+        cache.set(cache_key, result, ttl=_ANALYZE_CACHE_TTL)
+
+    return result
 
 
 @router.delete("/{repo_id}")
