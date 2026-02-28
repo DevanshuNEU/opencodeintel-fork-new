@@ -178,6 +178,30 @@ async def delete_repository(
         raise HTTPException(status_code=500, detail="Failed to delete repository")
 
 
+def _scan_directories(local_path: Path) -> list:
+    """Scan top-level directories and count code files in each.
+
+    Runs synchronously -- call via asyncio.to_thread() from async handlers
+    to avoid blocking the event loop on large repos.
+    """
+    skip = {"node_modules", ".git", "__pycache__", "venv", ".next", "dist", "build"}
+    extensions = {".py", ".js", ".jsx", ".ts", ".tsx"}
+    dirs = []
+    for item in sorted(local_path.iterdir()):
+        if item.is_dir() and item.name not in skip and not item.name.startswith("."):
+            file_count = sum(
+                1 for f in item.rglob("*")
+                if f.is_file() and f.suffix in extensions
+                and not any(s in f.parts for s in skip)
+            )
+            dirs.append({
+                "name": item.name,
+                "path": str(item.relative_to(local_path)),
+                "file_count": file_count,
+            })
+    return dirs
+
+
 @router.get("/{repo_id}/directories")
 async def get_repo_directories(
     repo_id: str,
@@ -194,22 +218,7 @@ async def get_repo_directories(
     if not local_path.exists():
         raise HTTPException(status_code=404, detail="Repo not cloned yet")
 
-    skip = {"node_modules", ".git", "__pycache__", "venv", ".next", "dist", "build"}
-    dirs = []
-    for item in sorted(local_path.iterdir()):
-        if item.is_dir() and item.name not in skip and not item.name.startswith("."):
-            # count code files in this directory
-            extensions = {".py", ".js", ".jsx", ".ts", ".tsx"}
-            file_count = sum(
-                1 for f in item.rglob("*")
-                if f.is_file() and f.suffix in extensions
-                and not any(s in f.parts for s in skip)
-            )
-            dirs.append({
-                "name": item.name,
-                "path": str(item.relative_to(local_path)),
-                "file_count": file_count,
-            })
+    dirs = await asyncio.to_thread(_scan_directories, local_path)
 
     return {
         "repo_id": repo_id,
@@ -341,9 +350,12 @@ async def _run_async_indexing(
             publisher.publish_progress(repo_id, 0, 1, 0, "Starting...")
         
         # Check for incremental
+        # Skip incremental when include_paths is set -- incremental_index_repository
+        # uses git diff which doesn't understand subset boundaries
         last_commit = repo_manager.get_last_indexed_commit(repo_id)
+        can_incremental = incremental and last_commit and not include_paths
         
-        if incremental and last_commit:
+        if can_incremental:
             logger.info("Async INCREMENTAL indexing", repo_id=repo_id, last_commit=last_commit[:8])
             total_functions = await indexer.incremental_index_repository(
                 repo_id,

@@ -125,26 +125,36 @@ class OptimizedCodeIndexer:
         Args:
             include_paths: If set, only include files under these relative
                 directories (e.g. ['packages/effect', 'packages/schema']).
+                Uses path-component-aware matching and only walks the
+                specified subtrees instead of the entire repo.
         """
         repo_path = Path(repo_path)
         code_files = []
-        
+
         extensions = {'.py', '.js', '.jsx', '.ts', '.tsx'}
         skip_dirs = {'node_modules', '.git', '__pycache__', 'venv', 'env', 'dist', 'build', '.next', '.vscode'}
-        
-        for file_path in repo_path.rglob('*'):
-            if file_path.is_dir():
-                continue
-            if any(skip in file_path.parts for skip in skip_dirs):
-                continue
-            if file_path.suffix in extensions:
-                # Subset filter: only include files under specified paths
-                if include_paths:
-                    rel = str(file_path.relative_to(repo_path))
-                    if not any(rel.startswith(p) for p in include_paths):
-                        continue
-                code_files.append(file_path)
-        
+
+        # When include_paths is set, only walk those subtrees
+        if include_paths:
+            roots = []
+            for p in include_paths:
+                subtree = repo_path / p
+                if subtree.is_dir():
+                    roots.append(subtree)
+                else:
+                    logger.warning("include_path not found, skipping: %s", p)
+        else:
+            roots = [repo_path]
+
+        for root in roots:
+            for file_path in root.rglob('*'):
+                if file_path.is_dir():
+                    continue
+                if any(skip in file_path.parts for skip in skip_dirs):
+                    continue
+                if file_path.suffix in extensions:
+                    code_files.append(file_path)
+
         return code_files
     
     async def _create_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
@@ -704,7 +714,7 @@ class OptimizedCodeIndexer:
         progress_callback,
         max_files: int = None,
         include_paths: Optional[List[str]] = None,
-    ):
+    ) -> int:
         """Index repository with real-time progress updates
 
         Args:
