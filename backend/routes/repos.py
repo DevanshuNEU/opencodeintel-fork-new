@@ -471,7 +471,7 @@ class IndexConfig(BaseModel):
         for item in v:
             if not isinstance(item, str):
                 raise ValueError(f"include_paths entries must be strings, got {type(item).__name__}")
-            item = item.strip().strip("/")
+            item = item.replace("\\", "/").strip().strip("/")
             if not item:
                 raise ValueError("include_paths entries must not be empty")
             if ".." in item.split("/"):
