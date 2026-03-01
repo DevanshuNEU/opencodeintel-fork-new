@@ -75,8 +75,8 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
 app.add_middleware(RequestSizeLimitMiddleware)
 
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
-# Allow Vercel preview deploys (dynamic subdomains) so PRs can be tested
-# against the production backend without CORS issues
+# Allow Vercel preview deploys so PRs can be tested against prod backend.
+# Set to project-scoped regex: https://opencodeintel.*\.vercel\.app
 ALLOW_ORIGIN_REGEX = os.getenv("ALLOW_ORIGIN_REGEX", "")
 app.add_middleware(
     CORSMiddleware,
