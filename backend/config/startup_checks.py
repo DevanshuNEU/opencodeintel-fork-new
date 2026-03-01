@@ -29,6 +29,8 @@ OPTIONAL_VARS: List[Tuple[str, str, str]] = [
     ("GITHUB_CLIENT_ID", "GitHub OAuth client ID", "GitHub repo import disabled"),
     ("GITHUB_CLIENT_SECRET", "GitHub OAuth client secret", "GitHub repo import disabled"),
     ("DISCORD_FEEDBACK_WEBHOOK", "Discord webhook for feedback", "Feedback notifications disabled"),
+    ("ALLOW_ORIGIN_REGEX", "CORS regex for preview deploys", "Only explicit origins allowed"),
+    ("GITHUB_TOKEN", "GitHub API token for repo analysis", "Using unauthenticated rate limit (60/hr)"),
 ]
 
 
