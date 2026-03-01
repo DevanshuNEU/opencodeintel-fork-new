@@ -91,7 +91,7 @@ export function AddRepoForm({ onAdd, onAnalyzed, loading, isOpen, onOpenChange }
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-background/80 backdrop-blur-md flex items-center justify-center z-50"
-            onClick={() => !loading && setShowForm(false)}
+            onClick={() => !isBusy && setShowForm(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -113,6 +113,7 @@ export function AddRepoForm({ onAdd, onAnalyzed, loading, isOpen, onOpenChange }
                 </div>
                 <button
                   onClick={() => setShowForm(false)}
+                  aria-label="Close"
                   className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   disabled={isBusy}
                 >

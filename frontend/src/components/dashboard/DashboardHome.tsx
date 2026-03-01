@@ -16,7 +16,7 @@ import { DirectoryPicker } from '../DirectoryPicker'
 import { GitHubRepoSelector } from '../GitHubRepoSelector'
 import { IndexingProgressModal } from '../IndexingProgressModal'
 import { UpgradeLimitModal } from '../UpgradeLimitModal'
-import { TIER_FUNCTION_LIMITS } from '../../config/api'
+import { TIER_FUNCTION_LIMITS, type TierName } from '../../config/api'
 import type { GitHubRepo } from '../../hooks/useGitHubRepos'
 import type { AnalyzeResult, RepoTab } from '../../types'
 
@@ -24,6 +24,9 @@ export function DashboardHome() {
   const { session } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: repos = [], isLoading: reposLoading, invalidate: refreshRepos } = useRepos(session?.access_token)
+
+  // User tier -- defaults to free, will be replaced when user profile API is available
+  const userTier: TierName = (session?.user?.user_metadata?.tier as TierName) || 'free'
 
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
@@ -256,7 +259,8 @@ export function DashboardHome() {
           repoInfo={analyzeResult}
           onConfirm={handleDirectoryConfirm}
           loading={loading}
-          functionLimit={TIER_FUNCTION_LIMITS.free}
+          // TODO: replace with actual user tier once GET /users/me returns tier
+          functionLimit={TIER_FUNCTION_LIMITS[userTier]}
         />
       )}
 

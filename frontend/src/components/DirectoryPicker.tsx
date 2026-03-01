@@ -21,6 +21,7 @@ interface DirectoryPickerProps {
   repoInfo: AnalyzeResult
   onConfirm: (selectedPaths: string[]) => void
   loading: boolean
+  functionLimit?: number
 }
 
 export function DirectoryPicker({
@@ -187,6 +188,7 @@ function PickerHeader({
       <button
         onClick={onClose}
         disabled={loading}
+        aria-label="Close"
         className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
       >
         <X className="w-4 h-4" />
