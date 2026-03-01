@@ -12,16 +12,22 @@ import { extractErrorMessage, isUpgradeError } from '../../lib/api-errors'
 import { RepoListView } from './RepoListView'
 import { RepoDetailView } from './RepoDetailView'
 import { AddRepoForm } from '../AddRepoForm'
+import { DirectoryPicker } from '../DirectoryPicker'
 import { GitHubRepoSelector } from '../GitHubRepoSelector'
 import { IndexingProgressModal } from '../IndexingProgressModal'
 import { UpgradeLimitModal } from '../UpgradeLimitModal'
+import { TIER_FUNCTION_LIMITS, type TierName } from '../../config/api'
 import type { GitHubRepo } from '../../hooks/useGitHubRepos'
-import type { RepoTab } from '../../types'
+import type { AnalyzeResult, RepoTab } from '../../types'
 
 export function DashboardHome() {
   const { session } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: repos = [], isLoading: reposLoading, invalidate: refreshRepos } = useRepos(session?.access_token)
+
+  // User tier -- validate against known tiers, fall back to free for unknown values
+  const rawTier = session?.user?.user_metadata?.tier as string
+  const userTier: TierName = rawTier && rawTier in TIER_FUNCTION_LIMITS ? (rawTier as TierName) : 'free'
 
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
@@ -33,6 +39,12 @@ export function DashboardHome() {
   const [indexingRepoId, setIndexingRepoId] = useState<string | null>(null)
   const [indexingRepoName, setIndexingRepoName] = useState('')
   const [showIndexingModal, setShowIndexingModal] = useState(false)
+
+  // directory picker (monorepo subset selection)
+  const [analyzeResult, setAnalyzeResult] = useState<AnalyzeResult | null>(null)
+  const [pendingGitUrl, setPendingGitUrl] = useState('')
+  const [pendingBranch, setPendingBranch] = useState('main')
+  const [showDirectoryPicker, setShowDirectoryPicker] = useState(false)
 
   // upgrade modal
   const [upgradeModal, setUpgradeModal] = useState<{ show: boolean; message: string; repoName?: string }>({
@@ -54,7 +66,9 @@ export function DashboardHome() {
   }
 
   // shared helper: add a repo and start indexing
-  const addAndIndex = async (name: string, gitUrl: string, branch: string): Promise<string | null> => {
+  const addAndIndex = async (
+    name: string, gitUrl: string, branch: string, includePaths?: string[],
+  ): Promise<string | null> => {
     const response = await fetch(`${API_URL}/repos`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
@@ -70,9 +84,17 @@ export function DashboardHome() {
     const data = await response.json()
     if (!data.repo_id) throw new Error('Missing repo_id in response')
 
+    const indexBody = includePaths
+      ? { include_paths: includePaths, incremental: false }
+      : undefined
+
     const indexResponse = await fetch(`${API_URL}/repos/${data.repo_id}/index/async`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${session?.access_token}` },
+      headers: {
+        Authorization: `Bearer ${session?.access_token}`,
+        ...(indexBody ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(indexBody ? { body: JSON.stringify(indexBody) } : {}),
     })
 
     if (!indexResponse.ok) {
@@ -160,6 +182,38 @@ export function DashboardHome() {
     }
   }
 
+  // When AddRepoForm detects a large repo, show the directory picker
+  const handleAnalyzed = (result: AnalyzeResult, gitUrl: string, branch: string) => {
+    setAnalyzeResult(result)
+    setPendingGitUrl(gitUrl)
+    setPendingBranch(branch)
+    setShowDirectoryPicker(true)
+  }
+
+  // User selected directories in the picker -- clone and index with subset
+  const handleDirectoryConfirm = async (selectedPaths: string[]) => {
+    if (!analyzeResult) return
+    try {
+      setLoading(true)
+      const name = analyzeResult.repo
+      const repoId = await addAndIndex(name, pendingGitUrl, pendingBranch, selectedPaths)
+      setShowDirectoryPicker(false)
+      setAnalyzeResult(null)
+      if (repoId) {
+        setIndexingRepoId(repoId)
+        setIndexingRepoName(name)
+        setShowIndexingModal(true)
+      }
+      refreshRepos()
+    } catch (error) {
+      toast.error('Failed to add repository', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const selectedRepoData = repos.find((r) => r.id === selectedRepo)
   const isRepoView = selectedRepo && selectedRepoData
 
@@ -193,10 +247,23 @@ export function DashboardHome() {
 
       <AddRepoForm
         onAdd={handleAddRepo}
+        onAnalyzed={handleAnalyzed}
         loading={loading}
         isOpen={showAddForm}
         onOpenChange={setShowAddForm}
       />
+
+      {analyzeResult && (
+        <DirectoryPicker
+          isOpen={showDirectoryPicker}
+          onClose={() => { setShowDirectoryPicker(false); setAnalyzeResult(null) }}
+          repoInfo={analyzeResult}
+          onConfirm={handleDirectoryConfirm}
+          loading={loading}
+          // TODO: replace with actual user tier once GET /users/me returns tier
+          functionLimit={TIER_FUNCTION_LIMITS[userTier]}
+        />
+      )}
 
       <IndexingProgressModal
         repoId={indexingRepoId}

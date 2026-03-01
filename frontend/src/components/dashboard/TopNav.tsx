@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { TIER_FUNCTION_LIMITS, type TierName } from '../../config/api'
 import { Menu, Search, Github, Sun, Moon, LogOut, Settings, BookOpen, ExternalLink } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,9 @@ export function TopNav({ onToggleSidebar, sidebarCollapsed, onOpenCommandPalette
 
   const userEmail = session?.user?.email || 'User'
   const userInitial = userEmail.charAt(0).toUpperCase()
+  const rawTier = session?.user?.user_metadata?.tier as string
+  const userTier: TierName = rawTier && rawTier in TIER_FUNCTION_LIMITS ? (rawTier as TierName) : 'free'
+  const tierLabel = `${userTier.charAt(0).toUpperCase()}${userTier.slice(1)} Plan`
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark')
@@ -97,7 +101,7 @@ export function TopNav({ onToggleSidebar, sidebarCollapsed, onOpenCommandPalette
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium truncate">{userEmail}</p>
-                  <p className="text-xs text-muted-foreground">Free Plan</p>
+                  <p className="text-xs text-muted-foreground">{tierLabel}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

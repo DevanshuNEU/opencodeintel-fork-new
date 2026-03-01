@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Package, Plus, X, Loader2 } from 'lucide-react'
+import { Package, Plus, X, Loader2, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { API_URL } from '@/config/api'
+import type { AnalyzeResult } from '@/types'
 
 // Discriminated union: if isOpen is provided, onOpenChange is required
 type UncontrolledProps = {
@@ -18,21 +20,50 @@ type ControlledProps = {
 
 type AddRepoFormProps = {
   onAdd: (gitUrl: string, branch: string) => Promise<void>
+  onAnalyzed?: (result: AnalyzeResult, gitUrl: string, branch: string) => void
   loading: boolean
 } & (UncontrolledProps | ControlledProps)
 
-export function AddRepoForm({ onAdd, loading, isOpen, onOpenChange }: AddRepoFormProps) {
+export function AddRepoForm({ onAdd, onAnalyzed, loading, isOpen, onOpenChange }: AddRepoFormProps) {
   const [gitUrl, setGitUrl] = useState('')
   const [branch, setBranch] = useState('main')
+  const [analyzing, setAnalyzing] = useState(false)
   const [internalOpen, setInternalOpen] = useState(false)
 
   const isControlled = isOpen !== undefined
   const showForm = isControlled ? isOpen : internalOpen
   const setShowForm = isControlled ? onOpenChange : setInternalOpen
+  const isBusy = loading || analyzing
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!gitUrl) return
+
+    // If onAnalyzed provided and URL is GitHub, analyze first
+    if (onAnalyzed && gitUrl.includes('github.com')) {
+      try {
+        setAnalyzing(true)
+        const resp = await fetch(`${API_URL}/repos/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ github_url: gitUrl }),
+        })
+        if (resp.ok) {
+          const result: AnalyzeResult = await resp.json()
+          if (result.suggestion === 'large_repo') {
+            onAnalyzed(result, gitUrl, branch)
+            setShowForm(false)
+            return
+          }
+        }
+        // Small repo or non-GitHub: proceed directly
+      } catch {
+        // Analyze failed -- fall through to direct add
+      } finally {
+        setAnalyzing(false)
+      }
+    }
+
     await onAdd(gitUrl, branch)
     setGitUrl('')
     setBranch('main')
@@ -60,7 +91,7 @@ export function AddRepoForm({ onAdd, loading, isOpen, onOpenChange }: AddRepoFor
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-background/80 backdrop-blur-md flex items-center justify-center z-50"
-            onClick={() => !loading && setShowForm(false)}
+            onClick={() => !isBusy && setShowForm(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -82,8 +113,9 @@ export function AddRepoForm({ onAdd, loading, isOpen, onOpenChange }: AddRepoFor
                 </div>
                 <button
                   onClick={() => setShowForm(false)}
+                  aria-label="Close"
                   className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  disabled={loading}
+                  disabled={isBusy}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -100,7 +132,7 @@ export function AddRepoForm({ onAdd, loading, isOpen, onOpenChange }: AddRepoFor
                     onChange={(e) => setGitUrl(e.target.value)}
                     placeholder="https://github.com/username/repo"
                     required
-                    disabled={loading}
+                    disabled={isBusy}
                     autoFocus
                   />
                 </div>
@@ -114,7 +146,7 @@ export function AddRepoForm({ onAdd, loading, isOpen, onOpenChange }: AddRepoFor
                     onChange={(e) => setBranch(e.target.value)}
                     placeholder="main"
                     required
-                    disabled={loading}
+                    disabled={isBusy}
                   />
                   <p className="text-xs text-muted-foreground">Repository will be cloned and automatically indexed</p>
                 </div>
@@ -125,17 +157,22 @@ export function AddRepoForm({ onAdd, loading, isOpen, onOpenChange }: AddRepoFor
                     type="button"
                     variant="outline"
                     onClick={() => { setShowForm(false); setGitUrl(''); setBranch('main') }}
-                    disabled={loading}
+                    disabled={isBusy}
                     className="flex-1"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    disabled={loading}
+                    disabled={isBusy}
                     className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
-                    {loading ? (
+                    {analyzing ? (
+                      <>
+                        <Search className="w-4 h-4 animate-pulse" />
+                        Analyzing...
+                      </>
+                    ) : loading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Adding...
