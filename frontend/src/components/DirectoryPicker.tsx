@@ -105,7 +105,7 @@ export function DirectoryPicker({
               </div>
             </div>
 
-            <ScrollArea className="flex-1 px-6">
+            <ScrollArea className="flex-1 min-h-0 px-6">
               <motion.div
                 className="flex flex-wrap gap-2 pb-4"
                 initial="hidden"
