@@ -5,7 +5,8 @@
  * Admins can change any user's tier with one click.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Shield, Users, ArrowUpCircle, ArrowDownCircle, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -33,33 +34,26 @@ const TIER_COLORS: Record<string, string> = {
 
 export function AdminPage() {
   const { session } = useAuth()
-  const [users, setUsers] = useState<AdminUser[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [updating, setUpdating] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   const headers = { Authorization: `Bearer ${session?.access_token}` }
 
-  const fetchUsers = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
+  const { data, isLoading: loading, error: queryError, refetch } = useQuery<{ users: AdminUser[] }>({
+    queryKey: ['admin', 'users'],
+    queryFn: async () => {
       const resp = await fetch(`${API_URL}/admin/users`, { headers })
       if (resp.status === 403) {
-        setError('Admin access required. Your email is not in the ADMIN_EMAILS list.')
-        return
+        throw new Error('Admin access required. Your email is not in the ADMIN_EMAILS list.')
       }
       if (!resp.ok) throw new Error('Failed to fetch users')
-      const data = await resp.json()
-      setUsers(data.users || [])
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load users')
-    } finally {
-      setLoading(false)
-    }
-  }, [session?.access_token])
+      return resp.json()
+    },
+    enabled: !!session?.access_token,
+  })
 
-  useEffect(() => { fetchUsers() }, [fetchUsers])
+  const users = data?.users ?? []
+  const error = queryError instanceof Error ? queryError.message : queryError ? 'Failed to load users' : null
 
   async function changeTier(userId: string, email: string, newTier: string) {
     setUpdating(userId)
@@ -73,10 +67,8 @@ export function AdminPage() {
         const err = await resp.json().catch(() => ({}))
         throw new Error(err.detail || 'Failed to update tier')
       }
-      const result = await resp.json()
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, tier: result.tier } : u)),
-      )
+      await resp.json()
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
       toast.success(`Updated ${email} to ${newTier}`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Update failed')
@@ -90,7 +82,7 @@ export function AdminPage() {
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
         <Shield className="w-12 h-12 text-destructive" />
         <p className="text-muted-foreground">{error}</p>
-        <Button variant="outline" onClick={fetchUsers}>Retry</Button>
+        <Button variant="outline" onClick={() => refetch()}>Retry</Button>
       </div>
     )
   }
@@ -107,7 +99,7 @@ export function AdminPage() {
             <p className="text-sm text-muted-foreground">User management and tier control</p>
           </div>
         </div>
-        <Button variant="outline" onClick={fetchUsers} disabled={loading}>
+        <Button variant="outline" onClick={() => refetch()} disabled={loading}>
           <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />
           Refresh
         </Button>

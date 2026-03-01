@@ -7,7 +7,7 @@ import os
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
-from dependencies import user_limits
+from dependencies import redis_client
 from middleware.auth import require_auth, AuthContext
 from services.observability import logger
 from services.supabase_service import get_supabase_service
@@ -137,7 +137,6 @@ def update_user_tier(
         raise HTTPException(status_code=500, detail="Failed to update tier")
 
     # Clear Redis cache so new tier takes effect immediately
-    from dependencies import redis_client
     if redis_client:
         try:
             redis_client.delete(f"user:tier:{user_id}")
