@@ -25,8 +25,9 @@ export function DashboardHome() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: repos = [], isLoading: reposLoading, invalidate: refreshRepos } = useRepos(session?.access_token)
 
-  // User tier -- defaults to free, will be replaced when user profile API is available
-  const userTier: TierName = (session?.user?.user_metadata?.tier as TierName) || 'free'
+  // User tier -- validate against known tiers, fall back to free for unknown values
+  const rawTier = session?.user?.user_metadata?.tier as string
+  const userTier: TierName = rawTier && rawTier in TIER_FUNCTION_LIMITS ? (rawTier as TierName) : 'free'
 
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
