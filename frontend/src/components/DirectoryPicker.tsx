@@ -106,17 +106,32 @@ export function DirectoryPicker({
             </div>
 
             <ScrollArea className="flex-1 px-6">
-              <div className="flex flex-wrap gap-2 pb-4">
+              <motion.div
+                className="flex flex-wrap gap-2 pb-4"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  hidden: {},
+                  visible: { transition: { staggerChildren: 0.04 } },
+                }}
+              >
                 {repoInfo.directories.map((dir) => (
-                  <PackageCard
+                  <motion.div
                     key={dir.path}
-                    dir={dir}
-                    isSelected={selected.has(dir.path)}
-                    maxFiles={maxFiles}
-                    onToggle={() => toggleDir(dir.path)}
-                  />
+                    variants={{
+                      hidden: { opacity: 0, y: 8 },
+                      visible: { opacity: 1, y: 0 },
+                    }}
+                  >
+                    <PackageCard
+                      dir={dir}
+                      isSelected={selected.has(dir.path)}
+                      maxFiles={maxFiles}
+                      onToggle={() => toggleDir(dir.path)}
+                    />
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             </ScrollArea>
 
             {functionLimit && (
@@ -201,10 +216,10 @@ function PackageCard({
       onClick={onToggle}
       style={{ minWidth }}
       className={cn(
-        'flex flex-col gap-1 rounded-lg border p-3 text-left transition-all cursor-pointer',
+        'flex flex-col gap-1 rounded-lg border p-3 text-left transition-all duration-200 cursor-pointer hover:scale-[1.02]',
         isSelected
           ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
-          : 'border-border bg-card/50 opacity-60 hover:opacity-80 hover:border-muted-foreground/30',
+          : 'border-border bg-card/50 opacity-60 hover:opacity-80 hover:border-muted-foreground/30 hover:shadow-sm',
       )}
     >
       <span className="text-sm font-medium truncate">{dir.name}</span>
