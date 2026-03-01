@@ -60,3 +60,12 @@ export const buildWsUrl = (path: string): string => {
 
 // free tier repo limit -- used in dashboard and GitHub import
 export const MAX_FREE_REPOS = 3
+
+// function limits per tier -- used by DirectoryPicker budget bar
+export const TIER_FUNCTION_LIMITS = {
+  free: 2_000,
+  pro: 20_000,
+  enterprise: 500_000,
+} as const
+
+export type TierName = keyof typeof TIER_FUNCTION_LIMITS

@@ -29,6 +29,7 @@ export function DirectoryPicker({
   repoInfo,
   onConfirm,
   loading,
+  functionLimit,
 }: DirectoryPickerProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
@@ -118,9 +119,14 @@ export function DirectoryPicker({
               </div>
             </ScrollArea>
 
+            {functionLimit && (
+              <BudgetBar current={stats.functions} limit={functionLimit} />
+            )}
+
             <PickerFooter
               stats={stats}
               loading={loading}
+              overLimit={!!functionLimit && stats.functions > functionLimit}
               onCancel={onClose}
               onConfirm={() => onConfirm(Array.from(selected))}
             />
@@ -211,18 +217,64 @@ function PackageCard({
 }
 
 
+function BudgetBar({ current, limit }: { current: number; limit: number }) {
+  const pct = Math.min((current / limit) * 100, 100)
+  const overPct = current > limit ? Math.min(((current - limit) / limit) * 100, 50) : 0
+
+  // green < 70%, amber 70-100%, red > 100%
+  const barColor =
+    current > limit
+      ? 'bg-destructive'
+      : pct > 70
+        ? 'bg-amber-500'
+        : 'bg-emerald-500'
+
+  return (
+    <div className="px-6 py-3 border-t border-border">
+      <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+        <span>Estimated functions</span>
+        <span className={cn(current > limit && 'text-destructive font-medium')}>
+          {current.toLocaleString()} / {limit.toLocaleString()}
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all duration-300 ease-out', barColor)}
+          style={{ width: `${pct + overPct}%` }}
+        />
+      </div>
+      {current > limit && (
+        <p className="text-xs text-destructive mt-1">
+          Over your plan limit by {(current - limit).toLocaleString()} functions
+        </p>
+      )}
+    </div>
+  )
+}
+
+
 function PickerFooter({
   stats,
   loading,
+  overLimit,
   onCancel,
   onConfirm,
 }: {
   stats: { files: number; functions: number; count: number }
   loading: boolean
+  overLimit: boolean
   onCancel: () => void
   onConfirm: () => void
 }) {
   const hasSelection = stats.count > 0
+  const canConfirm = hasSelection && !overLimit && !loading
+
+  function buttonLabel() {
+    if (loading) return 'Starting...'
+    if (!hasSelection) return 'Select packages to continue'
+    if (overLimit) return 'Over plan limit -- deselect packages'
+    return `Clone & Index ${stats.count} ${stats.count === 1 ? 'Package' : 'Packages'}`
+  }
 
   return (
     <div className="p-6 border-t border-border space-y-3">
@@ -237,14 +289,15 @@ function PickerFooter({
         </Button>
         <Button
           onClick={onConfirm}
-          disabled={!hasSelection || loading}
-          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+          disabled={!canConfirm}
+          className={cn(
+            'flex-1',
+            overLimit
+              ? 'bg-destructive/10 text-destructive border-destructive/20'
+              : 'bg-primary hover:bg-primary/90 text-primary-foreground',
+          )}
         >
-          {loading
-            ? 'Starting...'
-            : hasSelection
-              ? `Clone & Index ${stats.count} ${stats.count === 1 ? 'Package' : 'Packages'}`
-              : 'Select packages to continue'}
+          {buttonLabel()}
         </Button>
       </div>
     </div>
