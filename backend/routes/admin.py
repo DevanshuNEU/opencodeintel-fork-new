@@ -15,6 +15,8 @@ from services.user_limits import UserTier, TIER_LIMITS
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
+_VALID_TIERS = {t.value for t in UserTier}
+
 ADMIN_EMAILS = set(
     e.strip()
     for e in os.getenv("ADMIN_EMAILS", "").split(",")
@@ -87,7 +89,8 @@ def list_users(auth: AuthContext = Depends(require_admin)) -> dict:
         )
 
         profile = profiles.get(uid, {})
-        tier = profile.get("tier", meta.get("tier", "free"))
+        raw_tier = profile.get("tier", meta.get("tier", "free"))
+        tier = raw_tier if raw_tier in _VALID_TIERS else UserTier.FREE.value
 
         users.append({
             "id": uid,
