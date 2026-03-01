@@ -105,7 +105,7 @@ def list_users(auth: AuthContext = Depends(require_admin)) -> dict:
 # -- Tier management ---------------------------------------------------------
 
 class UpdateTierRequest(BaseModel):
-    tier: str  # free, pro, enterprise
+    tier: UserTier
 
 
 @router.patch("/users/{user_id}/tier")
@@ -115,14 +115,7 @@ def update_user_tier(
     auth: AuthContext = Depends(require_admin),
 ) -> dict:
     """Update a user's tier. Clears Redis cache so it takes effect immediately."""
-    try:
-        new_tier = UserTier(request.tier)
-    except ValueError:
-        valid = [t.value for t in UserTier]
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid tier '{request.tier}'. Must be one of: {valid}",
-        )
+    new_tier = request.tier
 
     sb = get_supabase_service()
 
@@ -140,8 +133,8 @@ def update_user_tier(
     if redis_client:
         try:
             redis_client.delete(f"user:tier:{user_id}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to clear tier cache", user_id=user_id, error=str(e))
 
     limits = TIER_LIMITS[new_tier]
     logger.info(
