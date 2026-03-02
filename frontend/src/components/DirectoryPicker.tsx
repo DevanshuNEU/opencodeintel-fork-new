@@ -1,19 +1,20 @@
 /**
  * DirectoryPicker -- monorepo package selection before indexing.
  *
- * Shows an interactive card grid where each package is a clickable card
- * sized proportionally to its file count. Users select which packages
- * to index instead of the entire repo.
+ * Shows a clean vertical list where each package is a row with
+ * checkbox, name, file count, and function estimate. Users select
+ * which packages to index instead of the entire repo.
  */
 
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FolderGit2, X, Files, FunctionSquare } from 'lucide-react'
+import { FolderGit2, X, Files, FunctionSquare, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import type { AnalyzeResult, DirectoryEntry } from '@/types'
+
+type SortKey = 'name' | 'files' | 'functions'
 
 interface DirectoryPickerProps {
   isOpen: boolean
@@ -33,11 +34,25 @@ export function DirectoryPicker({
   functionLimit,
 }: DirectoryPickerProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [sortBy, setSortBy] = useState<SortKey>('files')
+  const [sortAsc, setSortAsc] = useState(false)
 
-  const maxFiles = useMemo(
-    () => Math.max(...repoInfo.directories.map((d) => d.file_count), 1),
-    [repoInfo.directories],
-  )
+  const sortedDirs = useMemo(() => {
+    const dirs = [...repoInfo.directories]
+    dirs.sort((a, b) => {
+      let cmp = 0
+      if (sortBy === 'name') cmp = a.name.localeCompare(b.name)
+      else if (sortBy === 'files') cmp = a.file_count - b.file_count
+      else cmp = a.estimated_functions - b.estimated_functions
+      return sortAsc ? cmp : -cmp
+    })
+    return dirs
+  }, [repoInfo.directories, sortBy, sortAsc])
+
+  function toggleSort(key: SortKey) {
+    if (sortBy === key) setSortAsc((prev) => !prev)
+    else { setSortBy(key); setSortAsc(key === 'name') }
+  }
 
   const stats = useMemo(() => {
     const dirs = repoInfo.directories.filter((d) => selected.has(d.path))
@@ -90,11 +105,8 @@ export function DirectoryPicker({
               loading={loading}
             />
 
-            <div className="px-6 pb-3">
-              <p className="text-sm text-muted-foreground">
-                Select the packages you need for faster indexing and more focused results.
-              </p>
-              <div className="flex items-center gap-2 mt-3">
+            <div className="flex items-center justify-between px-6 py-2 border-b border-border">
+              <div className="flex items-center gap-2">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={toggleAll}
@@ -104,36 +116,45 @@ export function DirectoryPicker({
                   {allSelected ? 'Deselect all' : 'Select all'}
                 </label>
               </div>
+              <span className="text-xs text-muted-foreground">
+                {repoInfo.directories.length} packages
+              </span>
             </div>
 
-            <ScrollArea className="flex-1 min-h-0 px-6">
+            <div className="flex items-center gap-3 px-6 py-1.5 border-b border-border text-xs text-muted-foreground bg-muted/30">
+              <span className="w-4" />
+              <SortButton label="Package" sortKey="name" current={sortBy} asc={sortAsc} onToggle={toggleSort} className="flex-1" />
+              <SortButton label="Files" sortKey="files" current={sortBy} asc={sortAsc} onToggle={toggleSort} className="w-20 text-right" />
+              <SortButton label="Functions" sortKey="functions" current={sortBy} asc={sortAsc} onToggle={toggleSort} className="w-24 text-right" />
+            </div>
+
+            <div className="overflow-y-auto" style={{ maxHeight: 'min(400px, 50vh)' }}>
               <motion.div
-                className="flex flex-wrap gap-2 pb-4"
+                className="divide-y divide-border"
                 initial="hidden"
                 animate="visible"
                 variants={{
                   hidden: {},
-                  visible: { transition: { staggerChildren: 0.04 } },
+                  visible: { transition: { staggerChildren: 0.03 } },
                 }}
               >
-                {repoInfo.directories.map((dir) => (
+                {sortedDirs.map((dir) => (
                   <motion.div
                     key={dir.path}
                     variants={{
-                      hidden: { opacity: 0, y: 8 },
-                      visible: { opacity: 1, y: 0 },
+                      hidden: { opacity: 0 },
+                      visible: { opacity: 1 },
                     }}
                   >
-                    <PackageCard
+                    <PackageRow
                       dir={dir}
                       isSelected={selected.has(dir.path)}
-                      maxFiles={maxFiles}
                       onToggle={() => toggleDir(dir.path)}
                     />
                   </motion.div>
                 ))}
               </motion.div>
-            </ScrollArea>
+            </div>
 
             {functionLimit && (
               <BudgetBar current={stats.functions} limit={functionLimit} />
@@ -164,7 +185,7 @@ function PickerHeader({
   loading: boolean
 }) {
   return (
-    <div className="flex items-center justify-between p-6 border-b border-border">
+    <div className="flex items-center justify-between px-6 py-4 border-b border-border">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
           <FolderGit2 className="w-5 h-5 text-primary" />
@@ -198,38 +219,80 @@ function PickerHeader({
 }
 
 
-function PackageCard({
+function SortButton({
+  label,
+  sortKey,
+  current,
+  asc,
+  onToggle,
+  className,
+}: {
+  label: string
+  sortKey: SortKey
+  current: SortKey
+  asc: boolean
+  onToggle: (key: SortKey) => void
+  className?: string
+}) {
+  const active = current === sortKey
+  return (
+    <button
+      onClick={() => onToggle(sortKey)}
+      className={cn(
+        'flex items-center gap-1 hover:text-foreground transition-colors',
+        active ? 'text-foreground font-medium' : 'text-muted-foreground',
+        className,
+      )}
+    >
+      {label}
+      {active && (
+        <ArrowUpDown className="w-3 h-3" />
+      )}
+    </button>
+  )
+}
+
+
+function PackageRow({
   dir,
   isSelected,
-  maxFiles,
   onToggle,
 }: {
   dir: DirectoryEntry
   isSelected: boolean
-  maxFiles: number
   onToggle: () => void
 }) {
-  // Scale card width: smallest = 120px, largest = 240px
-  const scale = dir.file_count / maxFiles
-  const minWidth = Math.round(120 + scale * 120)
-
   return (
-    <button
+    <div
+      role="checkbox"
+      aria-checked={isSelected}
+      tabIndex={0}
       onClick={onToggle}
-      style={{ minWidth }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
       className={cn(
-        'flex flex-col gap-1 rounded-lg border p-3 text-left transition-all duration-200 cursor-pointer hover:scale-[1.02]',
+        'flex items-center gap-3 w-full px-6 py-2.5 text-left transition-colors cursor-pointer',
         isSelected
-          ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
-          : 'border-border bg-card/50 opacity-60 hover:opacity-80 hover:border-muted-foreground/30 hover:shadow-sm',
+          ? 'bg-primary/5'
+          : 'hover:bg-muted/50',
       )}
     >
-      <span className="text-sm font-medium truncate">{dir.name}</span>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span>{dir.file_count} files</span>
-        <span>~{dir.estimated_functions.toLocaleString()} fn</span>
-      </div>
-    </button>
+      <div className={cn(
+        'h-4 w-4 shrink-0 rounded-sm border',
+        isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40',
+      )} />
+      <span className={cn(
+        'text-sm flex-1 truncate',
+        isSelected ? 'text-foreground font-medium' : 'text-muted-foreground',
+      )}>
+        {dir.name}
+      </span>
+      <span className="text-xs text-muted-foreground tabular-nums w-20 text-right">
+        {dir.file_count.toLocaleString()} files
+      </span>
+      <span className="text-xs text-muted-foreground tabular-nums w-24 text-right">
+        ~{dir.estimated_functions.toLocaleString()} fn
+      </span>
+    </div>
   )
 }
 

@@ -6,7 +6,7 @@ import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useAuth } from '../../contexts/AuthContext'
-import { useRepos } from '../../hooks/useCachedQuery'
+import { useRepos, useUserUsage } from '../../hooks/useCachedQuery'
 import { API_URL, MAX_FREE_REPOS } from '../../config/api'
 import { extractErrorMessage, isUpgradeError } from '../../lib/api-errors'
 import { RepoListView } from './RepoListView'
@@ -16,7 +16,6 @@ import { DirectoryPicker } from '../DirectoryPicker'
 import { GitHubRepoSelector } from '../GitHubRepoSelector'
 import { IndexingProgressModal } from '../IndexingProgressModal'
 import { UpgradeLimitModal } from '../UpgradeLimitModal'
-import { TIER_FUNCTION_LIMITS, type TierName } from '../../config/api'
 import type { GitHubRepo } from '../../hooks/useGitHubRepos'
 import type { AnalyzeResult, RepoTab } from '../../types'
 
@@ -24,10 +23,7 @@ export function DashboardHome() {
   const { session } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: repos = [], isLoading: reposLoading, invalidate: refreshRepos } = useRepos(session?.access_token)
-
-  // User tier -- validate against known tiers, fall back to free for unknown values
-  const rawTier = session?.user?.user_metadata?.tier as string
-  const userTier: TierName = rawTier && rawTier in TIER_FUNCTION_LIMITS ? (rawTier as TierName) : 'free'
+  const { data: usage } = useUserUsage(session?.access_token, session?.user?.id)
 
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
@@ -260,8 +256,7 @@ export function DashboardHome() {
           repoInfo={analyzeResult}
           onConfirm={handleDirectoryConfirm}
           loading={loading}
-          // TODO: replace with actual user tier once GET /users/me returns tier
-          functionLimit={TIER_FUNCTION_LIMITS[userTier]}
+          functionLimit={usage?.limits?.max_functions_per_repo}
         />
       )}
 
