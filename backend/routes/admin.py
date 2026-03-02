@@ -86,7 +86,7 @@ def list_users(auth: AuthContext = Depends(require_admin)) -> dict:
             u.user_metadata
             if hasattr(u, "user_metadata")
             else u.get("user_metadata", {})
-        )
+        ) or {}  # coalesce None to empty dict
 
         profile = profiles.get(uid, {})
         raw_tier = profile.get("tier", meta.get("tier", "free"))
