@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { 
   FolderGit2, 
+  BarChart3,
   BookOpen, 
   ChevronLeft, 
   ChevronRight,
@@ -24,6 +25,7 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { name: 'Repositories', href: '/dashboard', icon: <FolderGit2 className="w-5 h-5" /> },
+  { name: 'Usage', href: '/dashboard/usage', icon: <BarChart3 className="w-5 h-5" /> },
 ]
 
 const bottomNavItems: NavItem[] = [
