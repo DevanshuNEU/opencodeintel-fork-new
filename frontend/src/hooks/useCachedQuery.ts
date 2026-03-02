@@ -189,3 +189,24 @@ export function useRepos(apiKey: string | undefined) {
 
   return { ...query, invalidate }
 }
+
+
+/** User usage and tier limits from backend -- single source of truth */
+export function useUserUsage(apiKey: string | undefined) {
+  return useQuery({
+    queryKey: ['user', 'usage'],
+    queryFn: async () => {
+      const data = await fetchWithAuth(`${API_URL}/users/usage`, apiKey!)
+      return data as {
+        tier: string
+        limits: {
+          max_files_per_repo: number
+          max_functions_per_repo: number
+          playground_searches_per_day: number | null
+        }
+      }
+    },
+    enabled: !!apiKey,
+    staleTime: 60_000,
+  })
+}
