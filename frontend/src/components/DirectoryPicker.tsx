@@ -106,11 +106,8 @@ export function DirectoryPicker({
               loading={loading}
             />
 
-            <div className="px-6 pb-3">
-              <p className="text-sm text-muted-foreground">
-                Select the packages you need for faster indexing and more focused results.
-              </p>
-              <div className="flex items-center gap-2 mt-3">
+            <div className="flex items-center justify-between px-6 py-2 border-b border-border">
+              <div className="flex items-center gap-2">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={toggleAll}
@@ -120,10 +117,13 @@ export function DirectoryPicker({
                   {allSelected ? 'Deselect all' : 'Select all'}
                 </label>
               </div>
+              <span className="text-xs text-muted-foreground">
+                {repoInfo.directories.length} packages
+              </span>
             </div>
 
-            <div className="flex items-center gap-3 px-6 py-2 border-b border-border text-xs text-muted-foreground">
-              <span className="w-4" />{/* checkbox spacer */}
+            <div className="flex items-center gap-3 px-6 py-1.5 border-b border-border text-xs text-muted-foreground bg-muted/30">
+              <span className="w-4" />
               <SortButton label="Package" sortKey="name" current={sortBy} asc={sortAsc} onToggle={toggleSort} className="flex-1" />
               <SortButton label="Files" sortKey="files" current={sortBy} asc={sortAsc} onToggle={toggleSort} className="w-20 text-right" />
               <SortButton label="Functions" sortKey="functions" current={sortBy} asc={sortAsc} onToggle={toggleSort} className="w-24 text-right" />
@@ -186,7 +186,7 @@ function PickerHeader({
   loading: boolean
 }) {
   return (
-    <div className="flex items-center justify-between p-6 border-b border-border">
+    <div className="flex items-center justify-between px-6 py-4 border-b border-border">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
           <FolderGit2 className="w-5 h-5 text-primary" />
