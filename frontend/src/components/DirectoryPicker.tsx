@@ -11,7 +11,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { FolderGit2, X, Files, FunctionSquare, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import type { AnalyzeResult, DirectoryEntry } from '@/types'
 
@@ -129,7 +128,7 @@ export function DirectoryPicker({
               <SortButton label="Functions" sortKey="functions" current={sortBy} asc={sortAsc} onToggle={toggleSort} className="w-24 text-right" />
             </div>
 
-            <ScrollArea className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <motion.div
                 className="divide-y divide-border"
                 initial="hidden"
@@ -155,7 +154,7 @@ export function DirectoryPicker({
                   </motion.div>
                 ))}
               </motion.div>
-            </ScrollArea>
+            </div>
 
             {functionLimit && (
               <BudgetBar current={stats.functions} limit={functionLimit} />
