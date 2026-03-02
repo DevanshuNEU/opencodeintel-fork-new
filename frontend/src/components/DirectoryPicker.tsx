@@ -8,12 +8,14 @@
 
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FolderGit2, X, Files, FunctionSquare } from 'lucide-react'
+import { FolderGit2, X, Files, FunctionSquare, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import type { AnalyzeResult, DirectoryEntry } from '@/types'
+
+type SortKey = 'name' | 'files' | 'functions'
 
 interface DirectoryPickerProps {
   isOpen: boolean
@@ -33,6 +35,25 @@ export function DirectoryPicker({
   functionLimit,
 }: DirectoryPickerProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [sortBy, setSortBy] = useState<SortKey>('files')
+  const [sortAsc, setSortAsc] = useState(false)
+
+  const sortedDirs = useMemo(() => {
+    const dirs = [...repoInfo.directories]
+    dirs.sort((a, b) => {
+      let cmp = 0
+      if (sortBy === 'name') cmp = a.name.localeCompare(b.name)
+      else if (sortBy === 'files') cmp = a.file_count - b.file_count
+      else cmp = a.estimated_functions - b.estimated_functions
+      return sortAsc ? cmp : -cmp
+    })
+    return dirs
+  }, [repoInfo.directories, sortBy, sortAsc])
+
+  function toggleSort(key: SortKey) {
+    if (sortBy === key) setSortAsc((prev) => !prev)
+    else { setSortBy(key); setSortAsc(key === 'name') }
+  }
 
   const stats = useMemo(() => {
     const dirs = repoInfo.directories.filter((d) => selected.has(d.path))
@@ -101,6 +122,13 @@ export function DirectoryPicker({
               </div>
             </div>
 
+            <div className="flex items-center gap-3 px-6 py-2 border-b border-border text-xs text-muted-foreground">
+              <span className="w-4" />{/* checkbox spacer */}
+              <SortButton label="Package" sortKey="name" current={sortBy} asc={sortAsc} onToggle={toggleSort} className="flex-1" />
+              <SortButton label="Files" sortKey="files" current={sortBy} asc={sortAsc} onToggle={toggleSort} className="w-20 text-right" />
+              <SortButton label="Functions" sortKey="functions" current={sortBy} asc={sortAsc} onToggle={toggleSort} className="w-24 text-right" />
+            </div>
+
             <ScrollArea className="flex-1 min-h-0">
               <motion.div
                 className="divide-y divide-border"
@@ -111,7 +139,7 @@ export function DirectoryPicker({
                   visible: { transition: { staggerChildren: 0.03 } },
                 }}
               >
-                {repoInfo.directories.map((dir) => (
+                {sortedDirs.map((dir) => (
                   <motion.div
                     key={dir.path}
                     variants={{
@@ -188,6 +216,40 @@ function PickerHeader({
         <X className="w-4 h-4" />
       </button>
     </div>
+  )
+}
+
+
+function SortButton({
+  label,
+  sortKey,
+  current,
+  asc,
+  onToggle,
+  className,
+}: {
+  label: string
+  sortKey: SortKey
+  current: SortKey
+  asc: boolean
+  onToggle: (key: SortKey) => void
+  className?: string
+}) {
+  const active = current === sortKey
+  return (
+    <button
+      onClick={() => onToggle(sortKey)}
+      className={cn(
+        'flex items-center gap-1 hover:text-foreground transition-colors',
+        active ? 'text-foreground font-medium' : 'text-muted-foreground',
+        className,
+      )}
+    >
+      {label}
+      {active && (
+        <ArrowUpDown className="w-3 h-3" />
+      )}
+    </button>
   )
 }
 
