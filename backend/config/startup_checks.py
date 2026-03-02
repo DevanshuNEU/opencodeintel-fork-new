@@ -31,6 +31,7 @@ OPTIONAL_VARS: List[Tuple[str, str, str]] = [
     ("DISCORD_FEEDBACK_WEBHOOK", "Discord webhook for feedback", "Feedback notifications disabled"),
     ("ALLOW_ORIGIN_REGEX", "CORS regex for preview deploys", "Only explicit origins allowed"),
     ("GITHUB_TOKEN", "GitHub API token for repo analysis", "Using unauthenticated rate limit (60/hr)"),
+    ("ADMIN_EMAILS", "Comma-separated admin emails", "Admin routes disabled"),
 ]
 
 
