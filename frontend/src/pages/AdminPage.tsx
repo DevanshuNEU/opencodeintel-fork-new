@@ -50,6 +50,7 @@ export function AdminPage() {
       return resp.json()
     },
     enabled: !!session?.access_token,
+    retry: false,
   })
 
   const users = data?.users ?? []

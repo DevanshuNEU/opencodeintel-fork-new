@@ -8,6 +8,11 @@
   "rewrites": [
     {
       "source": "/(.*)",
+      "has": [{ "type": "host", "value": "admin.opencodeintel.com" }],
+      "destination": "/admin"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
