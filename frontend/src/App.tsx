@@ -17,6 +17,7 @@ import { APIOverviewPage, APIRepositoriesPage, APISearchPage, APIAnalysisPage } 
 import { ArchitecturePage } from './pages/ArchitecturePage';
 import { ContributingPage } from './pages/ContributingPage';
 import { GitHubCallbackPage } from './pages/GitHubCallbackPage';
+import { AdminPage } from './pages/AdminPage';
 import { ScrollToTop } from './components/ScrollToTop';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -110,6 +111,18 @@ function AppRoutes() {
       />
       
       
+      {/* Admin -- standalone route, no dashboard layout */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <div className="min-h-screen bg-background p-8 max-w-6xl mx-auto">
+              <AdminPage />
+            </div>
+          </ProtectedRoute>
+        }
+      />
+
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
