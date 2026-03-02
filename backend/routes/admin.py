@@ -18,7 +18,7 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 _VALID_TIERS = {t.value for t in UserTier}
 
 ADMIN_EMAILS = set(
-    e.strip()
+    e.strip().lower()
     for e in os.getenv("ADMIN_EMAILS", "").split(",")
     if e.strip()
 )
@@ -26,7 +26,7 @@ ADMIN_EMAILS = set(
 
 def require_admin(auth: AuthContext = Depends(require_auth)) -> AuthContext:
     """Dependency that ensures the caller is an admin."""
-    if not auth.email or auth.email not in ADMIN_EMAILS:
+    if not auth.email or auth.email.lower() not in ADMIN_EMAILS:
         raise HTTPException(status_code=403, detail="Admin access required")
     return auth
 
