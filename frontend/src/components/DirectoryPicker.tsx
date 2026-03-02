@@ -1,9 +1,9 @@
 /**
  * DirectoryPicker -- monorepo package selection before indexing.
  *
- * Shows an interactive card grid where each package is a clickable card
- * sized proportionally to its file count. Users select which packages
- * to index instead of the entire repo.
+ * Shows a clean vertical list where each package is a row with
+ * checkbox, name, file count, and function estimate. Users select
+ * which packages to index instead of the entire repo.
  */
 
 import { useState, useMemo } from 'react'
@@ -33,11 +33,6 @@ export function DirectoryPicker({
   functionLimit,
 }: DirectoryPickerProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
-
-  const maxFiles = useMemo(
-    () => Math.max(...repoInfo.directories.map((d) => d.file_count), 1),
-    [repoInfo.directories],
-  )
 
   const stats = useMemo(() => {
     const dirs = repoInfo.directories.filter((d) => selected.has(d.path))
@@ -106,28 +101,27 @@ export function DirectoryPicker({
               </div>
             </div>
 
-            <ScrollArea className="flex-1 min-h-0 px-6">
+            <ScrollArea className="flex-1 min-h-0">
               <motion.div
-                className="flex flex-wrap gap-2 pb-4"
+                className="divide-y divide-border"
                 initial="hidden"
                 animate="visible"
                 variants={{
                   hidden: {},
-                  visible: { transition: { staggerChildren: 0.04 } },
+                  visible: { transition: { staggerChildren: 0.03 } },
                 }}
               >
                 {repoInfo.directories.map((dir) => (
                   <motion.div
                     key={dir.path}
                     variants={{
-                      hidden: { opacity: 0, y: 8 },
-                      visible: { opacity: 1, y: 0 },
+                      hidden: { opacity: 0 },
+                      visible: { opacity: 1 },
                     }}
                   >
-                    <PackageCard
+                    <PackageRow
                       dir={dir}
                       isSelected={selected.has(dir.path)}
-                      maxFiles={maxFiles}
                       onToggle={() => toggleDir(dir.path)}
                     />
                   </motion.div>
@@ -198,37 +192,38 @@ function PickerHeader({
 }
 
 
-function PackageCard({
+function PackageRow({
   dir,
   isSelected,
-  maxFiles,
   onToggle,
 }: {
   dir: DirectoryEntry
   isSelected: boolean
-  maxFiles: number
   onToggle: () => void
 }) {
-  // Scale card width: smallest = 120px, largest = 240px
-  const scale = dir.file_count / maxFiles
-  const minWidth = Math.round(120 + scale * 120)
-
   return (
     <button
       onClick={onToggle}
-      style={{ minWidth }}
       className={cn(
-        'flex flex-col gap-1 rounded-lg border p-3 text-left transition-all duration-200 cursor-pointer hover:scale-[1.02]',
+        'flex items-center gap-3 w-full px-6 py-2.5 text-left transition-colors',
         isSelected
-          ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
-          : 'border-border bg-card/50 opacity-60 hover:opacity-80 hover:border-muted-foreground/30 hover:shadow-sm',
+          ? 'bg-primary/5'
+          : 'hover:bg-muted/50',
       )}
     >
-      <span className="text-sm font-medium truncate">{dir.name}</span>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span>{dir.file_count} files</span>
-        <span>~{dir.estimated_functions.toLocaleString()} fn</span>
-      </div>
+      <Checkbox checked={isSelected} tabIndex={-1} className="pointer-events-none" />
+      <span className={cn(
+        'text-sm flex-1 truncate',
+        isSelected ? 'text-foreground font-medium' : 'text-muted-foreground',
+      )}>
+        {dir.name}
+      </span>
+      <span className="text-xs text-muted-foreground tabular-nums w-20 text-right">
+        {dir.file_count} files
+      </span>
+      <span className="text-xs text-muted-foreground tabular-nums w-24 text-right">
+        ~{dir.estimated_functions.toLocaleString()} fn
+      </span>
     </button>
   )
 }
