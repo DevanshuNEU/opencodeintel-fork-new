@@ -69,7 +69,11 @@ export function UsagePage() {
               Pro: 20 repos, 20K functions/repo, Cohere reranking
             </p>
           </div>
-          <Button size="sm" className="ml-4 shrink-0">
+          <Button
+            size="sm"
+            className="ml-4 shrink-0"
+            onClick={() => window.open('https://opencodeintel.com/#pricing', '_blank')}
+          >
             Upgrade to Pro
             <ArrowRight className="w-3.5 h-3.5 ml-1" />
           </Button>
@@ -161,7 +165,7 @@ function UsageRow({
         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
           <div
             className={cn('h-full rounded-full transition-all duration-500', barColor)}
-            style={{ width: `${Math.max(pct, 2)}%` }}
+            style={{ width: `${pct > 0 ? Math.max(pct, 2) : 0}%` }}
           />
         </div>
       )}
