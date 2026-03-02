@@ -128,7 +128,7 @@ export function DirectoryPicker({
               <SortButton label="Functions" sortKey="functions" current={sortBy} asc={sortAsc} onToggle={toggleSort} className="w-24 text-right" />
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="overflow-y-auto" style={{ maxHeight: 'min(400px, 50vh)' }}>
               <motion.div
                 className="divide-y divide-border"
                 initial="hidden"
