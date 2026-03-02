@@ -23,7 +23,7 @@ export function DashboardHome() {
   const { session } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: repos = [], isLoading: reposLoading, invalidate: refreshRepos } = useRepos(session?.access_token)
-  const { data: usage } = useUserUsage(session?.access_token)
+  const { data: usage } = useUserUsage(session?.access_token, session?.user?.id)
 
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')

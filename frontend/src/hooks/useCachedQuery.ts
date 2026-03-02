@@ -192,9 +192,9 @@ export function useRepos(apiKey: string | undefined) {
 
 
 /** User usage and tier limits from backend -- single source of truth */
-export function useUserUsage(apiKey: string | undefined) {
+export function useUserUsage(apiKey: string | undefined, userId?: string) {
   return useQuery({
-    queryKey: ['user', 'usage'],
+    queryKey: ['user', 'usage', userId],
     queryFn: async () => {
       const data = await fetchWithAuth(`${API_URL}/users/usage`, apiKey!)
       return data as {

@@ -263,16 +263,23 @@ function PackageRow({
   onToggle: () => void
 }) {
   return (
-    <button
+    <div
+      role="checkbox"
+      aria-checked={isSelected}
+      tabIndex={0}
       onClick={onToggle}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
       className={cn(
-        'flex items-center gap-3 w-full px-6 py-2.5 text-left transition-colors',
+        'flex items-center gap-3 w-full px-6 py-2.5 text-left transition-colors cursor-pointer',
         isSelected
           ? 'bg-primary/5'
           : 'hover:bg-muted/50',
       )}
     >
-      <Checkbox checked={isSelected} tabIndex={-1} className="pointer-events-none" />
+      <div className={cn(
+        'h-4 w-4 shrink-0 rounded-sm border',
+        isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40',
+      )} />
       <span className={cn(
         'text-sm flex-1 truncate',
         isSelected ? 'text-foreground font-medium' : 'text-muted-foreground',
@@ -280,12 +287,12 @@ function PackageRow({
         {dir.name}
       </span>
       <span className="text-xs text-muted-foreground tabular-nums w-20 text-right">
-        {dir.file_count} files
+        {dir.file_count.toLocaleString()} files
       </span>
       <span className="text-xs text-muted-foreground tabular-nums w-24 text-right">
         ~{dir.estimated_functions.toLocaleString()} fn
       </span>
-    </button>
+    </div>
   )
 }
 
