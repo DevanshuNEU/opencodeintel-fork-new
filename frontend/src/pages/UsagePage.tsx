@@ -8,8 +8,9 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useUserUsage } from '@/hooks/useCachedQuery'
-import { BarChart3, Package, FunctionSquare, Files, Zap, Search, Server, Sparkles, Lock } from 'lucide-react'
+import { BarChart3, Package, FunctionSquare, Files, Zap, Search, Server, Sparkles, Lock, ArrowRight, TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -95,28 +96,61 @@ export function UsagePage() {
           </div>
         </CardContent>
       </Card>
+
+      <Card className="border-dashed">
+        <CardContent className="py-8">
+          <div className="flex flex-col items-center text-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">API Cost Tracking</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                Token usage, cost breakdown by model (OpenAI, Voyage, Cohere),
+                and monthly spend tracking -- coming soon.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
 
 function PlanCard({ tier }: { tier: string }) {
+  const isFree = tier === 'free'
+
   return (
-    <Card>
-      <CardContent className="flex items-center justify-between py-5">
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">Current plan</span>
-          <Badge
-            variant="outline"
-            className={cn('capitalize text-sm px-3 py-1', TIER_COLORS[tier])}
-          >
-            {tier}
-          </Badge>
+    <Card className={isFree ? 'border-primary/20' : ''}>
+      <CardContent className="py-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">Current plan</span>
+            <Badge
+              variant="outline"
+              className={cn('capitalize text-sm px-3 py-1', TIER_COLORS[tier])}
+            >
+              {tier}
+            </Badge>
+          </div>
+          {!isFree && (
+            <span className="text-xs text-muted-foreground">Active</span>
+          )}
         </div>
-        {tier === 'free' && (
-          <span className="text-xs text-muted-foreground">
-            Upgrade coming soon
-          </span>
+        {isFree && (
+          <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/10 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">Unlock higher limits and priority indexing</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Pro: 20 repos, 20K functions/repo, Cohere reranking
+              </p>
+            </div>
+            <Button size="sm" className="ml-4 shrink-0">
+              Upgrade to Pro
+              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
