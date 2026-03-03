@@ -66,7 +66,7 @@ export function UsagePage() {
           <div>
             <p className="text-sm font-medium">Unlock higher limits and priority indexing</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Pro: 20 repos, 20K functions/repo, Cohere reranking
+              Pro: 5 repos, 100K functions/repo, Cohere reranking
             </p>
           </div>
           <Button

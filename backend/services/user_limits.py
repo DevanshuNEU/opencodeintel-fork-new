@@ -46,25 +46,25 @@ class TierLimits:
 # Tier definitions - Single source of truth
 TIER_LIMITS: Dict[UserTier, TierLimits] = {
     UserTier.FREE: TierLimits(
-        max_repos=3,
-        max_files_per_repo=500,
-        max_functions_per_repo=2000,
+        max_repos=1,
+        max_files_per_repo=2000,
+        max_functions_per_repo=10000,
         playground_searches_per_day=50,  # Generous, anti-abuse only
         max_team_members=1,
         priority_indexing=False,
         mcp_access=True,
     ),
     UserTier.PRO: TierLimits(
-        max_repos=20,
+        max_repos=5,
         max_files_per_repo=5000,
-        max_functions_per_repo=20000,
+        max_functions_per_repo=100000,
         playground_searches_per_day=None,  # Unlimited
         max_team_members=10,
         priority_indexing=True,
         mcp_access=True,
     ),
     UserTier.ENTERPRISE: TierLimits(
-        max_repos=None,  # Unlimited
+        max_repos=10,
         max_files_per_repo=50000,
         max_functions_per_repo=500000,
         playground_searches_per_day=None,
