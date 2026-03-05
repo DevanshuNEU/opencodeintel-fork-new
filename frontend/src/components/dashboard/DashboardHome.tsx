@@ -7,7 +7,7 @@ import { AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useAuth } from '../../contexts/AuthContext'
 import { useRepos, useUserUsage } from '../../hooks/useCachedQuery'
-import { API_URL, MAX_FREE_REPOS } from '../../config/api'
+import { API_URL } from '../../config/api'
 import { extractErrorMessage, isUpgradeError } from '../../lib/api-errors'
 import { RepoListView } from './RepoListView'
 import { RepoDetailView } from './RepoDetailView'
@@ -24,6 +24,7 @@ export function DashboardHome() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: repos = [], isLoading: reposLoading, invalidate: refreshRepos } = useRepos(session?.access_token)
   const { data: usage } = useUserUsage(session?.access_token, session?.user?.id)
+  const maxRepos = usage?.repositories?.limit ?? 1
 
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RepoTab>('overview')
@@ -223,6 +224,7 @@ export function DashboardHome() {
             loading={loading}
             reposLoading={reposLoading}
             selectedRepo={selectedRepo}
+            maxRepos={maxRepos}
             onSelectRepo={(id) => { setSelectedRepo(id); setActiveTab('overview') }}
             onAddClick={() => setShowAddForm(true)}
             onGitHubClick={() => setShowGitHubSelector(true)}
@@ -280,7 +282,7 @@ export function DashboardHome() {
         isOpen={showGitHubSelector}
         onClose={() => setShowGitHubSelector(false)}
         onImport={handleGitHubImport}
-        maxSelectable={MAX_FREE_REPOS}
+        maxSelectable={maxRepos}
         currentRepoCount={repos.length}
       />
 
