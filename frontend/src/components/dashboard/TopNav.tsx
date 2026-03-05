@@ -26,8 +26,9 @@ export function TopNav({ onToggleSidebar, sidebarCollapsed, onOpenCommandPalette
   const userEmail = session?.user?.email || 'User'
   const userInitial = userEmail.charAt(0).toUpperCase()
   const { data: usage } = useUserUsage(session?.access_token, session?.user?.id)
-  const tier = usage?.tier || 'free'
-  const tierLabel = `${tier.charAt(0).toUpperCase()}${tier.slice(1)} Plan`
+  const tierLabel = usage?.tier
+    ? `${usage.tier.charAt(0).toUpperCase()}${usage.tier.slice(1)} Plan`
+    : ''
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark')
