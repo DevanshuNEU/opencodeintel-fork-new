@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { TIER_FUNCTION_LIMITS, type TierName } from '../../config/api'
+import { useUserUsage } from '../../hooks/useCachedQuery'
 import { Menu, Search, Github, Sun, Moon, LogOut, Settings, BookOpen, ExternalLink } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
@@ -25,9 +25,9 @@ export function TopNav({ onToggleSidebar, sidebarCollapsed, onOpenCommandPalette
 
   const userEmail = session?.user?.email || 'User'
   const userInitial = userEmail.charAt(0).toUpperCase()
-  const rawTier = session?.user?.user_metadata?.tier as string
-  const userTier: TierName = rawTier && rawTier in TIER_FUNCTION_LIMITS ? (rawTier as TierName) : 'free'
-  const tierLabel = `${userTier.charAt(0).toUpperCase()}${userTier.slice(1)} Plan`
+  const { data: usage } = useUserUsage(session?.access_token, session?.user?.id)
+  const tier = usage?.tier || 'free'
+  const tierLabel = `${tier.charAt(0).toUpperCase()}${tier.slice(1)} Plan`
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark')

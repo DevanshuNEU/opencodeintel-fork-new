@@ -199,10 +199,19 @@ export function useUserUsage(apiKey: string | undefined, userId?: string) {
       const data = await fetchWithAuth(`${API_URL}/users/usage`, apiKey!)
       return data as {
         tier: string
+        repositories: {
+          current: number
+          limit: number
+          display: string
+        }
         limits: {
           max_files_per_repo: number
           max_functions_per_repo: number
           playground_searches_per_day: number | null
+        }
+        features: {
+          priority_indexing: boolean
+          mcp_access: boolean
         }
       }
     },
