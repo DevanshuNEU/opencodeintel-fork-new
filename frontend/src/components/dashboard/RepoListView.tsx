@@ -6,7 +6,6 @@ import { Plus, Github } from 'lucide-react'
 import { Button } from '../ui/button'
 import { RepoList } from '../RepoList'
 import { DashboardStats } from './DashboardStats'
-import { MAX_FREE_REPOS } from '../../config/api'
 import type { Repository } from '../../types'
 
 interface RepoListViewProps {
@@ -14,6 +13,7 @@ interface RepoListViewProps {
   loading: boolean
   reposLoading: boolean
   selectedRepo: string | null
+  maxRepos: number
   onSelectRepo: (id: string) => void
   onAddClick: () => void
   onGitHubClick: () => void
@@ -24,6 +24,7 @@ export function RepoListView({
   loading,
   reposLoading,
   selectedRepo,
+  maxRepos,
   onSelectRepo,
   onAddClick,
   onGitHubClick,
@@ -47,7 +48,7 @@ export function RepoListView({
           <Button
             onClick={onGitHubClick}
             variant="outline"
-            disabled={loading || repos.length >= MAX_FREE_REPOS}
+            disabled={loading || repos.length >= maxRepos}
             className="gap-2"
           >
             <Github className="w-4 h-4" />
@@ -55,7 +56,7 @@ export function RepoListView({
           </Button>
           <Button
             onClick={onAddClick}
-            disabled={loading || repos.length >= MAX_FREE_REPOS}
+            disabled={loading || repos.length >= maxRepos}
             className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
           >
             <Plus className="w-4 h-4" />
