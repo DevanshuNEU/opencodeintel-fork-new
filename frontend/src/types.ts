@@ -5,6 +5,9 @@ export interface Repository {
   branch: string
   status: string
   file_count: number
+  function_count?: number
+  created_at?: string
+  last_indexed_at?: string
 }
 
 export interface SearchResult {
