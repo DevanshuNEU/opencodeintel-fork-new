@@ -142,6 +142,18 @@ class DependencyAnalyzer:
         """Build dependency graph. If include_paths set, only analyze those dirs."""
         repo_path = Path(repo_path)
         
+        # Sanitize include_paths from DB (could be corrupt jsonb)
+        if include_paths:
+            cleaned = []
+            for p in include_paths:
+                if not isinstance(p, str):
+                    continue
+                p = p.replace('\\', '/').strip().strip('/')
+                if not p or '..' in p.split('/'):
+                    continue
+                cleaned.append(p)
+            include_paths = cleaned or None
+        
         # Discover code files
         code_files = []
         extensions = {'.py', '.js', '.jsx', '.ts', '.tsx'}

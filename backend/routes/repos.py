@@ -602,6 +602,14 @@ async def _run_async_indexing(
         
         repo_manager.update_status(repo_id, "indexing")
         
+        # Persist include_paths (or clear it if re-indexing full repo)
+        from services.supabase_service import get_supabase_service
+        db = get_supabase_service()
+        db.update_repository(repo_id, {"include_paths": include_paths})
+
+        # Clear stale dependency cache so next graph build uses new include_paths
+        db.clear_file_dependencies(repo_id)
+        
         # Publish initial progress to confirm connection
         if publisher:
             publisher.publish_progress(repo_id, 0, 1, 0, "Starting...")

@@ -21,19 +21,21 @@ class ImpactRequest(BaseModel):
 @router.get("/{repo_id}/dependencies")
 async def get_dependency_graph(
     repo_id: str,
+    force: bool = False,
     auth: AuthContext = Depends(require_auth)
 ):
-    """Get dependency graph for repository."""
+    """Get dependency graph for repository. Use force=true to rebuild from scratch."""
     try:
         repo = get_repo_or_404(repo_id, auth.user_id)
 
-        cached_graph = dependency_analyzer.load_from_cache(repo_id)
-        if cached_graph:
-            logger.debug("Using cached dependency graph", repo_id=repo_id)
-            return {**cached_graph, "cached": True}
+        if not force:
+            cached_graph = dependency_analyzer.load_from_cache(repo_id)
+            if cached_graph:
+                logger.debug("Using cached dependency graph", repo_id=repo_id)
+                return {**cached_graph, "cached": True}
 
-        logger.info("Building fresh dependency graph", repo_id=repo_id)
-        graph_data = dependency_analyzer.build_dependency_graph(repo["local_path"])
+        logger.info("Building fresh dependency graph", repo_id=repo_id, include_paths=repo.get("include_paths"))
+        graph_data = dependency_analyzer.build_dependency_graph(repo["local_path"], include_paths=repo.get("include_paths"))
         dependency_analyzer.save_to_cache(repo_id, graph_data)
 
         return {**graph_data, "cached": False}
@@ -64,7 +66,7 @@ async def analyze_impact(
         graph_data = dependency_analyzer.load_from_cache(repo_id)
         if not graph_data:
             logger.info("Building dependency graph for impact analysis", repo_id=repo_id)
-            graph_data = dependency_analyzer.build_dependency_graph(repo["local_path"])
+            graph_data = dependency_analyzer.build_dependency_graph(repo["local_path"], include_paths=repo.get("include_paths"))
             dependency_analyzer.save_to_cache(repo_id, graph_data)
 
         impact = dependency_analyzer.get_file_impact(
@@ -94,7 +96,7 @@ async def get_repository_insights(
         graph_data = dependency_analyzer.load_from_cache(repo_id)
         if not graph_data:
             logger.info("Building dependency graph for insights", repo_id=repo_id)
-            graph_data = dependency_analyzer.build_dependency_graph(repo["local_path"])
+            graph_data = dependency_analyzer.build_dependency_graph(repo["local_path"], include_paths=repo.get("include_paths"))
             dependency_analyzer.save_to_cache(repo_id, graph_data)
 
         return {
