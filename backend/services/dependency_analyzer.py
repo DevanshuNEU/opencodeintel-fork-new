@@ -12,7 +12,7 @@ import tree_sitter_javascript as tsjavascript
 try:
     import tree_sitter_typescript as tstypescript
     _HAS_TS_PARSER = True
-except ImportError:
+except ModuleNotFoundError:
     _HAS_TS_PARSER = False
 from tree_sitter import Language, Parser
 
@@ -33,13 +33,14 @@ class DependencyAnalyzer:
             ts_lang = js_lang
             tsx_lang = js_lang
 
+        self.has_ts_parser = _HAS_TS_PARSER
         self.parsers = {
             'python': Parser(Language(tspython.language())),
             'javascript': Parser(js_lang),
             'typescript': Parser(ts_lang),
             'tsx': Parser(tsx_lang),
         }
-        logger.info("DependencyAnalyzer initialized", ts_parser=_HAS_TS_PARSER)
+        logger.info("DependencyAnalyzer initialized", ts_parser=self.has_ts_parser)
     
     def _detect_language(self, file_path: str) -> str:
         """Detect language from file extension"""

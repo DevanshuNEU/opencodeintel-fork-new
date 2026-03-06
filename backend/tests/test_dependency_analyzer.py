@@ -103,6 +103,23 @@ class TestParserInitialization:
         # They should be different Language objects
         assert ts_parser is not js_parser
 
+    def test_has_ts_parser_flag(self, analyzer):
+        assert analyzer.has_ts_parser is True
+
+    def test_fallback_when_ts_parser_missing(self, monkeypatch, tmp_path):
+        """App must not crash if tree-sitter-typescript is missing"""
+        import services.dependency_analyzer as mod
+        monkeypatch.setattr(mod, '_HAS_TS_PARSER', False)
+        from services.dependency_analyzer import DependencyAnalyzer
+        fallback = DependencyAnalyzer()
+        # Should initialize without error
+        assert fallback.has_ts_parser is False
+        # Should still parse TS files (using JS fallback)
+        ts_file = tmp_path / "test.ts"
+        ts_file.write_text('import { foo } from "./bar"')
+        result = fallback.analyze_file_dependencies(str(ts_file))
+        assert './bar' in result['imports']
+
 
 class TestLanguageDetection:
     """Verify file extension to language mapping"""
