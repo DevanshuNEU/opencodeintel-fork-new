@@ -2,8 +2,6 @@
 Tests for DependencyAnalyzer -- TypeScript parsing, import resolution, include_paths
 """
 import pytest
-import tempfile
-import os
 from pathlib import Path
 
 
@@ -200,6 +198,19 @@ class TestImportResolution:
         ]
         # Should resolve at least some internal deps
         assert len(edges_from_option) > 0
+
+    def test_d_ts_files_are_discovered(self, analyzer, tmp_path):
+        """Imports resolving to .d.ts files should produce edges"""
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "index.ts").write_text('import { Config } from "./config.js"')
+        (src / "config.d.ts").write_text('export interface Config { port: number }')
+
+        graph = analyzer.build_dependency_graph(str(tmp_path))
+        file_paths = set(graph['dependencies'].keys())
+        assert 'src/config.d.ts' in file_paths
+        targets = [e['target'] for e in graph['edges'] if e['source'] == 'src/index.ts']
+        assert 'src/config.d.ts' in targets
 
 
 class TestIncludePaths:
