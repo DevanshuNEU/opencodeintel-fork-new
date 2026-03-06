@@ -144,9 +144,15 @@ class DependencyAnalyzer:
         
         # Sanitize include_paths from DB (could be corrupt jsonb)
         if include_paths:
-            include_paths = [p for p in include_paths if isinstance(p, str) and p.strip()]
-            if not include_paths:
-                include_paths = None
+            cleaned = []
+            for p in include_paths:
+                if not isinstance(p, str):
+                    continue
+                p = p.replace('\\', '/').strip().strip('/')
+                if not p or '..' in p.split('/'):
+                    continue
+                cleaned.append(p)
+            include_paths = cleaned or None
         
         # Discover code files
         code_files = []

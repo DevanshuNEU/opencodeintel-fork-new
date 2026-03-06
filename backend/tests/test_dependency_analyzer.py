@@ -308,6 +308,27 @@ class TestIncludePaths:
         file_paths = set(graph['dependencies'].keys())
         assert any('backend' in f for f in file_paths)
 
+    def test_include_paths_traversal_rejected(self, analyzer, ts_repo):
+        """Path traversal attempts should be stripped, not crash"""
+        graph = analyzer.build_dependency_graph(
+            str(ts_repo),
+            include_paths=['../etc/passwd', 'packages/effect', '../../secrets']
+        )
+        file_paths = set(graph['dependencies'].keys())
+        # Traversal entries filtered, only packages/effect remains
+        assert all('packages/effect' in f for f in file_paths)
+        assert len(file_paths) > 0
+
+    def test_include_paths_backslash_normalized(self, analyzer, ts_repo):
+        """Windows-style backslashes should be normalized"""
+        graph = analyzer.build_dependency_graph(
+            str(ts_repo),
+            include_paths=['packages\\effect']
+        )
+        file_paths = set(graph['dependencies'].keys())
+        assert all('packages/effect' in f for f in file_paths)
+        assert len(file_paths) > 0
+
 
 class TestGraphMetrics:
     """Verify graph statistics are correct"""
