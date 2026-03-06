@@ -1,7 +1,22 @@
 import { useState, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { FolderGit2, Plus, Files, FunctionSquare, Clock } from 'lucide-react'
+import { FolderGit2, Plus, Files, FunctionSquare, Clock, MoreVertical, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog'
+import { Button } from './ui/button'
 import type { Repository } from '../types'
 import { RepoGridSkeleton } from './ui/Skeleton'
 
@@ -9,6 +24,7 @@ interface RepoListProps {
   repos: Repository[]
   selectedRepo: string | null
   onSelect: (repoId: string) => void
+  onDelete?: (repoId: string) => void
   onAddClick?: () => void
   loading?: boolean
 }
@@ -60,10 +76,11 @@ const StatusDot = ({ status }: { status: string }) => {
   )
 }
 
-const RepoCard = ({ repo, index, onSelect }: {
+const RepoCard = ({ repo, index, onSelect, onDeleteClick }: {
   repo: Repository
   index: number
   onSelect: () => void
+  onDeleteClick?: () => void
 }) => {
   const cardRef = useRef<HTMLButtonElement>(null)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
@@ -100,12 +117,35 @@ const RepoCard = ({ repo, index, onSelect }: {
       )}
 
       <div className="relative">
-        {/* Top row: icon + status */}
+        {/* Top row: icon + status + menu */}
         <div className="flex items-start justify-between mb-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
             <FolderGit2 className="w-5 h-5 text-primary" />
           </div>
-          <StatusDot status={repo.status} />
+          <div className="flex items-center gap-1">
+            <StatusDot status={repo.status} />
+            {onDeleteClick && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <MoreVertical className="w-3.5 h-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={(e) => { e.stopPropagation(); onDeleteClick() }}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                    Delete repository
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
 
         {/* Repo name + slug */}
@@ -158,8 +198,9 @@ const SortTab = ({ label, active, onClick }: {
   </button>
 )
 
-export function RepoList({ repos, selectedRepo, onSelect, onAddClick, loading }: RepoListProps) {
+export function RepoList({ repos, selectedRepo, onSelect, onDelete, onAddClick, loading }: RepoListProps) {
   const [sortMode, setSortMode] = useState<SortMode>('recent')
+  const [deleteTarget, setDeleteTarget] = useState<Repository | null>(null)
 
   const sortedRepos = useMemo(() => {
     const sorted = [...repos]
@@ -222,9 +263,36 @@ export function RepoList({ repos, selectedRepo, onSelect, onAddClick, loading }:
             repo={repo}
             index={index}
             onSelect={() => onSelect(repo.id)}
+            onDeleteClick={onDelete ? () => setDeleteTarget(repo) : undefined}
           />
         ))}
       </div>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete repository</DialogTitle>
+            <DialogDescription>
+              This will permanently remove <strong>{deleteTarget?.name}</strong> and all its indexed data. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deleteTarget && onDelete) {
+                  onDelete(deleteTarget.id)
+                  setDeleteTarget(null)
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

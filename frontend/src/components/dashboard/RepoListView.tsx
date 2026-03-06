@@ -15,6 +15,7 @@ interface RepoListViewProps {
   selectedRepo: string | null
   maxRepos: number
   onSelectRepo: (id: string) => void
+  onDeleteRepo: (id: string) => void
   onAddClick: () => void
   onGitHubClick: () => void
 }
@@ -26,6 +27,7 @@ export function RepoListView({
   selectedRepo,
   maxRepos,
   onSelectRepo,
+  onDeleteRepo,
   onAddClick,
   onGitHubClick,
 }: RepoListViewProps) {
@@ -74,6 +76,7 @@ export function RepoListView({
         selectedRepo={selectedRepo}
         loading={reposLoading}
         onSelect={onSelectRepo}
+        onDelete={onDeleteRepo}
         onAddClick={onAddClick}
       />
     </motion.div>
