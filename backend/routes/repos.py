@@ -602,6 +602,11 @@ async def _run_async_indexing(
         
         repo_manager.update_status(repo_id, "indexing")
         
+        # Persist include_paths so dependency analyzer and other tools use the subset
+        if include_paths:
+            from services.supabase_service import get_supabase_service
+            get_supabase_service().update_repository(repo_id, {"include_paths": include_paths})
+        
         # Publish initial progress to confirm connection
         if publisher:
             publisher.publish_progress(repo_id, 0, 1, 0, "Starting...")
