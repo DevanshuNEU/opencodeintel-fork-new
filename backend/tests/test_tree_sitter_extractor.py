@@ -74,7 +74,7 @@ export class UserService {
         # Extractor extracts methods, class name may not be separate
         assert len(results) >= 1
         # Methods should also be extracted
-        assert any('getUser' in n for n in names) or len(results) >= 1
+        assert any('getUser' in n for n in names)
 
     def test_extracts_interfaces(self, extractor, tmp_path):
         ts_file = tmp_path / "types.ts"
@@ -90,8 +90,8 @@ export type UserRole = "admin" | "user"
         code = ts_file.read_text()
         results = extractor.extract_from_code(code, 'typescript', str(ts_file))
         names = [r.name for r in results]
-        # At minimum should find the interface
-        assert len(results) >= 0  # Some extractors skip interfaces
+        # Extractors may skip interfaces -- just verify return type
+        assert isinstance(results, list)
 
     def test_handles_complex_generics(self, extractor, tmp_path):
         """Effect-TS style complex generics should not crash"""
@@ -191,19 +191,17 @@ class TestEdgeCases:
         assert len(results) == 0
 
     def test_syntax_error_file(self, extractor, tmp_path):
+        broken = "export function { this is not valid TS !!!"
         f = tmp_path / "broken.ts"
-        f.write_text("export function { this is not valid TS !!!")
+        f.write_text(broken)
         # Should not crash
-        results = extractor.extract_from_code("export function { broken !!!", 'typescript', 'broken.ts')
+        results = extractor.extract_from_code(broken, 'typescript', 'broken.ts')
         assert isinstance(results, list)
 
     def test_binary_file_skipped(self, extractor, tmp_path):
-        # Binary content should not crash
-        try:
-            results = extractor.extract_from_code("\x00\x01\x02", 'typescript', 'binary.ts')
-            assert isinstance(results, list)
-        except Exception:
-            pass  # Acceptable to raise on binary
+        # Binary content should return empty list, not crash
+        results = extractor.extract_from_code("\x00\x01\x02", 'typescript', 'binary.ts')
+        assert results == []
 
     def test_very_large_function(self, extractor, tmp_path):
         """Functions with many lines should still be extracted"""

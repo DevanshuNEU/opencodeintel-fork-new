@@ -2,7 +2,6 @@
 Tests for StyleAnalyzer -- convention detection on TypeScript and Python
 """
 import pytest
-import tempfile
 from pathlib import Path
 
 

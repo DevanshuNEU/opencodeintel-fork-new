@@ -8,7 +8,6 @@ from services.user_limits import UserTier, TIER_LIMITS, UserLimitsService
 
 @pytest.fixture
 def limiter():
-    from services.user_limits import UserLimitsService, UserTier
     mock_db = MagicMock()
     return UserLimitsService(supabase_client=mock_db, redis_client=None)
 
@@ -17,7 +16,6 @@ class TestTierLimits:
     """Verify the tier limit values we set"""
 
     def test_free_tier_values(self):
-        from services.user_limits import TIER_LIMITS, UserTier
         free = TIER_LIMITS[UserTier.FREE]
         assert free.max_repos == 1, "Free should have 1 repo"
         assert free.max_files_per_repo == 2000, "Free should have 2K files"
@@ -26,7 +24,6 @@ class TestTierLimits:
         assert free.mcp_access is True
 
     def test_pro_tier_values(self):
-        from services.user_limits import TIER_LIMITS, UserTier
         pro = TIER_LIMITS[UserTier.PRO]
         assert pro.max_repos == 5, "Pro should have 5 repos"
         assert pro.max_files_per_repo == 5000
@@ -34,20 +31,17 @@ class TestTierLimits:
         assert pro.priority_indexing is True
 
     def test_enterprise_tier_values(self):
-        from services.user_limits import TIER_LIMITS, UserTier
         ent = TIER_LIMITS[UserTier.ENTERPRISE]
         assert ent.max_repos == 10, "Enterprise should have 10 repos"
         assert ent.max_files_per_repo == 50000
         assert ent.max_functions_per_repo == 500000
 
     def test_all_tiers_have_limits(self):
-        from services.user_limits import TIER_LIMITS, UserTier
         for tier in UserTier:
             assert tier in TIER_LIMITS, f"Missing limits for {tier}"
 
     def test_tier_limits_are_ascending(self):
         """Pro limits should be >= Free, Enterprise >= Pro"""
-        from services.user_limits import TIER_LIMITS, UserTier
         free = TIER_LIMITS[UserTier.FREE]
         pro = TIER_LIMITS[UserTier.PRO]
         ent = TIER_LIMITS[UserTier.ENTERPRISE]
@@ -113,13 +107,19 @@ class TestRepoCountLimits:
                 result = limiter.check_repo_count("user-ent")
                 assert result.allowed is True
 
+    def test_enterprise_user_blocked_at_10(self, limiter):
+        with patch.object(limiter, 'get_user_tier') as mock_tier:
+            mock_tier.return_value = UserTier.ENTERPRISE
+            with patch.object(limiter, 'get_user_repo_count', return_value=10):
+                result = limiter.check_repo_count("user-ent")
+                assert result.allowed is False
+
 
 class TestUsageSummary:
     def test_returns_tier_info(self, limiter):
         with patch.object(limiter, 'get_user_tier') as mock_tier, \
              patch.object(limiter, 'get_limits') as mock_limits, \
              patch.object(limiter, 'get_user_repo_count', return_value=2):
-            from services.user_limits import TIER_LIMITS
             mock_tier.return_value = UserTier.PRO
             mock_limits.return_value = TIER_LIMITS[UserTier.PRO]
 
