@@ -165,6 +165,7 @@ class TestTypeScriptImportExtraction:
         imports = set(result['imports'])
         assert "react" in imports
         assert "../utils.js" in imports
+        assert "./types.js" in imports
 
     def test_import_count(self, analyzer, ts_repo):
         result = analyzer.analyze_file_dependencies(
@@ -180,8 +181,8 @@ class TestImportResolution:
         """import from './Function.js' should resolve to Function.ts"""
         graph = analyzer.build_dependency_graph(str(ts_repo))
         deps = graph['dependencies']
+        assert 'packages/effect/src/Option.ts' in deps
 
-        option_deps = deps.get('packages/effect/src/Option.ts', [])
         # Function.js should resolve to Function.ts
         resolved_targets = set()
         for edge in graph['edges']:
@@ -225,6 +226,20 @@ class TestIncludePaths:
         assert not any('backend' in f for f in file_paths)
         # Should NOT have schema files
         assert not any('packages/schema' in f for f in file_paths)
+
+    def test_include_paths_no_prefix_confusion(self, analyzer, tmp_path):
+        """'src/app' must not match 'src/application'"""
+        (tmp_path / "src" / "app").mkdir(parents=True)
+        (tmp_path / "src" / "application").mkdir(parents=True)
+        (tmp_path / "src" / "app" / "index.ts").write_text('export const x = 1')
+        (tmp_path / "src" / "application" / "index.ts").write_text('export const y = 2')
+
+        graph = analyzer.build_dependency_graph(
+            str(tmp_path), include_paths=['src/app']
+        )
+        file_paths = set(graph['dependencies'].keys())
+        assert any('src/app/index.ts' in f for f in file_paths)
+        assert not any('src/application' in f for f in file_paths)
 
     def test_include_paths_multiple_dirs(self, analyzer, ts_repo):
         """Multiple include_paths should include all specified dirs"""

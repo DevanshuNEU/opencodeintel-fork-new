@@ -141,8 +141,11 @@ class DependencyAnalyzer:
             if file_path.suffix not in extensions:
                 continue
             if include_paths:
-                relative = str(file_path.relative_to(repo_path))
-                if not any(relative.startswith(p) for p in include_paths):
+                rel_parts = file_path.relative_to(repo_path).parts
+                if not any(
+                    rel_parts[:len(Path(p).parts)] == Path(p).parts
+                    for p in include_paths
+                ):
                     continue
             code_files.append(file_path)
         
@@ -280,7 +283,7 @@ class DependencyAnalyzer:
         if not import_path.startswith('.'):
             module_path = import_path.replace('.', '/')
             
-            for ext in ['.py', '.js', '.ts']:
+            for ext in ['', '.ts', '.tsx', '.d.ts', '.js', '.jsx', '.py']:
                 test_path = module_path + ext
                 if test_path in internal_files:
                     return test_path
