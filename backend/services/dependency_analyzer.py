@@ -9,6 +9,11 @@ import re
 # Tree-sitter
 import tree_sitter_python as tspython
 import tree_sitter_javascript as tsjavascript
+try:
+    import tree_sitter_typescript as tstypescript
+    _HAS_TS_PARSER = True
+except ModuleNotFoundError:
+    _HAS_TS_PARSER = False
 from tree_sitter import Language, Parser
 
 from services.observability import logger, metrics
@@ -18,13 +23,24 @@ class DependencyAnalyzer:
     """Analyze code dependencies and build dependency graph"""
     
     def __init__(self):
-        # Initialize parsers
+        js_lang = Language(tsjavascript.language())
+        # Use proper TS parser if available, fall back to JS parser
+        if _HAS_TS_PARSER:
+            ts_lang = Language(tstypescript.language_typescript())
+            tsx_lang = Language(tstypescript.language_tsx())
+        else:
+            logger.warning("tree-sitter-typescript not installed, falling back to JS parser for TS/TSX")
+            ts_lang = js_lang
+            tsx_lang = js_lang
+
+        self.has_ts_parser = _HAS_TS_PARSER
         self.parsers = {
             'python': Parser(Language(tspython.language())),
-            'javascript': Parser(Language(tsjavascript.language())),
-            'typescript': Parser(Language(tsjavascript.language())),
+            'javascript': Parser(js_lang),
+            'typescript': Parser(ts_lang),
+            'tsx': Parser(tsx_lang),
         }
-        logger.info("DependencyAnalyzer initialized")
+        logger.info("DependencyAnalyzer initialized", ts_parser=self.has_ts_parser)
     
     def _detect_language(self, file_path: str) -> str:
         """Detect language from file extension"""
@@ -34,7 +50,7 @@ class DependencyAnalyzer:
             '.js': 'javascript',
             '.jsx': 'javascript',
             '.ts': 'typescript',
-            '.tsx': 'typescript',
+            '.tsx': 'tsx',
         }
         return lang_map.get(ext, 'unknown')
     
@@ -122,9 +138,21 @@ class DependencyAnalyzer:
             logger.error("Error analyzing file", file_path=file_path, error=str(e))
             return {"file": str(file_path), "imports": [], "language": language, "error": str(e)}
     
-    def build_dependency_graph(self, repo_path: str) -> Dict:
-        """Build complete dependency graph for repository"""
+    def build_dependency_graph(self, repo_path: str, include_paths: List[str] = None) -> Dict:
+        """Build dependency graph. If include_paths set, only analyze those dirs."""
         repo_path = Path(repo_path)
+        
+        # Sanitize include_paths from DB (could be corrupt jsonb)
+        if include_paths:
+            cleaned = []
+            for p in include_paths:
+                if not isinstance(p, str):
+                    continue
+                p = p.replace('\\', '/').strip().strip('/')
+                if not p or '..' in p.split('/'):
+                    continue
+                cleaned.append(p)
+            include_paths = cleaned or None
         
         # Discover code files
         code_files = []
@@ -136,8 +164,16 @@ class DependencyAnalyzer:
                 continue
             if any(skip in file_path.parts for skip in skip_dirs):
                 continue
-            if file_path.suffix in extensions:
-                code_files.append(file_path)
+            if file_path.suffix not in extensions:
+                continue
+            if include_paths:
+                rel_parts = file_path.relative_to(repo_path).parts
+                if not any(
+                    rel_parts[:len(Path(p).parts)] == Path(p).parts
+                    for p in include_paths
+                ):
+                    continue
+            code_files.append(file_path)
         
         logger.info("Building dependency graph", file_count=len(code_files))
         
@@ -236,6 +272,10 @@ class DependencyAnalyzer:
         source_path = Path(source_file)
         source_dir = source_path.parent
         
+        # TS imports use .js extension but actual file is .ts on disk
+        if import_path.endswith('.js') or import_path.endswith('.jsx'):
+            import_path = re.sub(r'\.(jsx?)$', '', import_path)
+        
         # Relative imports
         if import_path.startswith('.'):
             clean_import = import_path.lstrip('./')
@@ -250,7 +290,7 @@ class DependencyAnalyzer:
             else:
                 potential_base = source_dir / clean_import
             
-            extensions = ['', '.ts', '.tsx', '.js', '.jsx', '.py']
+            extensions = ['', '.ts', '.tsx', '.d.ts', '.js', '.jsx', '.py']
             
             for ext in extensions:
                 # Build the potential path
@@ -269,7 +309,7 @@ class DependencyAnalyzer:
         if not import_path.startswith('.'):
             module_path = import_path.replace('.', '/')
             
-            for ext in ['.py', '.js', '.ts']:
+            for ext in ['', '.ts', '.tsx', '.d.ts', '.js', '.jsx', '.py']:
                 test_path = module_path + ext
                 if test_path in internal_files:
                     return test_path
