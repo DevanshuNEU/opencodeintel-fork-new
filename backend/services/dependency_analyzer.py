@@ -9,6 +9,7 @@ import re
 # Tree-sitter
 import tree_sitter_python as tspython
 import tree_sitter_javascript as tsjavascript
+import tree_sitter_typescript as tstypescript
 from tree_sitter import Language, Parser
 
 from services.observability import logger, metrics
@@ -22,7 +23,8 @@ class DependencyAnalyzer:
         self.parsers = {
             'python': Parser(Language(tspython.language())),
             'javascript': Parser(Language(tsjavascript.language())),
-            'typescript': Parser(Language(tsjavascript.language())),
+            'typescript': Parser(Language(tstypescript.language_typescript())),
+            'tsx': Parser(Language(tstypescript.language_tsx())),
         }
         logger.info("DependencyAnalyzer initialized")
     
@@ -34,7 +36,7 @@ class DependencyAnalyzer:
             '.js': 'javascript',
             '.jsx': 'javascript',
             '.ts': 'typescript',
-            '.tsx': 'typescript',
+            '.tsx': 'tsx',
         }
         return lang_map.get(ext, 'unknown')
     
@@ -122,8 +124,8 @@ class DependencyAnalyzer:
             logger.error("Error analyzing file", file_path=file_path, error=str(e))
             return {"file": str(file_path), "imports": [], "language": language, "error": str(e)}
     
-    def build_dependency_graph(self, repo_path: str) -> Dict:
-        """Build complete dependency graph for repository"""
+    def build_dependency_graph(self, repo_path: str, include_paths: List[str] = None) -> Dict:
+        """Build dependency graph. If include_paths set, only analyze those dirs."""
         repo_path = Path(repo_path)
         
         # Discover code files
@@ -136,8 +138,13 @@ class DependencyAnalyzer:
                 continue
             if any(skip in file_path.parts for skip in skip_dirs):
                 continue
-            if file_path.suffix in extensions:
-                code_files.append(file_path)
+            if file_path.suffix not in extensions:
+                continue
+            if include_paths:
+                relative = str(file_path.relative_to(repo_path))
+                if not any(relative.startswith(p) for p in include_paths):
+                    continue
+            code_files.append(file_path)
         
         logger.info("Building dependency graph", file_count=len(code_files))
         
@@ -236,6 +243,10 @@ class DependencyAnalyzer:
         source_path = Path(source_file)
         source_dir = source_path.parent
         
+        # TS imports use .js extension but actual file is .ts on disk
+        if import_path.endswith('.js') or import_path.endswith('.jsx'):
+            import_path = re.sub(r'\.(jsx?)$', '', import_path)
+        
         # Relative imports
         if import_path.startswith('.'):
             clean_import = import_path.lstrip('./')
@@ -250,7 +261,7 @@ class DependencyAnalyzer:
             else:
                 potential_base = source_dir / clean_import
             
-            extensions = ['', '.ts', '.tsx', '.js', '.jsx', '.py']
+            extensions = ['', '.ts', '.tsx', '.d.ts', '.js', '.jsx', '.py']
             
             for ext in extensions:
                 # Build the potential path
