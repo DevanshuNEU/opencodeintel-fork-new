@@ -257,6 +257,7 @@ export function DashboardHome() {
             onTabChange={setActiveTab}
             onBack={() => { setSelectedRepo(null); setActiveTab('overview') }}
             onReindex={handleReindex}
+            onDelete={() => handleDeleteRepo(selectedRepo)}
           />
         )}
       </AnimatePresence>

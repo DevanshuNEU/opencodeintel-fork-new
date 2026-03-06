@@ -1,6 +1,7 @@
 // Single repo detail view with tabs (Overview, Search, Dependencies, etc.)
 // Receives repo data and callbacks from DashboardHome
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard,
@@ -11,7 +12,24 @@ import {
   ArrowLeft,
   FolderGit2,
   ExternalLink,
+  MoreVertical,
+  Trash2,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { SearchPanel } from '../SearchPanel'
 import { DependencyGraph } from '../DependencyGraph'
 import { RepoOverview } from '../RepoOverview'
@@ -36,6 +54,7 @@ interface RepoDetailViewProps {
   onTabChange: (tab: RepoTab) => void
   onBack: () => void
   onReindex: () => void
+  onDelete?: () => void
 }
 
 export function RepoDetailView({
@@ -46,7 +65,9 @@ export function RepoDetailView({
   onTabChange,
   onBack,
   onReindex,
+  onDelete,
 }: RepoDetailViewProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   return (
     <motion.div
       key="repo-detail"
@@ -82,7 +103,45 @@ export function RepoDetailView({
               </a>
             </div>
           </div>
+          {onDelete && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-2" />
+                  Delete repository
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
+
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete repository</DialogTitle>
+              <DialogDescription>
+                This will permanently remove <strong>{repo.name}</strong> and all its indexed data. This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+              <Button
+                variant="destructive"
+                onClick={() => { setShowDeleteDialog(false); onDelete?.() }}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* tab bar */}
