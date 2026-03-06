@@ -280,6 +280,34 @@ class TestIncludePaths:
         assert any('packages/schema' in f for f in file_paths)
         assert not any('backend' in f for f in file_paths)
 
+    def test_include_paths_with_corrupt_data(self, analyzer, ts_repo):
+        """Corrupt jsonb from DB should not crash -- non-strings are filtered out"""
+        graph = analyzer.build_dependency_graph(
+            str(ts_repo),
+            include_paths=[123, None, '', 'packages/effect', True]
+        )
+        file_paths = set(graph['dependencies'].keys())
+        # Should only include effect files, corrupt entries filtered
+        assert all('packages/effect' in f for f in file_paths)
+        assert len(file_paths) > 0
+
+    def test_include_paths_all_corrupt_scans_everything(self, analyzer, ts_repo):
+        """If all include_paths entries are invalid, fall back to full scan"""
+        graph = analyzer.build_dependency_graph(
+            str(ts_repo),
+            include_paths=[123, None, '', False]
+        )
+        file_paths = set(graph['dependencies'].keys())
+        # Should fall back to scanning everything
+        assert any('backend' in f for f in file_paths)
+        assert any('packages/effect' in f for f in file_paths)
+
+    def test_include_paths_empty_list_scans_everything(self, analyzer, ts_repo):
+        """Empty list should be treated same as None"""
+        graph = analyzer.build_dependency_graph(str(ts_repo), include_paths=[])
+        file_paths = set(graph['dependencies'].keys())
+        assert any('backend' in f for f in file_paths)
+
 
 class TestGraphMetrics:
     """Verify graph statistics are correct"""
