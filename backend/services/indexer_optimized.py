@@ -58,30 +58,29 @@ class OptimizedCodeIndexer:
         # Initialize search enhancer
         self.search_enhancer = SearchEnhancer(self.openai_client)
         
-        # Initialize Pinecone
-        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-        
-        index_name = os.getenv("PINECONE_INDEX_NAME", "codeintel")
-        
-        # Check if index exists and has correct dimensions
-        existing_indexes = pc.list_indexes().names()
-        if index_name in existing_indexes:
-            # Use existing index (dimension already set)
-            index_info = pc.describe_index(index_name)
-            logger.info("Using existing Pinecone index", index=index_name, dimension=index_info.dimension)
-        else:
-            logger.info("Creating Pinecone index", index=index_name, dimension=EMBEDDING_DIMENSIONS)
-            pc.create_index(
-                name=index_name,
-                dimension=EMBEDDING_DIMENSIONS,
-                metric="cosine",
-                spec=ServerlessSpec(
-                    cloud="aws",
-                    region="us-east-1"
+        # Initialize Pinecone (lazy-safe: app starts even if Pinecone is unreachable)
+        self.index = None
+        self._pinecone_index_name = os.getenv("PINECONE_INDEX_NAME", "codeintel")
+        try:
+            pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+            existing_indexes = pc.list_indexes().names()
+            if self._pinecone_index_name in existing_indexes:
+                index_info = pc.describe_index(self._pinecone_index_name)
+                logger.info("Using existing Pinecone index", index=self._pinecone_index_name, dimension=index_info.dimension)
+            else:
+                logger.info("Creating Pinecone index", index=self._pinecone_index_name, dimension=EMBEDDING_DIMENSIONS)
+                pc.create_index(
+                    name=self._pinecone_index_name,
+                    dimension=EMBEDDING_DIMENSIONS,
+                    metric="cosine",
+                    spec=ServerlessSpec(
+                        cloud="aws",
+                        region="us-east-1"
+                    )
                 )
-            )
-        
-        self.index = pc.Index(index_name)
+            self.index = pc.Index(self._pinecone_index_name)
+        except Exception as e:
+            logger.error("Pinecone initialization failed -- search/indexing unavailable until reconnect", error=str(e))
         
         # Initialize tree-sitter parsers
         self.parsers = {
