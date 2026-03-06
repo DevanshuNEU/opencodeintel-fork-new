@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from './ui/dialog'
 import { Button } from './ui/button'
+import { Input } from './ui/input'
 import type { Repository } from '../types'
 import { RepoGridSkeleton } from './ui/Skeleton'
 
@@ -269,30 +270,69 @@ export function RepoList({ repos, selectedRepo, onSelect, onDelete, onAddClick, 
       </div>
 
       {/* Delete confirmation dialog */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete repository</DialogTitle>
-            <DialogDescription>
-              This will permanently remove <strong>{deleteTarget?.name}</strong> and all its indexed data. This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (deleteTarget && onDelete) {
-                  onDelete(deleteTarget.id)
-                  setDeleteTarget(null)
-                }
-              }}
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmDialog
+        repo={deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget && onDelete) {
+            onDelete(deleteTarget.id)
+            setDeleteTarget(null)
+          }
+        }}
+      />
     </div>
+  )
+}
+
+
+export function DeleteConfirmDialog({
+  repo,
+  onCancel,
+  onConfirm,
+}: {
+  repo: Repository | null
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const [confirmText, setConfirmText] = useState('')
+  const repoName = repo?.name || ''
+  const isMatch = confirmText === repoName
+
+  return (
+    <Dialog
+      open={!!repo}
+      onOpenChange={(open) => { if (!open) { setConfirmText(''); onCancel() } }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete repository</DialogTitle>
+          <DialogDescription>
+            This will permanently remove <strong>{repoName}</strong> and all its
+            indexed data. This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-2">
+          <p className="text-sm text-muted-foreground mb-2">
+            Type <strong className="text-foreground">{repoName}</strong> to confirm
+          </p>
+          <Input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder={repoName}
+            autoFocus
+          />
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => { setConfirmText(''); onCancel() }}>Cancel</Button>
+          <Button
+            variant="destructive"
+            disabled={!isMatch}
+            onClick={() => { setConfirmText(''); onConfirm() }}
+          >
+            Delete {repoName}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

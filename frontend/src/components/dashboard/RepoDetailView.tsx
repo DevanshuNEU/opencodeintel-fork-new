@@ -21,15 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { DeleteConfirmDialog } from '../RepoList'
 import { SearchPanel } from '../SearchPanel'
 import { DependencyGraph } from '../DependencyGraph'
 import { RepoOverview } from '../RepoOverview'
@@ -68,6 +60,7 @@ export function RepoDetailView({
   onDelete,
 }: RepoDetailViewProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const deleteRepo = showDeleteDialog ? repo : null
   return (
     <motion.div
       key="repo-detail"
@@ -123,25 +116,11 @@ export function RepoDetailView({
           )}
         </div>
 
-        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete repository</DialogTitle>
-              <DialogDescription>
-                This will permanently remove <strong>{repo.name}</strong> and all its indexed data. This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
-              <Button
-                variant="destructive"
-                onClick={() => { setShowDeleteDialog(false); onDelete?.() }}
-              >
-                Delete
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteConfirmDialog
+          repo={deleteRepo}
+          onCancel={() => setShowDeleteDialog(false)}
+          onConfirm={() => { setShowDeleteDialog(false); onDelete?.() }}
+        />
       </div>
 
       {/* tab bar */}
