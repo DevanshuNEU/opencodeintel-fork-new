@@ -9,7 +9,11 @@ import re
 # Tree-sitter
 import tree_sitter_python as tspython
 import tree_sitter_javascript as tsjavascript
-import tree_sitter_typescript as tstypescript
+try:
+    import tree_sitter_typescript as tstypescript
+    _HAS_TS_PARSER = True
+except ImportError:
+    _HAS_TS_PARSER = False
 from tree_sitter import Language, Parser
 
 from services.observability import logger, metrics
@@ -19,14 +23,23 @@ class DependencyAnalyzer:
     """Analyze code dependencies and build dependency graph"""
     
     def __init__(self):
-        # Initialize parsers
+        js_lang = Language(tsjavascript.language())
+        # Use proper TS parser if available, fall back to JS parser
+        if _HAS_TS_PARSER:
+            ts_lang = Language(tstypescript.language_typescript())
+            tsx_lang = Language(tstypescript.language_tsx())
+        else:
+            logger.warning("tree-sitter-typescript not installed, falling back to JS parser for TS/TSX")
+            ts_lang = js_lang
+            tsx_lang = js_lang
+
         self.parsers = {
             'python': Parser(Language(tspython.language())),
-            'javascript': Parser(Language(tsjavascript.language())),
-            'typescript': Parser(Language(tstypescript.language_typescript())),
-            'tsx': Parser(Language(tstypescript.language_tsx())),
+            'javascript': Parser(js_lang),
+            'typescript': Parser(ts_lang),
+            'tsx': Parser(tsx_lang),
         }
-        logger.info("DependencyAnalyzer initialized")
+        logger.info("DependencyAnalyzer initialized", ts_parser=_HAS_TS_PARSER)
     
     def _detect_language(self, file_path: str) -> str:
         """Detect language from file extension"""
