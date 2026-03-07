@@ -122,6 +122,16 @@ def _validate_api_key(token: str) -> Optional[AuthContext]:
             return None
         
         key_data = result.data[0]
+
+        # Update last_used_at timestamp (fire-and-forget, don't block auth)
+        try:
+            from datetime import datetime, timezone
+            db.table("api_keys").update(
+                {"last_used_at": datetime.now(timezone.utc).isoformat()}
+            ).eq("id", key_data["id"]).execute()
+        except Exception:
+            pass  # Non-critical; don't fail auth over timestamp update
+
         return AuthContext(
             api_key_name=key_data.get("name"),
             user_id=key_data.get("user_id"),
