@@ -13,4 +13,9 @@ BACKEND_API_URL = f"{BACKEND_BASE_URL}{API_PREFIX}"
 API_KEY = os.getenv("API_KEY", "")
 
 SERVER_NAME = "codeintel-mcp"
-SERVER_VERSION = "0.4.0"
+SERVER_VERSION = "0.5.0"
+
+# Transport: "stdio" for local, "streamable-http" for remote deployment
+TRANSPORT = os.getenv("MCP_TRANSPORT", "stdio")
+HOST = os.getenv("MCP_HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", "8080"))
