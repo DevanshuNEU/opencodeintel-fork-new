@@ -10,7 +10,9 @@ API_PREFIX = f"/api/{API_VERSION}"
 
 BACKEND_BASE_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
 BACKEND_API_URL = f"{BACKEND_BASE_URL}{API_PREFIX}"
-API_KEY = os.getenv("API_KEY", "")
+# MCP_API_KEY takes precedence over API_KEY to avoid conflicts
+# when Railway shares env vars across services in the same project
+API_KEY = os.getenv("MCP_API_KEY", "") or os.getenv("API_KEY", "")
 
 SERVER_NAME = "codeintel-mcp"
 SERVER_VERSION = "0.5.0"
