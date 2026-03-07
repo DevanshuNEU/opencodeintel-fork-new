@@ -36,8 +36,13 @@ type SortMode = 'recent' | 'name' | 'size'
 function parseRepoSlug(gitUrl: string): string {
   try {
     const cleaned = gitUrl.replace(/\.git$/, '')
-    const match = cleaned.match(/github\.com\/([^/]+\/[^/]+)/)
-    return match ? match[1] : ''
+    // Match HTTPS: github.com/owner/repo
+    const https = cleaned.match(/github\.com\/([^/]+\/[^/]+)/)
+    if (https) return https[1]
+    // Match SSH: git@github.com:owner/repo
+    const ssh = cleaned.match(/github\.com:([^/]+\/[^/]+)/)
+    if (ssh) return ssh[1]
+    return ''
   } catch {
     return ''
   }
@@ -63,16 +68,17 @@ function timeAgo(dateStr?: string): string {
 
 const StatusDot = ({ status }: { status: string }) => {
   const isIndexed = status === 'indexed'
+  const isFailed = status === 'failed'
   return (
     <span className={cn(
       'inline-flex items-center gap-1.5 text-xs',
-      isIndexed ? 'text-primary' : 'text-muted-foreground',
+      isIndexed ? 'text-primary' : isFailed ? 'text-destructive' : 'text-muted-foreground',
     )}>
       <span className={cn(
         'w-1.5 h-1.5 rounded-full',
-        isIndexed ? 'bg-primary' : 'bg-muted-foreground animate-pulse',
+        isIndexed ? 'bg-primary' : isFailed ? 'bg-destructive' : 'bg-muted-foreground animate-pulse',
       )} />
-      {isIndexed ? 'Indexed' : 'Pending'}
+      {isIndexed ? 'Indexed' : isFailed ? 'Failed' : 'Pending'}
     </span>
   )
 }
