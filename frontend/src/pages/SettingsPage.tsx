@@ -20,17 +20,20 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { toast } from 'sonner'
 import { API_URL } from '@/config/api'
+import { useUserUsage } from '@/hooks/useCachedQuery'
 
 interface Repository {
   id: string
   name: string
 }
 
-const MAX_REPOS = 3
 const DELETE_CONFIRMATION_TEXT = 'delete all'
 
 export function SettingsPage() {
   const { user, session } = useAuth()
+  const { data: usage } = useUserUsage(session?.access_token, session?.user?.id)
+  const maxRepos = usage?.repositories?.limit ?? 1
+  const tier = usage?.tier || 'free'
   const { status, checkStatus, disconnect, loading: githubLoading } = useGitHubRepos()
 
   const [repos, setRepos] = useState<Repository[]>([])
@@ -135,7 +138,7 @@ export function SettingsPage() {
   }
 
   const isDeleteEnabled = deleteConfirmation === DELETE_CONFIRMATION_TEXT
-  const availableSlots = Math.max(0, MAX_REPOS - repos.length)
+  const availableSlots = Math.max(0, maxRepos - repos.length)
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -239,7 +242,7 @@ export function SettingsPage() {
           <div className="flex items-center justify-between py-2">
             <div>
               <p className="font-medium">Repository slots</p>
-              <p className="text-sm text-muted-foreground">Free tier limit</p>
+              <p className="text-sm text-muted-foreground capitalize">{tier} tier limit</p>
             </div>
             <div className="text-right">
               {reposLoading ? (
@@ -248,7 +251,7 @@ export function SettingsPage() {
                 <>
                   <p className="text-2xl font-bold">
                     {repos.length}
-                    <span className="text-lg font-normal text-muted-foreground"> / {MAX_REPOS}</span>
+                    <span className="text-lg font-normal text-muted-foreground"> / {maxRepos}</span>
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {availableSlots} slot{availableSlots !== 1 ? 's' : ''} available

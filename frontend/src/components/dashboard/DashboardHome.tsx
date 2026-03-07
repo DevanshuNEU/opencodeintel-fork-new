@@ -212,6 +212,23 @@ export function DashboardHome() {
   }
 
   const selectedRepoData = repos.find((r) => r.id === selectedRepo)
+  const handleDeleteRepo = async (repoId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/repos/${repoId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      })
+      if (!response.ok) throw new Error('Failed to delete')
+      toast.success('Repository deleted')
+      refreshRepos()
+      if (selectedRepo === repoId) setSelectedRepo(null)
+    } catch (error) {
+      toast.error('Failed to delete repository', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      })
+    }
+  }
+
   const isRepoView = selectedRepo && selectedRepoData
 
   return (
@@ -226,6 +243,7 @@ export function DashboardHome() {
             selectedRepo={selectedRepo}
             maxRepos={maxRepos}
             onSelectRepo={(id) => { setSelectedRepo(id); setActiveTab('overview') }}
+            onDeleteRepo={handleDeleteRepo}
             onAddClick={() => setShowAddForm(true)}
             onGitHubClick={() => setShowGitHubSelector(true)}
           />
@@ -239,6 +257,7 @@ export function DashboardHome() {
             onTabChange={setActiveTab}
             onBack={() => { setSelectedRepo(null); setActiveTab('overview') }}
             onReindex={handleReindex}
+            onDelete={() => handleDeleteRepo(selectedRepo)}
           />
         )}
       </AnimatePresence>
