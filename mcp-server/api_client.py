@@ -58,6 +58,16 @@ async def api_post(path: str, json: dict, **kwargs: Any) -> dict:
     return response.json()
 
 
+async def api_delete(path: str, **kwargs: Any) -> dict:
+    """Make a DELETE request to the backend API."""
+    client = await get_client()
+    response = await client.delete(path, **kwargs)
+    response.raise_for_status()
+    if response.status_code == 204 or not response.content:
+        return {}
+    return response.json()
+
+
 async def close_client() -> None:
     """Close the persistent client. Call on server shutdown."""
     global _client
