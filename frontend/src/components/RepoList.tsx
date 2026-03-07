@@ -196,9 +196,11 @@ export function RepoList({ repos, selectedRepo, onSelect, onDelete, onAddClick, 
     const sorted = [...repos]
     if (sortMode === 'recent') {
       sorted.sort((a, b) => {
-        const aTime = a.last_indexed_at || a.created_at || ''
-        const bTime = b.last_indexed_at || b.created_at || ''
-        return bTime.localeCompare(aTime)
+        // Prefer last_indexed_at; use created_at only as tiebreaker
+        const aIdx = a.last_indexed_at || ''
+        const bIdx = b.last_indexed_at || ''
+        if (aIdx !== bIdx) return bIdx.localeCompare(aIdx)
+        return (b.created_at || '').localeCompare(a.created_at || '')
       })
     } else if (sortMode === 'name') {
       sorted.sort((a, b) => a.name.localeCompare(b.name))
@@ -312,6 +314,7 @@ export function DeleteConfirmDialog({
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder={repoName}
+            aria-label={`Type ${repoName} to confirm deletion`}
             autoFocus
           />
         </div>
