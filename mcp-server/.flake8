@@ -1,0 +1,17 @@
+[flake8]
+max-line-length = 120
+
+# Match backend config: only check for real bugs, not style.
+select = E9,F,W6
+
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    .venv
+
+per-file-ignores =
+    # handlers.py imports formatters after logger (intentional grouping)
+    handlers.py:E402
+    # Test files may import pytest for fixtures/marks even if not directly referenced
+    tests/*.py:F401

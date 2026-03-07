@@ -69,6 +69,9 @@ def _get_http_app():
     return app
 
 
+_VALID_TRANSPORTS = {"stdio", "streamable-http", "http"}
+
+
 def main():
     """Run with configured transport."""
     transport = TRANSPORT
@@ -77,8 +80,15 @@ def main():
     if "--transport" in sys.argv:
         idx = sys.argv.index("--transport")
         if idx + 1 < len(sys.argv):
-            arg = sys.argv[idx + 1]
-            transport = "streamable-http" if arg in ("http", "streamable-http") else arg
+            transport = sys.argv[idx + 1]
+
+    # Normalize alias
+    if transport == "http":
+        transport = "streamable-http"
+
+    if transport not in ("stdio", "streamable-http"):
+        print(f"Error: unknown transport '{transport}'. Use 'stdio' or 'http'.")
+        sys.exit(1)
 
     if transport == "streamable-http":
         import uvicorn
