@@ -15,6 +15,10 @@ EXPECTED_TOOLS = {
     "analyze_impact",
     "get_repository_insights",
     "get_codebase_dna",
+    "add_repository",
+    "get_repo_directories",
+    "index_repository",
+    "delete_repository",
 }
 
 

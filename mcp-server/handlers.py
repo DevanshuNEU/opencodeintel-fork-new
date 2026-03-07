@@ -12,7 +12,7 @@ import mcp.types as types
 
 logger = logging.getLogger(__name__)
 
-from api_client import api_get, api_post
+from api_client import api_get, api_post, api_delete
 from formatters import (
     format_codebase_dna,
     format_code_style,
@@ -79,6 +79,90 @@ async def _handle_dna(args: dict[str, Any]) -> str:
     return format_codebase_dna(result)
 
 
+# --- Write tool handlers ---
+
+async def _handle_add_repository(args: dict[str, Any]) -> str:
+    payload = {
+        "name": args["name"],
+        "git_url": args["git_url"],
+        "branch": args.get("branch", "main"),
+    }
+    result = await api_post("/repos", json=payload)
+    repo_id = result.get("id", "unknown")
+    name = result.get("name", args["name"])
+    status = result.get("status", "added")
+    needs_selection = result.get("needs_directory_selection", False)
+    lines = [
+        f"Repository '{name}' added successfully.",
+        f"ID: `{repo_id}`",
+        f"Status: {status}",
+    ]
+    if needs_selection:
+        lines.append(
+            "\nThis repo may benefit from subset indexing. "
+            "Use get_repo_directories to see available directories, "
+            "then index_repository with include_paths."
+        )
+    else:
+        lines.append(
+            f"\nReady to index. Run: index_repository(repo_id='{repo_id}')"
+        )
+    return "\n".join(lines)
+
+
+async def _handle_get_repo_directories(args: dict[str, Any]) -> str:
+    result = await api_get(f"/repos/{args['repo_id']}/directories")
+    dirs = result.get("directories", [])
+    if not dirs:
+        return "No directories found (repo may be flat or not yet cloned)."
+    lines = ["# Repository Directories\n"]
+    for d in dirs:
+        name = d.get("name", d.get("path", "unknown"))
+        count = d.get("file_count", 0)
+        lines.append(f"- **{name}/** -- {count} code files")
+    lines.append(
+        "\nTo index specific directories, use index_repository "
+        "with include_paths=['dir1', 'dir2']."
+    )
+    return "\n".join(lines)
+
+
+async def _handle_index_repository(args: dict[str, Any]) -> str:
+    repo_id = args["repo_id"]
+    include_paths = args.get("include_paths")
+    # Build query params
+    params = {}
+    if include_paths:
+        params["include_paths"] = include_paths
+    result = await api_post(
+        f"/repos/{repo_id}/index",
+        json=params if params else {},
+    )
+    status = result.get("status", "unknown")
+    fn_count = result.get("function_count", result.get("functions_indexed", 0))
+    file_count = result.get("file_count", result.get("files_indexed", 0))
+    lines = [
+        "Indexing complete.",
+        f"Status: {status}",
+        f"Files indexed: {file_count}",
+        f"Functions extracted: {fn_count}",
+    ]
+    if include_paths:
+        lines.append(f"Subset: {', '.join(include_paths)}")
+    lines.append(
+        f"\nYou can now use search_code(repo_id='{repo_id}') "
+        "to search this codebase."
+    )
+    return "\n".join(lines)
+
+
+async def _handle_delete_repository(args: dict[str, Any]) -> str:
+    repo_id = args["repo_id"]
+    result = await api_delete(f"/repos/{repo_id}")
+    msg = result.get("message", "Repository deleted.")
+    return f"{msg}\nRepo ID `{repo_id}` has been removed."
+
+
 # Tool name -> handler mapping
 _HANDLERS: dict[str, Any] = {
     "search_code": _handle_search,
@@ -88,6 +172,10 @@ _HANDLERS: dict[str, Any] = {
     "analyze_impact": _handle_impact,
     "get_repository_insights": _handle_insights,
     "get_codebase_dna": _handle_dna,
+    "add_repository": _handle_add_repository,
+    "get_repo_directories": _handle_get_repo_directories,
+    "index_repository": _handle_index_repository,
+    "delete_repository": _handle_delete_repository,
 }
 
 

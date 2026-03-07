@@ -145,4 +145,96 @@ def get_tool_schemas() -> list[types.Tool]:
                 "required": ["repo_id"],
             },
         ),
+        # --- Write tools ---
+        types.Tool(
+            name="add_repository",
+            description=(
+                "Add a new repository for indexing. Clones the repo and analyzes "
+                "its structure. After adding, use get_repo_directories to see "
+                "available directories, then index_repository to start indexing."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "git_url": {
+                        "type": "string",
+                        "description": (
+                            "Git clone URL. "
+                            "Example: https://github.com/owner/repo.git"
+                        ),
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Short name for the repository",
+                    },
+                    "branch": {
+                        "type": "string",
+                        "description": "Branch to clone (default: main)",
+                        "default": "main",
+                    },
+                },
+                "required": ["git_url", "name"],
+            },
+        ),
+        types.Tool(
+            name="get_repo_directories",
+            description=(
+                "List top-level directories in a cloned repository with file "
+                "counts. Use this after add_repository to decide which "
+                "directories to index (useful for monorepos)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo_id": {
+                        "type": "string",
+                        "description": "Repository identifier",
+                    }
+                },
+                "required": ["repo_id"],
+            },
+        ),
+        types.Tool(
+            name="index_repository",
+            description=(
+                "Trigger indexing for a repository. Extracts functions, builds "
+                "embeddings, and enables semantic search. For monorepos, pass "
+                "include_paths to index only specific directories."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo_id": {
+                        "type": "string",
+                        "description": "Repository identifier",
+                    },
+                    "include_paths": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Optional list of directories to index "
+                            "(e.g. ['src', 'lib']). Omit to index everything."
+                        ),
+                    },
+                },
+                "required": ["repo_id"],
+            },
+        ),
+        types.Tool(
+            name="delete_repository",
+            description=(
+                "Delete a repository and all its indexed data. This is "
+                "irreversible -- the repo must be re-added and re-indexed."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo_id": {
+                        "type": "string",
+                        "description": "Repository identifier",
+                    }
+                },
+                "required": ["repo_id"],
+            },
+        ),
     ]
