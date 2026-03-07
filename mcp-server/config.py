@@ -21,5 +21,11 @@ HOST = os.getenv("MCP_HOST", "0.0.0.0")
 _port_raw = os.getenv("PORT", "8080")
 try:
     PORT = int(_port_raw)
+    if not (1 <= PORT <= 65535):
+        PORT = 8080
 except ValueError:
     PORT = 8080
+
+# Optional auth token for protecting the MCP endpoint in remote mode.
+# If set, clients must send Authorization: Bearer <token> to /mcp.
+MCP_AUTH_TOKEN = os.getenv("MCP_AUTH_TOKEN", "")

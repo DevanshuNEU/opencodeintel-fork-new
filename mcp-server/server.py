@@ -16,7 +16,7 @@ import mcp.types as types
 from starlette.routing import Route
 from starlette.responses import JSONResponse
 
-from config import SERVER_NAME, SERVER_VERSION, TRANSPORT, HOST, PORT
+from config import SERVER_NAME, SERVER_VERSION, TRANSPORT, HOST, PORT, MCP_AUTH_TOKEN
 from tools import get_tool_schemas
 from handlers import call_tool
 
@@ -64,8 +64,25 @@ async def _health(request):
 
 def _get_http_app():
     """Build the Starlette app with health check + MCP endpoint."""
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.requests import Request
+
     app = mcp.streamable_http_app()
     app.routes.insert(0, Route("/health", _health, methods=["GET"]))
+
+    if MCP_AUTH_TOKEN:
+        class MCPAuthMiddleware(BaseHTTPMiddleware):
+            """Require Bearer token on /mcp, leave /health public."""
+            async def dispatch(self, request: Request, call_next):
+                if request.url.path == "/health":
+                    return await call_next(request)
+                auth = request.headers.get("authorization", "")
+                if not auth.startswith("Bearer ") or auth[7:] != MCP_AUTH_TOKEN:
+                    return JSONResponse({"error": "Unauthorized"}, status_code=401)
+                return await call_next(request)
+
+        app.add_middleware(MCPAuthMiddleware)
+
     return app
 
 

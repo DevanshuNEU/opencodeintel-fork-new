@@ -66,5 +66,7 @@ CREATE POLICY "Users can deactivate own keys"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
--- Service role (backend) has full access via service_role key
--- No explicit policy needed; service_role bypasses RLS
+-- No DELETE policy: users cannot hard-delete keys.
+-- Deactivation (active=false) is the intended revocation mechanism.
+-- Service role (backend) can hard-delete for compliance if needed.
+-- Service role has full access via service_role key; bypasses RLS.
