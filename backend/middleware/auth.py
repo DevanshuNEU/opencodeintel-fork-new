@@ -88,8 +88,9 @@ def _validate_jwt(token: str) -> Optional[AuthContext]:
     except InvalidTokenError:
         # Could be a non-JWT token (API key) -- allow fallback
         return None
-    except AuthenticationError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+    except AuthenticationError:
+        # Could be a non-JWT token (API key) -- allow fallback
+        return None
     except Exception:
         return None
 
