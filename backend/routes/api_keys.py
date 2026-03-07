@@ -93,6 +93,49 @@ async def generate_api_key(
         raise HTTPException(status_code=500, detail="Failed to generate API key")
 
 
+@router.get("/keys")
+async def list_api_keys(
+    auth: AuthContext = Depends(require_auth)
+):
+    """List all API keys for the authenticated user."""
+    if not auth.user_id:
+        raise HTTPException(status_code=401, detail="User ID required")
+
+    try:
+        keys = api_key_manager.list_keys(auth.user_id)
+        return {"keys": keys}
+    except Exception as e:
+        logger.error("Failed to list API keys", user_id=auth.user_id, error=str(e))
+        capture_exception(e, operation="list_api_keys", user_id=auth.user_id)
+        raise HTTPException(status_code=500, detail="Failed to list API keys")
+
+
+@router.delete("/keys/{key_id}")
+async def revoke_api_key(
+    key_id: str,
+    auth: AuthContext = Depends(require_auth)
+):
+    """Revoke an API key by ID. Soft-deletes (sets active=false)."""
+    if not auth.user_id:
+        raise HTTPException(status_code=401, detail="User ID required")
+
+    try:
+        success = api_key_manager.revoke_key_by_id(key_id, auth.user_id)
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail="API key not found or not owned by you"
+            )
+        logger.info("API key revoked", user_id=auth.user_id, key_id=key_id)
+        return {"message": "API key revoked", "key_id": key_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to revoke API key", user_id=auth.user_id, error=str(e))
+        capture_exception(e, operation="revoke_api_key", user_id=auth.user_id)
+        raise HTTPException(status_code=500, detail="Failed to revoke API key")
+
+
 @router.get("/keys/usage")
 async def get_api_usage(
     auth: AuthContext = Depends(require_auth)

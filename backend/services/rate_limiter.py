@@ -204,7 +204,33 @@ class APIKeyManager:
         return result.data[0] if result.data else None
     
     def revoke_key(self, api_key: str) -> bool:
-        """Revoke an API key"""
+        """Revoke an API key by raw key value"""
         key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         self.db.table("api_keys").update({"active": False}).eq("key_hash", key_hash).execute()
         return True
+
+    def revoke_key_by_id(self, key_id: str, user_id: str) -> bool:
+        """Revoke an API key by UUID. Verifies ownership via user_id."""
+        result = self.db.table("api_keys").update(
+            {"active": False}
+        ).eq("id", key_id).eq("user_id", user_id).execute()
+        return len(result.data) > 0
+
+    def list_keys(self, user_id: str) -> list:
+        """List all API keys for a user. Returns masked keys (no raw values)."""
+        result = self.db.table("api_keys").select(
+            "id, name, tier, active, created_at, last_used_at, key_hash"
+        ).eq("user_id", user_id).order("created_at", desc=True).execute()
+        keys = []
+        for row in result.data:
+            h = row.get("key_hash", "")
+            keys.append({
+                "id": row["id"],
+                "name": row["name"],
+                "tier": row["tier"],
+                "active": row["active"],
+                "created_at": row["created_at"],
+                "last_used_at": row.get("last_used_at"),
+                "key_preview": f"ci_...{h[-8:]}" if h else "ci_...",
+            })
+        return keys
