@@ -18,4 +18,8 @@ SERVER_VERSION = "0.5.0"
 # Transport: "stdio" for local, "streamable-http" for remote deployment
 TRANSPORT = os.getenv("MCP_TRANSPORT", "stdio")
 HOST = os.getenv("MCP_HOST", "0.0.0.0")
-PORT = int(os.getenv("PORT", "8080"))
+_port_raw = os.getenv("PORT", "8080")
+try:
+    PORT = int(_port_raw)
+except ValueError:
+    PORT = 8080

@@ -37,7 +37,10 @@ mcp = FastMCP(
 # Register tools at the low-level MCP server layer.
 # FastMCP's @tool decorator infers schemas from function signatures,
 # but we have well-tested schemas in tools.py and dispatch in handlers.py.
-_server = mcp._mcp_server
+# We access the private _mcp_server to register custom inputSchema directly.
+# TODO: monitor mcp-python for a public API to register tools with custom schemas
+#       (see: https://github.com/modelcontextprotocol/python-sdk/issues)
+_server = mcp._mcp_server  # pinned to mcp>=1.25.0,<2.0.0
 
 
 @_server.list_tools()

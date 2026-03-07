@@ -14,4 +14,9 @@ ENV MCP_HOST=0.0.0.0
 
 EXPOSE 8080
 
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
+
 CMD ["python", "server.py"]
