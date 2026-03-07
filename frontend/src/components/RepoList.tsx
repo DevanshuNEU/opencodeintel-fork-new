@@ -18,6 +18,7 @@ import {
 } from './ui/dialog'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
+import { Tabs, TabsList, TabsTrigger } from './ui/tabs'
 import type { Repository } from '../types'
 import { RepoGridSkeleton } from './ui/Skeleton'
 
@@ -187,24 +188,6 @@ const RepoCard = ({ repo, index, onSelect, onDeleteClick }: {
   )
 }
 
-const SortTab = ({ label, active, onClick }: {
-  label: string
-  active: boolean
-  onClick: () => void
-}) => (
-  <button
-    onClick={onClick}
-    className={cn(
-      'text-xs px-3 py-1 rounded-full transition-colors',
-      active
-        ? 'bg-primary/10 text-primary font-medium'
-        : 'text-muted-foreground hover:text-foreground',
-    )}
-  >
-    {label}
-  </button>
-)
-
 export function RepoList({ repos, selectedRepo, onSelect, onDelete, onAddClick, loading }: RepoListProps) {
   const [sortMode, setSortMode] = useState<SortMode>('recent')
   const [deleteTarget, setDeleteTarget] = useState<Repository | null>(null)
@@ -255,10 +238,14 @@ export function RepoList({ repos, selectedRepo, onSelect, onDelete, onAddClick, 
   return (
     <div className="space-y-4">
       {/* Sort bar */}
-      <div className="flex items-center gap-1">
-        <SortTab label="Recent" active={sortMode === 'recent'} onClick={() => setSortMode('recent')} />
-        <SortTab label="Name" active={sortMode === 'name'} onClick={() => setSortMode('name')} />
-        <SortTab label="Size" active={sortMode === 'size'} onClick={() => setSortMode('size')} />
+      <div className="flex items-center">
+        <Tabs value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+          <TabsList className="h-8">
+            <TabsTrigger value="recent" className="text-xs px-3">Recent</TabsTrigger>
+            <TabsTrigger value="name" className="text-xs px-3">Name</TabsTrigger>
+            <TabsTrigger value="size" className="text-xs px-3">Size</TabsTrigger>
+          </TabsList>
+        </Tabs>
         <span className="ml-auto text-xs text-muted-foreground">{repos.length} repos</span>
       </div>
 
