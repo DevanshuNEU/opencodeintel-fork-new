@@ -57,6 +57,7 @@ class TestToolSchemas:
         repo_tools = [
             "get_dependency_graph", "analyze_code_style",
             "analyze_impact", "get_repository_insights", "get_codebase_dna",
+            "get_repo_directories", "index_repository", "delete_repository",
         ]
         for name in repo_tools:
             required = schemas[name].inputSchema.get("required", [])

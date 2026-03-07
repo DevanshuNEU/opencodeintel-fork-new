@@ -88,7 +88,7 @@ async def _handle_add_repository(args: dict[str, Any]) -> str:
         "branch": args.get("branch", "main"),
     }
     result = await api_post("/repos", json=payload)
-    repo_id = result.get("id", "unknown")
+    repo_id = result.get("repo_id", "unknown")
     name = result.get("name", args["name"])
     status = result.get("status", "added")
     needs_selection = result.get("needs_directory_selection", False)
@@ -130,25 +130,31 @@ async def _handle_get_repo_directories(args: dict[str, Any]) -> str:
 async def _handle_index_repository(args: dict[str, Any]) -> str:
     repo_id = args["repo_id"]
     include_paths = args.get("include_paths")
-    # Build query params
-    params = {}
+
     if include_paths:
-        params["include_paths"] = include_paths
-    result = await api_post(
-        f"/repos/{repo_id}/index",
-        json=params if params else {},
-    )
+        # Async endpoint supports include_paths for monorepo subset indexing
+        result = await api_post(
+            f"/repos/{repo_id}/index/async",
+            json={"include_paths": include_paths},
+        )
+        status = result.get("status", "accepted")
+        return (
+            f"Async indexing started for subset: {', '.join(include_paths)}\n"
+            f"Status: {status}\n"
+            f"Repo ID: `{repo_id}`\n"
+            "\nIndexing runs in the background. Use list_repositories "
+            "to check when status changes to 'indexed'."
+        )
+
+    # Sync endpoint for full-repo indexing
+    result = await api_post(f"/repos/{repo_id}/index", json={})
     status = result.get("status", "unknown")
-    fn_count = result.get("function_count", result.get("functions_indexed", 0))
-    file_count = result.get("file_count", result.get("files_indexed", 0))
+    fn_count = result.get("functions", 0)
     lines = [
         "Indexing complete.",
         f"Status: {status}",
-        f"Files indexed: {file_count}",
         f"Functions extracted: {fn_count}",
     ]
-    if include_paths:
-        lines.append(f"Subset: {', '.join(include_paths)}")
     lines.append(
         f"\nYou can now use search_code(repo_id='{repo_id}') "
         "to search this codebase."

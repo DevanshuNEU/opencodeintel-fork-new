@@ -63,6 +63,8 @@ async def api_delete(path: str, **kwargs: Any) -> dict:
     client = await get_client()
     response = await client.delete(path, **kwargs)
     response.raise_for_status()
+    if response.status_code == 204 or not response.content:
+        return {}
     return response.json()
 
 
