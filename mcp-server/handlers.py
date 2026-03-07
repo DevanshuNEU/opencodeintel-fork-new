@@ -131,6 +131,9 @@ async def _handle_index_repository(args: dict[str, Any]) -> str:
     repo_id = args["repo_id"]
     include_paths = args.get("include_paths")
 
+    if include_paths is not None and len(include_paths) == 0:
+        return "Error: include_paths cannot be empty. Omit it to index the full repo, or provide directory names."
+
     if include_paths:
         # Async endpoint supports include_paths for monorepo subset indexing
         result = await api_post(
