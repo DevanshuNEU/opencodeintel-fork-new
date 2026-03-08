@@ -133,11 +133,21 @@ def _validate_api_key(token: str) -> Optional[AuthContext]:
         except Exception:
             pass  # Non-critical; don't fail auth over timestamp update
 
+        # Reject keys with no linked user at the auth layer
+        # so routes get a clear 401 instead of silently passing with user_id=None
+        if not key_data.get("user_id"):
+            raise HTTPException(
+                status_code=401,
+                detail="API key has no linked user. Contact admin."
+            )
+
         return AuthContext(
             api_key_name=key_data.get("name"),
             user_id=key_data.get("user_id"),
             tier=key_data.get("tier", "free")
         )
+    except HTTPException:
+        raise
     except Exception:
         return None
 
@@ -160,10 +170,29 @@ def _authenticate(token: str) -> AuthContext:
         set_user_context(user_id=ctx.user_id or ctx.api_key_name)
         return ctx
     
-    # Neither worked
+    # Provide specific error for ci_ keys so users can debug
+    if token.startswith("ci_"):
+        try:
+            from services.supabase_service import get_supabase_service
+            db = get_supabase_service().client
+            key_hash = hashlib.sha256(token.encode()).hexdigest()
+            result = db.table("api_keys").select(
+                "active, user_id"
+            ).eq("key_hash", key_hash).execute()
+            if not result.data:
+                detail = "API key not found. Check that the key is correct."
+            elif not result.data[0].get("active"):
+                detail = "API key has been revoked."
+            else:
+                detail = "API key validation failed."
+        except Exception:
+            detail = "API key validation failed."
+    else:
+        detail = "Invalid token or API key"
+
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid token or API key",
+        detail=detail,
         headers={"WWW-Authenticate": "Bearer"}
     )
 
