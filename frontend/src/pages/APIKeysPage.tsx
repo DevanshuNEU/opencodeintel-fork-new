@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import { KeyRound, Plus, Copy, Check, Loader2, Trash2, Clock } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -64,9 +65,13 @@ function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error('Failed to copy. Try selecting the text manually.')
+    }
   }
 
   return (
@@ -76,37 +81,49 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
+function getConfigPaths(): { label: string; path: string }[] {
+  const ua = navigator.userAgent.toLowerCase()
+  if (ua.includes('win')) {
+    return [
+      { label: 'Windows', path: '%APPDATA%\\Claude\\claude_desktop_config.json' },
+    ]
+  }
+  if (ua.includes('linux')) {
+    return [
+      { label: 'Linux', path: '~/.config/Claude/claude_desktop_config.json' },
+    ]
+  }
+  return [
+    { label: 'macOS', path: '~/Library/Application Support/Claude/claude_desktop_config.json' },
+  ]
+}
+
+async function fetchKeys(token: string): Promise<APIKey[]> {
+  const res = await fetch(`${API_URL}/keys`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Failed to load keys')
+  const data = await res.json()
+  return data.keys || []
+}
+
 export function APIKeysPage() {
   const { session } = useAuth()
-  const [keys, setKeys] = useState<APIKey[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [generateOpen, setGenerateOpen] = useState(false)
   const [keyName, setKeyName] = useState('')
   const [generating, setGenerating] = useState(false)
   const [generatedKey, setGeneratedKey] = useState<string | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
+  const [revokeConfirm, setRevokeConfirm] = useState<APIKey | null>(null)
 
-  const token = session?.access_token
+  const token = session?.access_token || ''
 
-  const fetchKeys = useCallback(async () => {
-    if (!token) return
-    try {
-      const res = await fetch(`${API_URL}/keys`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error('Failed to load keys')
-      const data = await res.json()
-      setKeys(data.keys || [])
-    } catch {
-      toast.error('Failed to load API keys')
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
-
-  useEffect(() => {
-    fetchKeys()
-  }, [fetchKeys])
+  const { data: keys = [], isLoading } = useQuery({
+    queryKey: ['api-keys'],
+    queryFn: () => fetchKeys(token),
+    enabled: !!token,
+  })
 
   const handleGenerate = async () => {
     if (!token || !keyName.trim()) return
@@ -127,7 +144,7 @@ export function APIKeysPage() {
       const data = await res.json()
       setGeneratedKey(data.api_key)
       setKeyName('')
-      fetchKeys()
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to generate key')
     } finally {
@@ -135,17 +152,18 @@ export function APIKeysPage() {
     }
   }
 
-  const handleRevoke = async (keyId: string) => {
+  const handleRevoke = async (key: APIKey) => {
     if (!token) return
-    setRevoking(keyId)
+    setRevoking(key.id)
+    setRevokeConfirm(null)
     try {
-      const res = await fetch(`${API_URL}/keys/${keyId}`, {
+      const res = await fetch(`${API_URL}/keys/${key.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('Failed to revoke key')
       toast.success('API key revoked')
-      fetchKeys()
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] })
     } catch {
       toast.error('Failed to revoke key')
     } finally {
@@ -160,9 +178,9 @@ export function APIKeysPage() {
   }
 
   const activeKeys = keys.filter((k) => k.active)
-  const revokedKeys = keys.filter((k) => !k.active)
+  const configPaths = getConfigPaths()
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px] text-muted-foreground">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -252,7 +270,7 @@ export function APIKeysPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleRevoke(key.id)}
+                      onClick={() => setRevokeConfirm(key)}
                       disabled={revoking === key.id}
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
@@ -277,9 +295,11 @@ export function APIKeysPage() {
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">Quick setup:</span>{' '}
               Copy your key and add it to your Claude Desktop config at{' '}
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                ~/Library/Application Support/Claude/claude_desktop_config.json
-              </code>
+              {configPaths.map((cp) => (
+                <span key={cp.label}>
+                  <code className="text-xs bg-muted px-1 py-0.5 rounded">{cp.path}</code>
+                </span>
+              ))}
             </p>
           </CardContent>
         </Card>
@@ -343,6 +363,30 @@ export function APIKeysPage() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Revoke confirmation dialog */}
+      <Dialog open={!!revokeConfirm} onOpenChange={() => setRevokeConfirm(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Revoke API Key</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to revoke <span className="font-medium text-foreground">{revokeConfirm?.name}</span>?
+              Any applications using this key will stop working immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRevokeConfirm(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => revokeConfirm && handleRevoke(revokeConfirm)}
+            >
+              Revoke Key
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
