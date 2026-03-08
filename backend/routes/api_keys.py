@@ -15,9 +15,11 @@ from services.observability import (
 router = APIRouter(prefix="", tags=["API Keys"])
 
 
+MAX_KEYS_PER_USER = 5
+
+
 class CreateAPIKeyRequest(BaseModel):
     name: str
-    tier: str = "free"
 
 
 @router.get("/metrics")
@@ -46,21 +48,35 @@ async def generate_api_key(
     auth: AuthContext = Depends(require_auth)
 ):
     """Generate a new API key."""
-    set_operation_context("generate_api_key", user_id=auth.user_id, tier=request.tier)
-    add_breadcrumb("API key generation requested", category="api_keys", tier=request.tier)
+    if not auth.user_id:
+        raise HTTPException(status_code=401, detail="User ID required")
+
+    set_operation_context("generate_api_key", user_id=auth.user_id, tier=auth.tier)
+    add_breadcrumb("API key generation requested", category="api_keys", tier=auth.tier)
     
     logger.info(
         "API key generation requested",
         user_id=auth.user_id,
         key_name=request.name,
-        tier=request.tier
+        tier=auth.tier
     )
     
+    # Tier is locked to the user's auth tier (no self-escalation)
+    tier = auth.tier or "free"
+
+    # Enforce key limit per user
+    key_count = api_key_manager.count_keys(auth.user_id)
+    if key_count >= MAX_KEYS_PER_USER:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Maximum {MAX_KEYS_PER_USER} active API keys allowed. Revoke an existing key first."
+        )
+
     try:
-        with track_time("generate_api_key", tier=request.tier):
-            new_key = api_key_manager.generate_key(
+        with track_time("generate_api_key", tier=tier):
+            result = api_key_manager.generate_key(
                 name=request.name,
-                tier=request.tier,
+                tier=tier,
                 user_id=auth.user_id
             )
         
@@ -68,15 +84,18 @@ async def generate_api_key(
             "API key generated successfully",
             user_id=auth.user_id,
             key_name=request.name,
-            tier=request.tier
+            tier=tier
         )
         
         return {
-            "api_key": new_key,
-            "tier": request.tier,
+            "api_key": result["key"],
+            "id": result["id"],
+            "tier": tier,
             "name": request.name,
             "message": "Save this key securely - it won't be shown again"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             "API key generation failed",

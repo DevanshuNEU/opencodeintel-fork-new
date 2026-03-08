@@ -355,7 +355,13 @@ class TestApiKeysRouteObservability:
              patch("routes.api_keys.rate_limiter") as mock_limiter, \
              patch("routes.api_keys.metrics") as mock_metrics:
             
-            mock_manager.generate_key = MagicMock(return_value="sk-test-key-123")
+            mock_manager.generate_key = MagicMock(return_value={
+                "key": "ci_test-key-123",
+                "id": "test-uuid",
+                "name": "test",
+                "tier": "free",
+            })
+            mock_manager.count_keys = MagicMock(return_value=0)
             mock_limiter.get_usage = MagicMock(return_value={"minute": 5, "hour": 50})
             mock_metrics.get_metrics = MagicMock(return_value={"searches": 100})
             
@@ -371,7 +377,7 @@ class TestApiKeysRouteObservability:
         from routes.api_keys import generate_api_key, CreateAPIKeyRequest
         from middleware.auth import AuthContext
 
-        request = CreateAPIKeyRequest(name="Production Key", tier="pro")
+        request = CreateAPIKeyRequest(name="Production Key")
         auth = AuthContext(user_id="user-123", email="test@test.com", tier="pro")
 
         await generate_api_key(request, auth)
@@ -387,7 +393,7 @@ class TestApiKeysRouteObservability:
         from routes.api_keys import generate_api_key, CreateAPIKeyRequest
         from middleware.auth import AuthContext
 
-        request = CreateAPIKeyRequest(name="Key", tier="enterprise")
+        request = CreateAPIKeyRequest(name="Key")
         auth = AuthContext(user_id="user", email="test@test.com", tier="enterprise")
 
         await generate_api_key(request, auth)

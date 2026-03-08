@@ -177,21 +177,32 @@ class APIKeyManager:
     def __init__(self, supabase_client):
         self.db = supabase_client
     
-    def generate_key(self, name: str, tier: str = 'free', user_id: Optional[str] = None) -> str:
-        """Generate a new API key"""
-        # Generate secure random key
+    def generate_key(self, name: str, tier: str = 'free', user_id: Optional[str] = None) -> Dict:
+        """Generate a new API key. Returns dict with raw key + metadata."""
         key = f"ci_{secrets.token_urlsafe(32)}"
-        
-        # Store in database
-        self.db.table("api_keys").insert({
+
+        result = self.db.table("api_keys").insert({
             "key_hash": hashlib.sha256(key.encode()).hexdigest(),
             "name": name,
             "tier": tier,
             "user_id": user_id,
             "created_at": datetime.utcnow().isoformat()
         }).execute()
-        
-        return key
+
+        row = result.data[0] if result.data else {}
+        return {
+            "key": key,
+            "id": row.get("id"),
+            "name": name,
+            "tier": tier,
+        }
+
+    def count_keys(self, user_id: str) -> int:
+        """Count active keys for a user."""
+        result = self.db.table("api_keys").select(
+            "id", count="exact"
+        ).eq("user_id", user_id).eq("active", True).execute()
+        return result.count or 0
     
     def verify_key(self, api_key: str) -> Optional[Dict]:
         """Verify API key and return metadata"""
