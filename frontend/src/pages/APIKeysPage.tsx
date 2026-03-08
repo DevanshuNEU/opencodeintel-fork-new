@@ -1,12 +1,10 @@
 import { useState } from 'react'
-import { KeyRound, Plus, Copy, Check, Loader2, Trash2, Clock } from 'lucide-react'
+import { Plus, Copy, Check, Loader2, X, Clock, Shield, Terminal, Zap } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -17,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { API_URL } from '@/config/api'
+import { cn } from '@/lib/utils'
 
 interface APIKey {
   id: string
@@ -34,68 +33,14 @@ function timeAgo(dateStr: string | null): string {
   if (seconds < 60) return 'Just now'
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-  return `${Math.floor(seconds / 86400)}d ago`
+  if (seconds < 2592000) return `${Math.floor(seconds / 86400)}d ago`
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function TierBadge({ tier }: { tier: string }) {
-  const variants: Record<string, string> = {
-    enterprise: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-    pro: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    free: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-  }
-  return (
-    <Badge variant="outline" className={variants[tier] || variants.free}>
-      {tier}
-    </Badge>
-  )
-}
-
-function StatusDot({ active }: { active: boolean }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span className={`w-2 h-2 rounded-full ${active ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
-      <span className={`text-xs ${active ? 'text-emerald-400' : 'text-zinc-500'}`}>
-        {active ? 'Active' : 'Revoked'}
-      </span>
-    </span>
-  )
-}
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      toast.error('Failed to copy. Try selecting the text manually.')
-    }
-  }
-
-  return (
-    <Button variant="ghost" size="icon" onClick={handleCopy} className="h-8 w-8">
-      {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-    </Button>
-  )
-}
-
-function getConfigPaths(): { label: string; path: string }[] {
-  const ua = navigator.userAgent.toLowerCase()
-  if (ua.includes('win')) {
-    return [
-      { label: 'Windows', path: '%APPDATA%\\Claude\\claude_desktop_config.json' },
-    ]
-  }
-  if (ua.includes('linux')) {
-    return [
-      { label: 'Linux', path: '~/.config/Claude/claude_desktop_config.json' },
-    ]
-  }
-  return [
-    { label: 'macOS', path: '~/Library/Application Support/Claude/claude_desktop_config.json' },
-  ]
+const TIER_STYLES: Record<string, { bg: string; text: string; dot: string }> = {
+  enterprise: { bg: 'bg-amber-500/8 border-amber-500/15', text: 'text-amber-400', dot: 'bg-amber-400' },
+  pro: { bg: 'bg-indigo-500/8 border-indigo-500/15', text: 'text-indigo-400', dot: 'bg-indigo-400' },
+  free: { bg: 'bg-zinc-500/8 border-zinc-500/15', text: 'text-zinc-400', dot: 'bg-zinc-500' },
 }
 
 async function fetchKeys(token: string): Promise<APIKey[]> {
@@ -105,6 +50,235 @@ async function fetchKeys(token: string): Promise<APIKey[]> {
   if (!res.ok) throw new Error('Failed to load keys')
   const data = await res.json()
   return data.keys || []
+}
+
+function CopyInline({ text, label }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      toast.success(label ? `${label} copied` : 'Copied')
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error('Copy failed')
+    }
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+    >
+      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+    </button>
+  )
+}
+
+function KeyCard({
+  apiKey,
+  onRevoke,
+  revoking,
+}: {
+  apiKey: APIKey
+  onRevoke: (key: APIKey) => void
+  revoking: boolean
+}) {
+  const tier = TIER_STYLES[apiKey.tier] || TIER_STYLES.free
+  const isRevoked = !apiKey.active
+
+  return (
+    <div
+      className={cn(
+        'group relative rounded-lg border transition-all duration-200',
+        isRevoked
+          ? 'border-border/50 bg-card/30 opacity-60'
+          : 'border-border/80 bg-card/60 hover:border-border hover:bg-card/80'
+      )}
+    >
+      <div className="px-5 py-4">
+        {/* Top row: name + tier + status */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="font-medium text-[15px] text-foreground truncate">
+              {apiKey.name}
+            </span>
+            <Badge
+              variant="outline"
+              className={cn('text-[10px] uppercase tracking-wider font-medium border', tier.bg, tier.text)}
+            >
+              {apiKey.tier}
+            </Badge>
+            {isRevoked && (
+              <span className="text-[10px] uppercase tracking-wider text-destructive/70 font-medium">
+                Revoked
+              </span>
+            )}
+          </div>
+
+          {apiKey.active && (
+            <button
+              onClick={() => onRevoke(apiKey)}
+              disabled={revoking}
+              className={cn(
+                'opacity-0 group-hover:opacity-100 transition-opacity',
+                'text-xs text-muted-foreground hover:text-destructive',
+                'px-2 py-1 rounded hover:bg-destructive/10',
+                revoking && 'opacity-100'
+              )}
+            >
+              {revoking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Revoke'}
+            </button>
+          )}
+        </div>
+
+        {/* Key preview */}
+        <div className="flex items-center gap-2 mb-3">
+          <code className="text-[13px] font-mono text-muted-foreground tracking-wide select-all">
+            {apiKey.key_preview}
+          </code>
+          <CopyInline text={apiKey.key_preview} label="Key preview" />
+        </div>
+
+        {/* Bottom metadata */}
+        <div className="flex items-center gap-4 text-[11px] text-muted-foreground/70">
+          <span className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            Created {timeAgo(apiKey.created_at)}
+          </span>
+          {apiKey.last_used_at && (
+            <span className="flex items-center gap-1">
+              <Zap className="w-3 h-3" />
+              Last used {timeAgo(apiKey.last_used_at)}
+            </span>
+          )}
+          {!apiKey.last_used_at && apiKey.active && (
+            <span className="italic">Not yet used</span>
+          )}
+        </div>
+      </div>
+
+      {/* Active indicator line */}
+      {apiKey.active && (
+        <div className={cn('absolute left-0 top-3 bottom-3 w-[2px] rounded-full', tier.dot)} />
+      )}
+    </div>
+  )
+}
+
+function ConnectGuide() {
+  const [tab, setTab] = useState<'desktop' | 'code' | 'cursor'>('desktop')
+
+  const snippets: Record<string, { label: string; config: string }> = {
+    desktop: {
+      label: 'Claude Desktop',
+      config: `{
+  "mcpServers": {
+    "codeintel": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.opencodeintel.com/mcp"],
+      "env": {
+        "API_KEY": "ci_your-key-here"
+      }
+    }
+  }
+}`,
+    },
+    code: {
+      label: 'Claude Code',
+      config: `claude mcp add codeintel \\
+  --transport http \\
+  https://mcp.opencodeintel.com/mcp`,
+    },
+    cursor: {
+      label: 'Cursor',
+      config: `{
+  "mcpServers": {
+    "codeintel": {
+      "url": "https://mcp.opencodeintel.com/mcp"
+    }
+  }
+}`,
+    },
+  }
+
+  const current = snippets[tab]
+
+  return (
+    <div className="rounded-lg border border-border/60 bg-card/40 overflow-hidden">
+      <div className="px-5 py-3 border-b border-border/40 flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground">Connect to your tools</span>
+        <div className="flex gap-1">
+          {Object.entries(snippets).map(([key, { label }]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key as typeof tab)}
+              className={cn(
+                'px-2.5 py-1 text-xs rounded-md transition-all',
+                tab === key
+                  ? 'bg-primary/15 text-primary font-medium'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="relative">
+        <pre className="px-5 py-4 text-[12px] font-mono text-muted-foreground leading-relaxed overflow-x-auto">
+          {current.config}
+        </pre>
+        <div className="absolute top-3 right-3">
+          <CopyInline text={current.config} label="Config" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EmptyState({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-6">
+      {/* Visual element */}
+      <div className="relative mb-8">
+        <div className="w-16 h-16 rounded-2xl bg-primary/8 border border-primary/15 flex items-center justify-center">
+          <Shield className="w-7 h-7 text-primary/70" />
+        </div>
+        <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+          <Terminal className="w-3 h-3 text-emerald-400" />
+        </div>
+      </div>
+
+      <h3 className="text-lg font-semibold text-foreground mb-2">
+        Connect your AI tools
+      </h3>
+      <p className="text-sm text-muted-foreground text-center max-w-md mb-6 leading-relaxed">
+        Generate an API key to connect Claude Desktop, Claude Code, Cursor,
+        or any MCP-compatible client to your indexed repositories.
+      </p>
+
+      <Button onClick={onCreate} className="h-9 px-4">
+        <Plus className="w-4 h-4 mr-2" />
+        Create your first key
+      </Button>
+
+      {/* Feature hints */}
+      <div className="flex items-center gap-6 mt-8 text-[11px] text-muted-foreground/60">
+        <span className="flex items-center gap-1.5">
+          <div className="w-1 h-1 rounded-full bg-emerald-400/60" />
+          Semantic search
+        </span>
+        <span className="flex items-center gap-1.5">
+          <div className="w-1 h-1 rounded-full bg-indigo-400/60" />
+          Codebase DNA
+        </span>
+        <span className="flex items-center gap-1.5">
+          <div className="w-1 h-1 rounded-full bg-amber-400/60" />
+          Impact analysis
+        </span>
+      </div>
+    </div>
+  )
 }
 
 export function APIKeysPage() {
@@ -162,7 +336,7 @@ export function APIKeysPage() {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('Failed to revoke key')
-      toast.success('API key revoked')
+      toast.success(`"${key.name}" revoked`)
       queryClient.invalidateQueries({ queryKey: ['api-keys'] })
     } catch {
       toast.error('Failed to revoke key')
@@ -178,187 +352,128 @@ export function APIKeysPage() {
   }
 
   const activeKeys = keys.filter((k) => k.active)
-  const configPaths = getConfigPaths()
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px] text-muted-foreground">
-        <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Loading API keys...
+      <div className="space-y-4">
+        <div className="h-8 w-48 rounded bg-muted/50 animate-pulse" />
+        <div className="h-4 w-72 rounded bg-muted/30 animate-pulse" />
+        <div className="mt-6 space-y-3">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-24 rounded-lg bg-muted/20 animate-pulse" />
+          ))}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <KeyRound className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">API Keys</h1>
-            <p className="text-sm text-muted-foreground">
-              Manage keys for MCP, Claude Desktop, and API access
-            </p>
-          </div>
+    <div className="space-y-8">
+      {/* Page header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            API Keys
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Authenticate MCP clients, Claude Desktop, and programmatic access.
+          </p>
         </div>
-        <Button onClick={() => setGenerateOpen(true)} disabled={activeKeys.length >= 5}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Key
-        </Button>
+        {keys.length > 0 && (
+          <Button
+            onClick={() => setGenerateOpen(true)}
+            disabled={activeKeys.length >= 5}
+            className="h-9"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            New key
+            {activeKeys.length >= 5 && (
+              <span className="ml-1.5 text-[10px] opacity-60">(max 5)</span>
+            )}
+          </Button>
+        )}
       </div>
 
-      {/* Key list */}
+      {/* Key list or empty state */}
       {keys.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
-              <KeyRound className="w-6 h-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold text-foreground mb-1">No API keys yet</h3>
-            <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-              Generate a key to connect Claude Desktop, Claude Code, Cursor, or any MCP client to
-              your indexed repositories.
-            </p>
-            <Button onClick={() => setGenerateOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Key
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState onCreate={() => setGenerateOpen(true)} />
       ) : (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">
-              {activeKeys.length} active key{activeKeys.length !== 1 ? 's' : ''}
-              {activeKeys.length >= 5 && (
-                <span className="text-xs font-normal text-muted-foreground ml-2">(limit reached)</span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-border">
-              {keys.map((key) => (
-                <div
-                  key={key.id}
-                  className={`flex items-center justify-between px-6 py-4 ${
-                    !key.active ? 'opacity-50' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="font-medium text-foreground truncate">{key.name}</span>
-                        <TierBadge tier={key.tier} />
-                        <StatusDot active={key.active} />
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">
-                          {key.key_preview}
-                        </code>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {key.last_used_at ? `Used ${timeAgo(key.last_used_at)}` : 'Never used'}
-                        </span>
-                        <span>Created {timeAgo(key.created_at)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {key.active && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setRevokeConfirm(key)}
-                      disabled={revoking === key.id}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      {revoking === key.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-2.5">
+          {keys.map((key) => (
+            <KeyCard
+              key={key.id}
+              apiKey={key}
+              onRevoke={setRevokeConfirm}
+              revoking={revoking === key.id}
+            />
+          ))}
+
+          {/* Usage count */}
+          <p className="text-[11px] text-muted-foreground/50 pt-1">
+            {activeKeys.length} of 5 keys active
+          </p>
+        </div>
       )}
 
-      {/* Quick setup hint */}
-      {activeKeys.length > 0 && (
-        <Card className="bg-muted/30 border-muted">
-          <CardContent className="py-4">
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">Quick setup:</span>{' '}
-              Copy your key and add it to your Claude Desktop config at{' '}
-              {configPaths.map((cp) => (
-                <span key={cp.label}>
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded">{cp.path}</code>
-                </span>
-              ))}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Connect guide */}
+      {activeKeys.length > 0 && <ConnectGuide />}
 
       {/* Generate dialog */}
       <Dialog open={generateOpen} onOpenChange={closeGenerateDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg border-border/60">
           {generatedKey ? (
             <>
               <DialogHeader>
-                <DialogTitle>Key Created</DialogTitle>
+                <DialogTitle className="text-lg">Key created</DialogTitle>
                 <DialogDescription>
-                  Copy this key now. It will not be shown again.
+                  This is the only time this key will be shown. Copy it now.
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg border">
-                  <code className="flex-1 text-sm font-mono break-all text-foreground select-all">
+              <div className="space-y-4 py-2">
+                <div className="relative rounded-lg bg-zinc-950 border border-border/60 p-4">
+                  <code className="block text-sm font-mono text-emerald-400 break-all leading-relaxed select-all pr-8">
                     {generatedKey}
                   </code>
-                  <CopyButton text={generatedKey} />
+                  <div className="absolute top-3 right-3">
+                    <CopyInline text={generatedKey} label="API key" />
+                  </div>
                 </div>
-                <p className="text-xs text-amber-400">
-                  Store this key securely. You will not be able to see it again.
-                </p>
+                <div className="flex items-start gap-2 px-1">
+                  <Shield className="w-3.5 h-3.5 text-amber-400/80 mt-0.5 shrink-0" />
+                  <p className="text-xs text-amber-400/70 leading-relaxed">
+                    Store this key securely. It cannot be retrieved after you close this dialog.
+                  </p>
+                </div>
               </div>
               <DialogFooter>
-                <Button onClick={closeGenerateDialog}>Done</Button>
+                <Button onClick={closeGenerateDialog} className="w-full sm:w-auto">Done</Button>
               </DialogFooter>
             </>
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>Create API Key</DialogTitle>
+                <DialogTitle className="text-lg">Create API key</DialogTitle>
                 <DialogDescription>
-                  Name your key so you can identify it later.
+                  Give your key a name to identify where it's used.
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="key-name">Key name</Label>
-                  <Input
-                    id="key-name"
-                    placeholder="e.g. Claude Desktop, CI/CD, Development"
-                    value={keyName}
-                    onChange={(e) => setKeyName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                    autoFocus
-                  />
-                </div>
+              <div className="py-2">
+                <Input
+                  placeholder="e.g. Claude Desktop, Development, CI/CD"
+                  value={keyName}
+                  onChange={(e) => setKeyName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && keyName.trim() && handleGenerate()}
+                  className="h-10 bg-background/50"
+                  autoFocus
+                />
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={closeGenerateDialog}>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="ghost" onClick={closeGenerateDialog}>
                   Cancel
                 </Button>
                 <Button onClick={handleGenerate} disabled={!keyName.trim() || generating}>
-                  {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Generate
+                  {generating && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                  Generate key
                 </Button>
               </DialogFooter>
             </>
@@ -366,25 +481,25 @@ export function APIKeysPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Revoke confirmation dialog */}
+      {/* Revoke confirmation */}
       <Dialog open={!!revokeConfirm} onOpenChange={() => setRevokeConfirm(null)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-sm border-border/60">
           <DialogHeader>
-            <DialogTitle>Revoke API Key</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to revoke <span className="font-medium text-foreground">{revokeConfirm?.name}</span>?
-              Any applications using this key will stop working immediately.
+            <DialogTitle>Revoke key</DialogTitle>
+            <DialogDescription className="leading-relaxed">
+              <span className="font-medium text-foreground">{revokeConfirm?.name}</span> will stop
+              working immediately. Any applications using it will lose access.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRevokeConfirm(null)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setRevokeConfirm(null)}>
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={() => revokeConfirm && handleRevoke(revokeConfirm)}
             >
-              Revoke Key
+              Revoke
             </Button>
           </DialogFooter>
         </DialogContent>
