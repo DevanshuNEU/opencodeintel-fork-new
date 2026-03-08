@@ -65,7 +65,7 @@ async def generate_api_key(
     )
     
     # Tier is locked to the user's auth tier (no self-escalation)
-    tier = auth.tier or "free"
+    tier = auth.tier
 
     # Enforce key limit per user
     key_count = api_key_manager.count_keys(auth.user_id)
