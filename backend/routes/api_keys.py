@@ -1,4 +1,7 @@
 """API key management and metrics routes."""
+from typing import Any, Dict
+from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
@@ -115,7 +118,7 @@ async def generate_api_key(
 @router.get("/keys")
 async def list_api_keys(
     auth: AuthContext = Depends(require_auth)
-):
+) -> Dict[str, Any]:
     """List all API keys for the authenticated user."""
     if not auth.user_id:
         raise HTTPException(status_code=401, detail="User ID required")
@@ -131,15 +134,15 @@ async def list_api_keys(
 
 @router.delete("/keys/{key_id}")
 async def revoke_api_key(
-    key_id: str,
+    key_id: UUID,
     auth: AuthContext = Depends(require_auth)
-):
+) -> Dict[str, Any]:
     """Revoke an API key by ID. Soft-deletes (sets active=false)."""
     if not auth.user_id:
         raise HTTPException(status_code=401, detail="User ID required")
 
     try:
-        success = api_key_manager.revoke_key_by_id(key_id, auth.user_id)
+        success = api_key_manager.revoke_key_by_id(str(key_id), auth.user_id)
         if not success:
             raise HTTPException(
                 status_code=404,

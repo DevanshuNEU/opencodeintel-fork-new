@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
   name text NOT NULL,
   key_hash text NOT NULL UNIQUE,
+  key_suffix text,  -- last 8 chars of raw key for masked display (ci_...xYz12345)
   tier text DEFAULT 'free' CHECK (tier IN ('free', 'pro', 'enterprise')),
   active boolean DEFAULT true,
   created_at timestamptz DEFAULT now(),

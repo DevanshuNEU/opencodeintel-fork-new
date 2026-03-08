@@ -180,9 +180,12 @@ class APIKeyManager:
     def generate_key(self, name: str, tier: str = 'free', user_id: Optional[str] = None) -> Dict:
         """Generate a new API key. Returns dict with raw key + metadata."""
         key = f"ci_{secrets.token_urlsafe(32)}"
+        # Persist last 8 chars of raw key for display (ci_...xYz12345)
+        suffix = key[-8:]
 
         result = self.db.table("api_keys").insert({
             "key_hash": hashlib.sha256(key.encode()).hexdigest(),
+            "key_suffix": suffix,
             "name": name,
             "tier": tier,
             "user_id": user_id,
@@ -230,11 +233,11 @@ class APIKeyManager:
     def list_keys(self, user_id: str) -> list:
         """List all API keys for a user. Returns masked keys (no raw values)."""
         result = self.db.table("api_keys").select(
-            "id, name, tier, active, created_at, last_used_at, key_hash"
+            "id, name, tier, active, created_at, last_used_at, key_suffix"
         ).eq("user_id", user_id).order("created_at", desc=True).execute()
         keys = []
         for row in result.data:
-            h = row.get("key_hash", "")
+            suffix = row.get("key_suffix", "")
             keys.append({
                 "id": row["id"],
                 "name": row["name"],
@@ -242,6 +245,6 @@ class APIKeyManager:
                 "active": row["active"],
                 "created_at": row["created_at"],
                 "last_used_at": row.get("last_used_at"),
-                "key_preview": f"ci_...{h[-8:]}" if h else "ci_...",
+                "key_preview": f"ci_...{suffix}" if suffix else "ci_...",
             })
         return keys

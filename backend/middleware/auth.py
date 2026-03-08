@@ -133,11 +133,21 @@ def _validate_api_key(token: str) -> Optional[AuthContext]:
         except Exception:
             pass  # Non-critical; don't fail auth over timestamp update
 
+        # Reject keys with no linked user at the auth layer
+        # so routes get a clear 401 instead of silently passing with user_id=None
+        if not key_data.get("user_id"):
+            raise HTTPException(
+                status_code=401,
+                detail="API key has no linked user. Contact admin."
+            )
+
         return AuthContext(
             api_key_name=key_data.get("name"),
             user_id=key_data.get("user_id"),
             tier=key_data.get("tier", "free")
         )
+    except HTTPException:
+        raise
     except Exception:
         return None
 
@@ -173,8 +183,6 @@ def _authenticate(token: str) -> AuthContext:
                 detail = "API key not found. Check that the key is correct."
             elif not result.data[0].get("active"):
                 detail = "API key has been revoked."
-            elif not result.data[0].get("user_id"):
-                detail = "API key has no linked user. Contact admin."
             else:
                 detail = "API key validation failed."
         except Exception:
