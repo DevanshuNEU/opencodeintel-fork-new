@@ -102,6 +102,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     items.push({ id: 'action-add-repo', type: 'action', title: 'Add Repository', subtitle: 'Clone and index a new repository', icon: '➕', action: () => { window.dispatchEvent(new CustomEvent('openAddRepo')); navigate('/dashboard') } })
     items.push({ id: 'action-refresh', type: 'action', title: 'Refresh Repositories', subtitle: 'Reload the repository list', icon: '🔄', action: () => window.location.reload() })
     items.push({ id: 'nav-dashboard', type: 'navigation', title: 'Go to Dashboard', subtitle: 'View all repositories', icon: '🏠', action: () => navigate('/dashboard') })
+    items.push({ id: 'nav-api-keys', type: 'navigation', title: 'API Keys', subtitle: 'Manage MCP and API access keys', icon: '🔑', action: () => navigate('/dashboard/api-keys') })
     items.push({ id: 'nav-settings', type: 'navigation', title: 'Settings', subtitle: 'Account and preferences', icon: '⚙️', action: () => navigate('/dashboard/settings') })
     items.push({ id: 'nav-docs', type: 'navigation', title: 'Documentation', subtitle: 'Learn how to use OpenCodeIntel', icon: '📚', action: () => window.open('/docs', '_blank') })
     items.push({ id: 'action-signout', type: 'action', title: 'Sign Out', subtitle: 'Log out of your account', icon: '🚪', action: () => signOut() })
