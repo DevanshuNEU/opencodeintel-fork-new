@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Copy, Check, Loader2, X, Clock, Shield, Terminal, Zap } from 'lucide-react'
+import { Plus, Copy, Check, Loader2, Clock, Shield, Terminal, Zap } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -67,6 +67,7 @@ function CopyInline({ text, label }: { text: string; label?: string }) {
   return (
     <button
       onClick={handleCopy}
+      aria-label={copied ? `Copied ${label || ''}` : `Copy ${label || ''}`}
       className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
     >
       {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -119,6 +120,7 @@ function KeyCard({
             <button
               onClick={() => onRevoke(apiKey)}
               disabled={revoking}
+              aria-label={`Revoke API key ${apiKey.name}`}
               className={cn(
                 'opacity-0 group-hover:opacity-100 transition-opacity',
                 'text-xs text-muted-foreground hover:text-destructive',
@@ -131,12 +133,11 @@ function KeyCard({
           )}
         </div>
 
-        {/* Key preview */}
+        {/* Key preview (display only, no copy -- preview is intentionally incomplete) */}
         <div className="flex items-center gap-2 mb-3">
-          <code className="text-[13px] font-mono text-muted-foreground tracking-wide select-all">
+          <code className="text-[13px] font-mono text-muted-foreground tracking-wide">
             {apiKey.key_preview}
           </code>
-          <CopyInline text={apiKey.key_preview} label="Key preview" />
         </div>
 
         {/* Bottom metadata */}
@@ -293,14 +294,15 @@ export function APIKeysPage() {
 
   const token = session?.access_token || ''
 
-  const { data: keys = [], isLoading } = useQuery({
-    queryKey: ['api-keys'],
+  const userId = session?.user?.id || ''
+  const { data: keys = [], isLoading, error } = useQuery({
+    queryKey: ['api-keys', userId],
     queryFn: () => fetchKeys(token),
     enabled: !!token,
   })
 
   const handleGenerate = async () => {
-    if (!token || !keyName.trim()) return
+    if (!token || !keyName.trim() || generating) return
     setGenerating(true)
     try {
       const res = await fetch(`${API_URL}/keys/generate`, {
@@ -318,7 +320,7 @@ export function APIKeysPage() {
       const data = await res.json()
       setGeneratedKey(data.api_key)
       setKeyName('')
-      queryClient.invalidateQueries({ queryKey: ['api-keys'] })
+      queryClient.invalidateQueries({ queryKey: ['api-keys', userId] })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to generate key')
     } finally {
@@ -337,7 +339,7 @@ export function APIKeysPage() {
       })
       if (!res.ok) throw new Error('Failed to revoke key')
       toast.success(`"${key.name}" revoked`)
-      queryClient.invalidateQueries({ queryKey: ['api-keys'] })
+      queryClient.invalidateQueries({ queryKey: ['api-keys', userId] })
     } catch {
       toast.error('Failed to revoke key')
     } finally {
@@ -362,6 +364,23 @@ export function APIKeysPage() {
           {[1, 2].map((i) => (
             <div key={i} className="h-24 rounded-lg bg-muted/20 animate-pulse" />
           ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">API Keys</h1>
+          <p className="text-sm text-muted-foreground mt-1">Authenticate MCP clients, Claude Desktop, and programmatic access.</p>
+        </div>
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-5 py-4">
+          <p className="text-sm font-medium text-destructive">Failed to load API keys</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {error instanceof Error ? error.message : 'An unexpected error occurred.'}
+          </p>
         </div>
       </div>
     )
@@ -419,7 +438,7 @@ export function APIKeysPage() {
       {activeKeys.length > 0 && <ConnectGuide />}
 
       {/* Generate dialog */}
-      <Dialog open={generateOpen} onOpenChange={closeGenerateDialog}>
+      <Dialog open={generateOpen} onOpenChange={(open) => { if (!open && !generatedKey) closeGenerateDialog() }}>
         <DialogContent className="sm:max-w-lg border-border/60">
           {generatedKey ? (
             <>
@@ -462,7 +481,7 @@ export function APIKeysPage() {
                   placeholder="e.g. Claude Desktop, Development, CI/CD"
                   value={keyName}
                   onChange={(e) => setKeyName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && keyName.trim() && handleGenerate()}
+                  onKeyDown={(e) => e.key === 'Enter' && keyName.trim() && !generating && handleGenerate()}
                   className="h-10 bg-background/50"
                   autoFocus
                 />
