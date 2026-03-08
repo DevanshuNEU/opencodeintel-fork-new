@@ -3,6 +3,7 @@ import { DashboardLayout } from './dashboard/DashboardLayout'
 import { DashboardHome } from './dashboard/DashboardHome'
 import { SettingsPage } from '../pages/SettingsPage'
 import { UsagePage } from '../pages/UsagePage'
+import { APIKeysPage } from '../pages/APIKeysPage'
 
 export function Dashboard() {
   return (
@@ -10,6 +11,7 @@ export function Dashboard() {
       <Routes>
         <Route index element={<DashboardHome />} />
         <Route path="usage" element={<UsagePage />} />
+        <Route path="api-keys" element={<APIKeysPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
