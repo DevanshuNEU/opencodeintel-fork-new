@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { API_URL } from '@/config/api'
+import { API_URL, MCP_URL } from '@/config/api'
 import { cn } from '@/lib/utils'
 
 interface APIKey {
@@ -168,7 +168,7 @@ function KeyCard({
 
 type TestStep = { label: string; status: 'idle' | 'running' | 'pass' | 'fail' }
 
-function ConnectionTest({ apiKey }: { apiKey: string | null }) {
+function ConnectionTest({ token }: { token: string | null }) {
   const [steps, setSteps] = useState<TestStep[]>([
     { label: 'MCP server reachable', status: 'idle' },
     { label: 'API key authenticated', status: 'idle' },
@@ -178,7 +178,7 @@ function ConnectionTest({ apiKey }: { apiKey: string | null }) {
   const [tested, setTested] = useState(false)
 
   const runTest = useCallback(async () => {
-    if (!apiKey || running) return
+    if (!token || running) return
     setRunning(true)
     setTested(true)
     const update = (idx: number, status: TestStep['status']) =>
@@ -190,18 +190,18 @@ function ConnectionTest({ apiKey }: { apiKey: string | null }) {
     // Step 1: MCP health
     update(0, 'running')
     try {
-      const res = await fetch('https://mcp.opencodeintel.com/health')
+      const res = await fetch(`${MCP_URL}/health`)
       update(0, res.ok ? 'pass' : 'fail')
       if (!res.ok) { setRunning(false); return }
     } catch {
       update(0, 'fail'); setRunning(false); return
     }
 
-    // Step 2: Auth check
+    // Step 2: Auth check (uses session JWT, not API key preview)
     update(1, 'running')
     try {
       const res = await fetch(`${API_URL}/keys`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
       update(1, res.ok ? 'pass' : 'fail')
       if (!res.ok) { setRunning(false); return }
@@ -213,7 +213,7 @@ function ConnectionTest({ apiKey }: { apiKey: string | null }) {
     update(2, 'running')
     try {
       const res = await fetch(`${API_URL}/repos`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
       update(2, res.ok ? 'pass' : 'fail')
     } catch {
@@ -221,7 +221,7 @@ function ConnectionTest({ apiKey }: { apiKey: string | null }) {
     }
 
     setRunning(false)
-  }, [apiKey, running])
+  }, [token, running])
 
   const allPassed = steps.every((s) => s.status === 'pass')
   const anyFailed = steps.some((s) => s.status === 'fail')
@@ -234,7 +234,7 @@ function ConnectionTest({ apiKey }: { apiKey: string | null }) {
         </span>
         <button
           onClick={runTest}
-          disabled={!apiKey || running}
+          disabled={!token || running}
           className={cn(
             'text-xs px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5',
             running
@@ -287,7 +287,7 @@ function ConnectionTest({ apiKey }: { apiKey: string | null }) {
   )
 }
 
-function ConnectGuide({ activeKeyPreview }: { activeKeyPreview: string | null }) {
+function ConnectGuide({ activeKeyPreview, sessionToken }: { activeKeyPreview: string | null; sessionToken: string | null }) {
   const [tab, setTab] = useState<'desktop' | 'code' | 'cursor'>('desktop')
 
   const keyDisplay = activeKeyPreview || 'ci_your-key-here'
@@ -313,6 +313,7 @@ function ConnectGuide({ activeKeyPreview }: { activeKeyPreview: string | null })
       hint: 'Run in terminal',
       config: `claude mcp add codeintel \\
   --transport http \\
+  --header "Authorization:Bearer ${keyDisplay}" \\
   https://mcp.opencodeintel.com/mcp`,
     },
     cursor: {
@@ -375,7 +376,7 @@ function ConnectGuide({ activeKeyPreview }: { activeKeyPreview: string | null })
       </div>
 
       {/* Connection test */}
-      <ConnectionTest apiKey={activeKeyPreview} />
+      <ConnectionTest token={sessionToken} />
     </div>
   )
 }
@@ -579,7 +580,10 @@ export function APIKeysPage() {
 
       {/* Connect guide */}
       {activeKeys.length > 0 && (
-        <ConnectGuide activeKeyPreview={activeKeys[0]?.key_preview || null} />
+        <ConnectGuide
+          activeKeyPreview={activeKeys[0]?.key_preview || null}
+          sessionToken={token}
+        />
       )}
 
       {/* Generate dialog */}

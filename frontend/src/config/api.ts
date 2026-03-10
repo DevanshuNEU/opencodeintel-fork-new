@@ -58,6 +58,9 @@ export const buildWsUrl = (path: string): string => {
   return `${WS_URL}${cleanPath}`
 }
 
+// MCP server URL (separate Railway service from the API)
+export const MCP_URL = import.meta.env.VITE_MCP_URL || 'https://mcp.opencodeintel.com'
+
 // free tier repo limit -- used in dashboard and GitHub import
 export const MAX_FREE_REPOS = 1
 
