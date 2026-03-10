@@ -11,6 +11,7 @@ from services.cache import CacheService
 from services.dependency_analyzer import DependencyAnalyzer
 from services.style_analyzer import StyleAnalyzer
 from services.dna_extractor import DNAExtractor
+from services.context_assembler import ContextAssembler
 from services.rate_limiter import RateLimiter, APIKeyManager
 from services.supabase_service import get_supabase_service
 from services.input_validator import CostController
@@ -25,6 +26,7 @@ repo_manager = RepositoryManager()
 dependency_analyzer = DependencyAnalyzer()
 style_analyzer = StyleAnalyzer()
 dna_extractor = DNAExtractor()
+context_assembler = ContextAssembler()
 
 # Rate limiting and API key management
 rate_limiter = RateLimiter(redis_client=cache.redis if cache.redis else None)

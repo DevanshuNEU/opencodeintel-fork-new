@@ -145,6 +145,48 @@ def get_tool_schemas() -> list[types.Tool]:
                 "required": ["repo_id"],
             },
         ),
+        # --- Context assembly ---
+        types.Tool(
+            name="get_context_for_task",
+            description=(
+                "Get precisely assembled context for a specific coding task. "
+                "Returns only the files, dependencies, and project rules "
+                "relevant to your task, within a token budget. Use this "
+                "BEFORE writing any code to get exactly the right context "
+                "for the task at hand -- semantic search finds relevant "
+                "code, dependency expansion adds imports, and rule matching "
+                "includes only the project conventions that apply."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_description": {
+                        "type": "string",
+                        "description": (
+                            "Natural language description of the coding task. "
+                            "Examples: 'add rate limiting to settings endpoints', "
+                            "'implement OAuth for the admin dashboard', "
+                            "'fix the dependency graph for TypeScript repos'"
+                        ),
+                    },
+                    "repo_id": {
+                        "type": "string",
+                        "description": "Repository identifier",
+                    },
+                    "token_budget": {
+                        "type": "integer",
+                        "description": (
+                            "Maximum tokens for the context package "
+                            "(default: 1500). Lower = more focused."
+                        ),
+                        "default": 1500,
+                        "minimum": 100,
+                        "maximum": 10000,
+                    },
+                },
+                "required": ["task_description", "repo_id"],
+            },
+        ),
         # --- Write tools ---
         types.Tool(
             name="add_repository",

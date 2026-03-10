@@ -63,6 +63,25 @@ class TestCallTool:
         assert "/repos/r1/dna" in call_path
 
     @pytest.mark.asyncio
+    @patch("handlers.api_post", new_callable=AsyncMock)
+    async def test_context_for_task_dispatches(self, mock_post):
+        mock_post.return_value = {
+            "context": "## Context for: \"test task\"",
+            "tokens_used": 200,
+            "token_budget": 1500,
+            "files_found": 3,
+        }
+        result = await call_tool("get_context_for_task", {
+            "task_description": "add auth to settings",
+            "repo_id": "abc",
+        })
+        assert len(result) == 1
+        assert "Context for" in result[0].text
+        payload = mock_post.call_args[1]["json"]
+        assert payload["task"] == "add auth to settings"
+        assert payload["token_budget"] == 1500
+
+    @pytest.mark.asyncio
     @patch("handlers.api_get", new_callable=AsyncMock)
     async def test_none_arguments_handled(self, mock_get):
         """call_tool(name, None) should not crash."""
