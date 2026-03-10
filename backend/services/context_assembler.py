@@ -237,7 +237,10 @@ class ContextAssembler:
 
         # Tier 1: Relevant files (highest priority)
         if found_files and remaining > 50:
-            tier_lines = ["### Relevant files"]
+            header = "### Relevant files"
+            header_cost = _estimate_tokens(header) + 1  # +1 for trailing blank line
+            remaining -= header_cost
+            tier_lines = [header]
             for r in search_results:
                 fp = r.get("file_path", "")
                 name = r.get("qualified_name", r.get("name", ""))
@@ -257,7 +260,10 @@ class ContextAssembler:
 
         # Tier 2: Dependency files
         if dep_files and remaining > 50:
-            tier_lines = ["### Depends on"]
+            header = "### Depends on"
+            header_cost = _estimate_tokens(header) + 1
+            remaining -= header_cost
+            tier_lines = [header]
             for fp in dep_files[:10]:
                 entry = f"- `{fp}`"
                 entry_tokens = _estimate_tokens(entry)
