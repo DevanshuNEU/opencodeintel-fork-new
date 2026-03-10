@@ -313,7 +313,7 @@ function ConnectGuide({ activeKeyPreview, sessionToken }: { activeKeyPreview: st
       hint: 'Run in terminal',
       config: `claude mcp add codeintel \\
   --transport http \\
-  --header "Authorization:Bearer ${keyDisplay}" \\
+  --header "Authorization: Bearer ${keyDisplay}" \\
   https://mcp.opencodeintel.com/mcp`,
     },
     cursor: {
