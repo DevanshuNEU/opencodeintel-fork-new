@@ -165,6 +165,20 @@ async def _handle_index_repository(args: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+async def _handle_get_context_for_task(args: dict[str, Any]) -> str:
+    payload = {
+        "task": args["task_description"],
+        "repo_id": args["repo_id"],
+        "token_budget": args.get("token_budget", 1500),
+    }
+    result = await api_post("/context/assemble", json=payload)
+    context = result.get("context", "No context assembled.")
+    tokens = result.get("tokens_used", 0)
+    budget = result.get("token_budget", 0)
+    files = result.get("files_found", 0)
+    return f"{context}\n\n---\n_{files} files, {tokens}/{budget} tokens_"
+
+
 async def _handle_delete_repository(args: dict[str, Any]) -> str:
     repo_id = args["repo_id"]
     result = await api_delete(f"/repos/{repo_id}")
@@ -185,6 +199,7 @@ _HANDLERS: dict[str, Any] = {
     "get_repo_directories": _handle_get_repo_directories,
     "index_repository": _handle_index_repository,
     "delete_repository": _handle_delete_repository,
+    "get_context_for_task": _handle_get_context_for_task,
 }
 
 

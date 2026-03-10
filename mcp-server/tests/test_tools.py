@@ -19,6 +19,7 @@ EXPECTED_TOOLS = {
     "get_repo_directories",
     "index_repository",
     "delete_repository",
+    "get_context_for_task",
 }
 
 

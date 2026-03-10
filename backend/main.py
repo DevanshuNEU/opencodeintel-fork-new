@@ -35,6 +35,7 @@ from routes.search_v2 import router as search_v2_router
 from routes.github import router as github_router
 from routes.feedback import router as feedback_router
 from routes.admin import router as admin_router
+from routes.context import router as context_router
 from routes.ws_playground import websocket_playground_index
 from routes.ws_repos import websocket_repo_indexing
 
@@ -106,6 +107,7 @@ app.include_router(search_v2_router, prefix=API_PREFIX)
 app.include_router(github_router, prefix=API_PREFIX)
 app.include_router(feedback_router, prefix=API_PREFIX)
 app.include_router(admin_router, prefix=API_PREFIX)
+app.include_router(context_router, prefix=API_PREFIX)
 
 # WebSocket endpoints (versioned)
 app.add_api_websocket_route(f"{API_PREFIX}/ws/index/{{repo_id}}", websocket_index)
