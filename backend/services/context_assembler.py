@@ -5,12 +5,12 @@ semantic search, expands with 1-hop dependencies, matches applicable
 project rules, and returns an assembled context package within a
 token budget. This is the core of OPE-172.
 """
-import logging
+import asyncio
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+from services.observability import logger
 
 # Rule files in priority order (first found wins, same as dna_extractor)
 RULES_FILES = [
@@ -59,8 +59,8 @@ def _split_rules_into_sections(content: str) -> List[Dict[str, str]]:
     return sections
 
 
-def _read_rules_file(repo_path: Path) -> Tuple[Optional[str], Optional[str]]:
-    """Find and read the first matching rules file in the repo."""
+def _read_rules_file_sync(repo_path: Path) -> Tuple[Optional[str], Optional[str]]:
+    """Find and read the first matching rules file in the repo (sync)."""
     for filename in RULES_FILES:
         rules_path = repo_path / filename
         if rules_path.exists() and rules_path.is_file():
@@ -69,8 +69,14 @@ def _read_rules_file(repo_path: Path) -> Tuple[Optional[str], Optional[str]]:
                 if content.strip():
                     return content, filename
             except OSError as exc:
-                logger.warning("Could not read rules file %s: %s", rules_path, exc)
+                logger.warning("Could not read rules file", path=str(rules_path), error=str(exc))
     return None, None
+
+
+def _load_deps_sync(repo_id: str) -> List[Dict]:
+    """Load file dependencies from Supabase (sync)."""
+    from services.supabase_service import get_supabase_service
+    return get_supabase_service().get_file_dependencies(repo_id)
 
 
 class ContextAssembler:
@@ -88,22 +94,26 @@ class ContextAssembler:
         Returns dict with 'context' (markdown string), 'files_found',
         'tokens_used', and 'debug' metadata.
         """
-        from dependencies import indexer, dependency_analyzer, get_repo_or_404
-        from services.supabase_service import get_supabase_service
+        from dependencies import indexer, get_repo_or_404
 
         repo = get_repo_or_404(repo_id, user_id)
-        local_path = Path(repo.get("local_path", ""))
+        local_path_str = repo.get("local_path", "")
 
         # Step 1: Semantic search for the most relevant files
         search_results = await self._search(task, repo_id, indexer)
         found_files = self._unique_files(search_results)
 
-        # Step 2: Expand with 1-hop dependencies
-        dep_files = self._expand_deps(found_files, repo_id, get_supabase_service())
+        # Step 2: Expand with 1-hop dependencies (sync DB call off event loop)
+        dep_files = await self._expand_deps(found_files, repo_id)
 
         # Step 3: Match relevant rule sections
         all_files = list(dict.fromkeys(found_files + dep_files))
-        rules_content, rules_source = _read_rules_file(local_path)
+        rules_content: Optional[str] = None
+        rules_source: Optional[str] = None
+        if local_path_str and Path(local_path_str).is_dir():
+            rules_content, rules_source = await asyncio.to_thread(
+                _read_rules_file_sync, Path(local_path_str),
+            )
         matched_rules = self._match_rules(rules_content, all_files) if rules_content else []
 
         # Step 4: Assemble within token budget
@@ -137,7 +147,7 @@ class ContextAssembler:
             )
             return results
         except Exception as exc:
-            logger.error("Context search failed: %s", exc)
+            logger.error("Context search failed", error=str(exc))
             return []
 
     @staticmethod
@@ -153,14 +163,12 @@ class ContextAssembler:
         return files
 
     @staticmethod
-    def _expand_deps(
-        seed_files: List[str], repo_id: str, db: Any,
-    ) -> List[str]:
+    async def _expand_deps(seed_files: List[str], repo_id: str) -> List[str]:
         """Add 1-hop imports/dependents for seed files."""
         try:
-            all_deps = db.get_file_dependencies(repo_id)
+            all_deps = await asyncio.to_thread(_load_deps_sync, repo_id)
         except Exception as exc:
-            logger.warning("Could not load deps for expansion: %s", exc)
+            logger.warning("Could not load deps for expansion", error=str(exc))
             return []
 
         # Build adjacency maps
@@ -225,10 +233,11 @@ class ContextAssembler:
     ) -> str:
         """Assemble markdown context package within token budget."""
         lines: List[str] = [f'## Context for: "{task}"', ""]
+        remaining = budget - _estimate_tokens("\n".join(lines))
 
         # Tier 1: Relevant files (highest priority)
-        if found_files:
-            lines.append("### Relevant files")
+        if found_files and remaining > 50:
+            tier_lines = ["### Relevant files"]
             for r in search_results:
                 fp = r.get("file_path", "")
                 name = r.get("qualified_name", r.get("name", ""))
@@ -236,19 +245,29 @@ class ContextAssembler:
                 sig = r.get("signature", "")
                 pct = f"{score * 100:.0f}%" if isinstance(score, float) else str(score)
                 desc = sig if sig else name
-                lines.append(f"- `{fp}` -- {desc} (relevance: {pct})")
-            lines.append("")
+                entry = f"- `{fp}` -- {desc} (relevance: {pct})"
+                entry_tokens = _estimate_tokens(entry)
+                if entry_tokens <= remaining:
+                    tier_lines.append(entry)
+                    remaining -= entry_tokens
+                else:
+                    break
+            tier_lines.append("")
+            lines.extend(tier_lines)
 
         # Tier 2: Dependency files
-        if dep_files:
-            lines.append("### Depends on")
+        if dep_files and remaining > 50:
+            tier_lines = ["### Depends on"]
             for fp in dep_files[:10]:
-                lines.append(f"- `{fp}`")
-            lines.append("")
-
-        # Check budget before adding rules
-        current = _estimate_tokens("\n".join(lines))
-        remaining = budget - current
+                entry = f"- `{fp}`"
+                entry_tokens = _estimate_tokens(entry)
+                if entry_tokens <= remaining:
+                    tier_lines.append(entry)
+                    remaining -= entry_tokens
+                else:
+                    break
+            tier_lines.append("")
+            lines.extend(tier_lines)
 
         # Tier 3: Matched rules
         if matched_rules and remaining > 50:
@@ -262,7 +281,8 @@ class ContextAssembler:
                 else:
                     # Truncate the last section to fit
                     chars_left = remaining * 4
-                    lines.append(section["body"][:chars_left] + "...")
+                    if chars_left > 20:
+                        lines.append(section["body"][:chars_left] + "...")
                     break
             lines.append("")
 

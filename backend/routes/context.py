@@ -4,22 +4,21 @@ Provides per-task context packaging via POST /api/v1/context/assemble.
 Uses semantic search + dependency graph + project rules to build a
 minimal, precise context package for AI coding assistants.
 """
-import logging
 import time
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from dependencies import get_repo_or_404, verify_repo_access
+from dependencies import verify_repo_access
 from middleware.auth import AuthContext, require_auth
 from services.observability import (
     add_breadcrumb,
     capture_exception,
+    logger,
     metrics,
     set_operation_context,
 )
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["context"])
 
@@ -34,7 +33,7 @@ class AssembleRequest(BaseModel):
 async def assemble_context(
     request: AssembleRequest,
     auth: AuthContext = Depends(require_auth),
-):
+) -> dict[str, Any]:
     """Assemble task-specific context from semantic search + deps + rules.
 
     Returns a markdown context package sized to fit within token_budget,

@@ -77,6 +77,8 @@ class TestCallTool:
         })
         assert len(result) == 1
         assert "Context for" in result[0].text
+        call_path = mock_post.call_args[0][0]
+        assert call_path == "/context/assemble"
         payload = mock_post.call_args[1]["json"]
         assert payload["task"] == "add auth to settings"
         assert payload["token_budget"] == 1500
