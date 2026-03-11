@@ -1,233 +1,217 @@
-<p align="center">
-  <img src="docs/assets/OpenCodeIntel_Fav.png" alt="OpenCodeIntel" width="80" />
-</p>
+<div align="center">
 
-<h1 align="center">OpenCodeIntel</h1>
+<img src="docs/assets/OpenCodeIntel_Fav.png" alt="OpenCodeIntel" width="80" />
 
-<p align="center">
-  <strong>Stop feeling lost in unfamiliar codebases.</strong><br/>
-  Semantic code search powered by AI. Find anything, instantly.
-</p>
+# OpenCodeIntel
 
-<p align="center">
-  <a href="https://opencodeintel.com"><strong>Try it Free</strong></a>
-  &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="#quick-start">Self-Host</a>
-  &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="./docs">Docs</a>
-  &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="./CONTRIBUTING.md">Contribute</a>
-</p>
+**The open source alternative to Augment Code's context engine.**
 
-<p align="center">
-  <a href="https://github.com/OpenCodeIntel/opencodeintel/actions/workflows/ci.yml">
-    <img src="https://github.com/OpenCodeIntel/opencodeintel/actions/workflows/ci.yml/badge.svg" alt="CI" />
-  </a>
-  <a href="https://github.com/OpenCodeIntel/opencodeintel/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/OpenCodeIntel/opencodeintel" alt="License" />
-  </a>
-  <a href="https://github.com/OpenCodeIntel/opencodeintel/stargazers">
-    <img src="https://img.shields.io/github/stars/OpenCodeIntel/opencodeintel?style=social" alt="Stars" />
-  </a>
-</p>
+Semantic code search + per-task context assembly + MCP integration.
+Self-hosted or hosted by us. Your code, your data, your control.
 
-<br/>
+[![CI](https://github.com/OpenCodeIntel/opencodeintel/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenCodeIntel/opencodeintel/actions)
+[![License: MIT](https://img.shields.io/github/license/OpenCodeIntel/opencodeintel)](./LICENSE)
+[![Stars](https://img.shields.io/github/stars/OpenCodeIntel/opencodeintel?style=social)](https://github.com/OpenCodeIntel/opencodeintel/stargazers)
+[![MCP](https://img.shields.io/badge/MCP-compatible-6366f1)](https://mcp.opencodeintel.com)
 
-<p align="center">
-  <img src="docs/assets/hero.png" alt="OpenCodeIntel Demo" width="800" />
-</p>
+[**Try Free →**](https://opencodeintel.com) · [**Self-Host**](#self-host) · [**MCP Setup**](./docs/mcp-setup.md) · [**Docs**](./docs) · [**Discord**](https://discord.gg/opencodeintel)
+
+</div>
 
 ---
 
-## The Problem
+## The problem
 
-You know the feeling. Day one on a new codebase. Deadline in two weeks.
+Augment Code raised $252M to solve codebase context for AI tools. Their solution works great — if you're an enterprise with 50+ engineers and a budget to match.
 
-You need to find "where authentication happens" but the function is called `validateSessionToken()`. Grep for "auth" and you get nothing. You spend 20 minutes clicking through files, afraid to touch anything because you don't know what might break.
+Everyone else is left with:
+- Claude Code's `/init` — generates 300-line files ETH Zurich proved hurt performance
+- Cursor's `@codebase` — semantic search locked inside one editor
+- Manual CLAUDE.md files that go stale silently
 
-Traditional code search matches text, not meaning. You have to already know what you're looking for to find it.
+**OpenCodeIntel is the open source infrastructure layer that solves this for everyone.**
 
----
+- Semantic search across your entire codebase, via MCP
+- Per-task context assembly — returns only what's relevant to *this specific task*
+- Works with Claude Code, Cursor, Copilot, Gemini CLI simultaneously
+- Self-host with Docker or use our hosted version at opencodeintel.com
 
-## The Solution
-
-OpenCodeIntel understands your code the way you do. Search by what code *does*, not what it's named.
-
-```text
-You search: "authentication logic"
-It finds:   validateSessionToken(), checkJWT(), authMiddleware.ts
-```
-
-```text
-You search: "where we handle payments"  
-It finds:   stripe/checkout.ts, processRefund(), PaymentService
-```
-
-```text
-You search: "error handling"
-It finds:   catch blocks, onError(), processFailure()
-```
-
-No regex. No exact matches. Just describe what you're looking for.
 
 ---
 
-## Features
+## The flagship feature: per-task context assembly
 
-### Semantic Code Search
-Search by meaning, not keywords. Find that function even when you don't know its name.
+Before OCI, AI tools guess which files are relevant to your task. They're often wrong.
 
-### Dependency Graph  
-Visualize how your files connect. Understand the architecture at a glance.
+With OCI's `get_context_for_task` MCP tool:
 
-### Impact Analysis
-About to change `auth.ts`? Know exactly what breaks before you touch it.
+```
+User: add rate limiting to the settings page endpoints
 
-### Code Style Intelligence
-Understand your team's patterns. snake_case or camelCase? How are errors handled? Match conventions instantly.
+OCI assembles automatically:
+→ backend/routes/settings.py      (94% relevant — exact file to edit)
+→ backend/services/user_limits.py (87% relevant — existing rate limit logic)
+→ backend/middleware/auth.py      (81% relevant — auth pattern to follow)
+→ Rule: Use LimitCheckError, not a new exception
+→ Rule: require_auth on all user routes
+→ Rule: Never bypass RLS on the users table
 
-### Works with Claude (MCP)
-Connect as an MCP server. Your AI assistant gets real context about your codebase, not just the file you have open.
+Total: 1,400 tokens. Exactly what Claude needs. Nothing it doesn't.
+```
+
+**Before OCI:** Claude reads random files, uses the wrong exception class, puts the file in the wrong location. You spend 20 minutes on corrections.
+
+**After OCI:** First try. Every time.
 
 ---
 
-## Quick Start
+## Quick start
 
-### Hosted (Fastest)
+### Use the hosted version
 
-Go to [opencodeintel.com](https://opencodeintel.com), connect your GitHub, and start searching in under a minute.
-
-### Self-Hosted
-
-```bash
-git clone https://github.com/OpenCodeIntel/opencodeintel.git
-cd opencodeintel
-
-cp .env.example .env
-# Add your OpenAI + Pinecone API keys
-
-docker compose up -d
-```
-
-Open [localhost:3000](http://localhost:3000). Done.
-
-<details>
-<summary><strong>Manual setup (without Docker)</strong></summary>
-
-**Requirements:** Python 3.11+, Node.js 20+, Redis
-
-```bash
-# Backend
-cd backend
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-python main.py
-
-# Frontend (new terminal) - MUST use Bun!
-cd frontend
-bun install && bun run dev
-```
-
-</details>
-
-<details>
-<summary><strong>Connect to Claude Desktop (MCP)</strong></summary>
-
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+1. Go to [opencodeintel.com](https://opencodeintel.com) — free tier available
+2. Add your repo (GitHub URL)
+3. Get an API key
+4. Add to Claude Desktop:
 
 ```json
 {
   "mcpServers": {
-    "opencodeintel": {
-      "command": "python",
-      "args": ["/path/to/opencodeintel/mcp-server/server.py"],
-      "env": {
-        "BACKEND_API_URL": "http://localhost:8000",
-        "API_KEY": "your-api-key"
-      }
+    "codeintel": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.opencodeintel.com/mcp"],
+      "env": { "API_KEY": "ci_your-key-here" }
     }
   }
 }
 ```
 
-See [full MCP setup guide](./docs/mcp-setup.md)
+Or use saar to do it in one command:
 
-</details>
+```bash
+pip install saar
+saar extract . --index   # extract + index in one step
+```
+
+### Self-host with Docker
+
+```bash
+git clone https://github.com/OpenCodeIntel/opencodeintel.git
+cd opencodeintel
+cp .env.example .env     # add your Supabase + Pinecone keys
+docker compose up
+```
+
+→ Full self-host guide: [docs/docker-quickstart.md](./docs/docker-quickstart.md)
+
 
 ---
 
-## Why I Built This
+## MCP tools
 
-I got tired of grep.
+Once connected, every AI tool gets these tools automatically:
 
-Every time I joined a new project or inherited a codebase, I spent hours just figuring out where things lived. The original authors were gone. The docs were outdated. And I was scared to change anything because I couldn't see what depended on what.
-
-I wanted code search that actually understood what code does. Not pattern matching on text. Something that could answer "where do we handle user sessions?" without me already knowing the answer.
-
-OpenCodeIntel is the tool I wish I had. It's open source because I think every developer deserves to understand their code, not just those at companies with dedicated platform teams.
+| Tool | What it does |
+|---|---|
+| `search_code` | Semantic search — finds functions by meaning, not just keywords |
+| `get_context_for_task` | **Per-task context assembly** — returns exactly the right files + rules for your specific task |
+| `get_codebase_dna` | Extract architecture patterns, naming conventions, auth patterns |
+| `get_dependency_graph` | See what depends on what — before you break something |
+| `analyze_impact` | "If I change this file, what else breaks?" |
+| `add_repository` | Add a new repo programmatically |
+| `index_repository` | Trigger indexing for a repo |
 
 ---
 
 ## Architecture
 
-<img width="1122" height="556" alt="image" src="https://github.com/user-attachments/assets/5c4f5846-184f-46ec-b4c4-a444cbb6540d" />
+```
+Your codebase
+     ↓
+  saar extract .            # generates AGENTS.md + extracts DNA locally
+     ↓
+  saar extract . --index    # indexes into OCI
+     ↓
+  OCI (Pinecone embeddings + Supabase + FastAPI)
+     ↓
+  MCP server at mcp.opencodeintel.com
+     ↓
+  Claude Desktop / Claude Code / Cursor / Copilot / Gemini CLI
+```
+
+**Tech stack:** FastAPI · Python 3.11 · Supabase · Pinecone · React 18 · TypeScript · Vite · TanStack Query · shadcn/ui · Railway
 
 ---
 
-## Roadmap
+## Why open source?
 
-### Shipped
-- [x] Semantic code search with AI summaries
-- [x] GitHub OAuth + repo import
-- [x] WebGL dependency graph (Sigma.js + ForceAtlas2 + Louvain clustering)
-- [x] Dependency Structure Matrix with circular dep detection
-- [x] Impact analysis
-- [x] Code style intelligence
-- [x] Codebase DNA extraction
-- [x] Team rules detection (CLAUDE.md, .cursorrules)
-- [x] MCP server for Claude Desktop / Cursor
-- [x] Real-time indexing progress (WebSocket)
-- [x] Full documentation site (12 pages)
-- [x] Frontend test suite (Vitest)
+Augment Code is a great product. It's also $252M venture-backed, enterprise-first, and not open source.
 
-### Coming Soon
-- [ ] MCP authentication overhaul (unified config)
-- [ ] VS Code extension
-- [ ] Self-hosted Ollama support (no OpenAI required)
-- [ ] Team workspaces
-- [ ] GitLab / Bitbucket support
+OpenCodeIntel exists because:
+- **Context infrastructure should be open** — not locked behind enterprise sales calls
+- **Your codebase metadata belongs to you** — not stored in a vendor's proprietary index
+- **Every developer deserves this** — not just teams with $50/month/user budgets
+- **The community builds better tools** — in the open
 
-Want to influence the roadmap? [Open an issue](https://github.com/OpenCodeIntel/opencodeintel/issues).
+We believe "scheduling infrastructure for everyone" (cal.com's words) has a direct parallel: **context infrastructure for every developer.**
+
+---
+
+## Self-host
+
+Full control. Your data on your infrastructure.
+
+```bash
+# Requirements: Docker, Supabase account, Pinecone account
+git clone https://github.com/OpenCodeIntel/opencodeintel.git
+cd opencodeintel
+cp .env.example .env
+# Add: SUPABASE_URL, SUPABASE_KEY, PINECONE_API_KEY
+docker compose up
+```
+
+Backend runs at `localhost:8000`. Frontend at `localhost:5173`.
+
+→ Detailed guide: [docs/docker-quickstart.md](./docs/docker-quickstart.md)
+→ Deployment (Railway): [docs/deployment.md](./docs/deployment.md)
 
 ---
 
 ## Contributing
 
-Found a bug? [Open an issue](https://github.com/OpenCodeIntel/opencodeintel/issues/new?template=bug_report.yml)
+680 commits. Built solo. Now open for contributions.
 
-Have an idea? [Request a feature](https://github.com/OpenCodeIntel/opencodeintel/issues/new?template=feature_request.yml)
+```bash
+git clone https://github.com/OpenCodeIntel/opencodeintel.git
+cd opencodeintel
 
-Want to contribute code? See [CONTRIBUTING.md](./CONTRIBUTING.md)
+# Backend
+cd backend && pip install -r requirements.txt
+pytest tests/ -v         # 392+ tests
 
----
+# Frontend
+cd frontend && bun install
+bun run dev
+```
 
-## Documentation
+Good first issues: [`good first issue`](https://github.com/OpenCodeIntel/opencodeintel/issues?q=is%3Aopen+label%3A%22good+first+issue%22)
 
-- [Docker Quickstart](./docs/docker-quickstart.md)
-- [Deployment Guide](./docs/deployment.md)
-- [MCP Integration](./docs/mcp-setup.md)  
-- [Troubleshooting](./docs/docker-troubleshooting.md)
-
----
-
-## License
-
-[MIT](./LICENSE)
+Please read [CONTRIBUTING.md](./CONTRIBUTING.md) and [CLAUDE.md](./CLAUDE.md) before opening a PR.
 
 ---
 
-<p align="center">
-  <a href="https://opencodeintel.com">Website</a>
-  &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="https://github.com/OpenCodeIntel/opencodeintel">GitHub</a>
-</p>
+## Built by
+
+[Devanshu Chicholikar](https://github.com/DevanshuNEU) · MS Software Engineering, Northeastern · Solo founder · F1 visa
+
+Building context infrastructure for developers who use AI tools daily.
+
+---
+
+<div align="center">
+
+**[opencodeintel.com](https://opencodeintel.com)** · **[getsaar.com](https://getsaar.com)** · **[MIT License](./LICENSE)**
+
+*If OCI helped your team ship better AI-assisted code, a ⭐ goes a long way.*
+
+</div>
