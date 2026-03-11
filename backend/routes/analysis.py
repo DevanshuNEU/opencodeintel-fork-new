@@ -134,7 +134,7 @@ async def get_style_analysis(
             return {**cached_style, "cached": True}
 
         logger.info("Analyzing code style", repo_id=repo_id)
-        style_data = style_analyzer.analyze_repository_style(repo["local_path"])
+        style_data = style_analyzer.analyze_repository_style(repo["local_path"], include_paths=repo.get("include_paths"))
         style_analyzer.save_to_cache(repo_id, style_data)
 
         return {**style_data, "cached": False}
@@ -178,7 +178,7 @@ async def get_codebase_dna(
         logger.info("Extracting codebase DNA", repo_id=repo_id)
         metrics.increment("dna_extractions")
 
-        dna = dna_extractor.extract_dna(repo["local_path"], repo_id)
+        dna = dna_extractor.extract_dna(repo["local_path"], repo_id, include_paths=repo.get("include_paths"))
         dna_extractor.save_to_cache(repo_id, dna)
 
         if format == "markdown":

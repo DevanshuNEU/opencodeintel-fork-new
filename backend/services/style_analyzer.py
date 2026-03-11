@@ -139,11 +139,26 @@ class StyleAnalyzer:
         else:
             return ': ' in source_code and ('interface' in source_code or 'type ' in source_code)
     
-    def analyze_repository_style(self, repo_path: str) -> Dict:
-        """Analyze coding style patterns across repository"""
+    def analyze_repository_style(self, repo_path: str, include_paths: Optional[List[str]] = None) -> Dict:
+        """Analyze coding style patterns across repository.
+        
+        If include_paths is set, only files within those directories are analyzed.
+        """
         repo_path = Path(repo_path)
         
-        logger.info("Analyzing code style for repository")
+        # Sanitize include_paths (could be corrupt jsonb from DB)
+        if include_paths:
+            cleaned = []
+            for p in include_paths:
+                if not isinstance(p, str):
+                    continue
+                p = p.replace('\\', '/').strip().strip('/')
+                if not p or '..' in p.split('/'):
+                    continue
+                cleaned.append(p)
+            include_paths = cleaned or None
+        
+        logger.info("Analyzing code style for repository", include_paths=include_paths)
         
         # Discover code files
         code_files = []
@@ -155,8 +170,16 @@ class StyleAnalyzer:
                 continue
             if any(skip in file_path.parts for skip in skip_dirs):
                 continue
-            if file_path.suffix in extensions:
-                code_files.append(file_path)
+            if file_path.suffix not in extensions:
+                continue
+            if include_paths:
+                rel_parts = file_path.relative_to(repo_path).parts
+                if not any(
+                    rel_parts[:len(Path(p).parts)] == Path(p).parts
+                    for p in include_paths
+                ):
+                    continue
+            code_files.append(file_path)
         
         # Collect style data
         function_names = []
