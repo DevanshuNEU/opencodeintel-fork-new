@@ -361,8 +361,11 @@ class DNAExtractor:
             '.tsx': 'typescript',
         }.get(ext, 'unknown')
     
-    def _discover_files(self, repo_path: Path) -> List[Path]:
-        """Find all code files, skipping irrelevant directories and symlinks"""
+    def _discover_files(self, repo_path: Path, include_paths: Optional[List[str]] = None) -> List[Path]:
+        """Find all code files, skipping irrelevant directories and symlinks.
+        
+        If include_paths is set, only files within those directories are returned.
+        """
         files = []
         extensions = {'.py', '.js', '.jsx', '.ts', '.tsx', '.sql'}
         
@@ -370,12 +373,21 @@ class DNAExtractor:
             for item in repo_path.rglob('*'):
                 if item.is_symlink():
                     continue
-                if item.is_file() and item.suffix in extensions:
-                    if not any(skip in item.parts for skip in self.SKIP_DIRS):
-                        files.append(item)
-                        if len(files) >= self.MAX_FILES:
-                            logger.warning(f"Hit max file limit ({self.MAX_FILES})")
-                            break
+                if not item.is_file() or item.suffix not in extensions:
+                    continue
+                if any(skip in item.parts for skip in self.SKIP_DIRS):
+                    continue
+                if include_paths:
+                    rel_parts = item.relative_to(repo_path).parts
+                    if not any(
+                        rel_parts[:len(Path(p).parts)] == Path(p).parts
+                        for p in include_paths
+                    ):
+                        continue
+                files.append(item)
+                if len(files) >= self.MAX_FILES:
+                    logger.warning(f"Hit max file limit ({self.MAX_FILES})")
+                    break
         except Exception as e:
             logger.error(f"Error discovering files: {e}")
         
@@ -914,8 +926,11 @@ class DNAExtractor:
         
         return pattern
 
-    def extract_dna(self, repo_path: str, repo_id: str) -> CodebaseDNA:
-        """Extract complete DNA profile from a codebase"""
+    def extract_dna(self, repo_path: str, repo_id: str, include_paths: Optional[List[str]] = None) -> CodebaseDNA:
+        """Extract complete DNA profile from a codebase.
+        
+        If include_paths is set, only files within those directories are analyzed.
+        """
         import time
         start_time = time.time()
         
@@ -929,13 +944,25 @@ class DNAExtractor:
             logger.error(f"Repo path is not a directory: {repo_path}")
             raise ValueError(f"Repository path is not a directory: {repo_path}")
         
+        # Sanitize include_paths (could be corrupt jsonb from DB)
+        if include_paths:
+            cleaned = []
+            for p in include_paths:
+                if not isinstance(p, str):
+                    continue
+                p = p.replace('\\', '/').strip().strip('/')
+                if not p or '..' in p.split('/'):
+                    continue
+                cleaned.append(p)
+            include_paths = cleaned or None
+        
         # reset cache for fresh extraction
         self._reset_cache()
         
-        logger.info("Extracting codebase DNA", repo_id=repo_id, path=str(repo_path))
+        logger.info("Extracting codebase DNA", repo_id=repo_id, path=str(repo_path), include_paths=include_paths)
         
         # Discover files
-        files = self._discover_files(repo_path)
+        files = self._discover_files(repo_path, include_paths=include_paths)
         logger.info(f"Found {len(files)} code files")
         
         # Detect framework first
