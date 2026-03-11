@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, Copy, Check, Loader2, Clock, Shield, Terminal, Zap } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { Plus, Copy, Check, Loader2, Clock, Shield, Terminal, Zap, Wifi, CircleCheck, CircleX, ArrowRight } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { API_URL } from '@/config/api'
+import { API_URL, MCP_URL } from '@/config/api'
 import { cn } from '@/lib/utils'
 
 interface APIKey {
@@ -166,19 +166,143 @@ function KeyCard({
   )
 }
 
-function ConnectGuide() {
+type TestStep = { label: string; status: 'idle' | 'running' | 'pass' | 'fail' }
+
+function ConnectionTest({ token }: { token: string | null }) {
+  const [steps, setSteps] = useState<TestStep[]>([
+    { label: 'MCP server reachable', status: 'idle' },
+    { label: 'API key authenticated', status: 'idle' },
+    { label: 'Repositories accessible', status: 'idle' },
+  ])
+  const [running, setRunning] = useState(false)
+  const [tested, setTested] = useState(false)
+
+  const runTest = useCallback(async () => {
+    if (!token || running) return
+    setRunning(true)
+    setTested(true)
+    const update = (idx: number, status: TestStep['status']) =>
+      setSteps((prev) => prev.map((s, i) => (i === idx ? { ...s, status } : s)))
+
+    // Reset
+    setSteps((prev) => prev.map((s) => ({ ...s, status: 'idle' })))
+
+    // Step 1: MCP health
+    update(0, 'running')
+    try {
+      const res = await fetch(`${MCP_URL}/health`)
+      update(0, res.ok ? 'pass' : 'fail')
+      if (!res.ok) { setRunning(false); return }
+    } catch {
+      update(0, 'fail'); setRunning(false); return
+    }
+
+    // Step 2: Auth check (uses session JWT, not API key preview)
+    update(1, 'running')
+    try {
+      const res = await fetch(`${API_URL}/keys`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      update(1, res.ok ? 'pass' : 'fail')
+      if (!res.ok) { setRunning(false); return }
+    } catch {
+      update(1, 'fail'); setRunning(false); return
+    }
+
+    // Step 3: Repos accessible
+    update(2, 'running')
+    try {
+      const res = await fetch(`${API_URL}/repos`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      update(2, res.ok ? 'pass' : 'fail')
+    } catch {
+      update(2, 'fail')
+    }
+
+    setRunning(false)
+  }, [token, running])
+
+  const allPassed = steps.every((s) => s.status === 'pass')
+  const anyFailed = steps.some((s) => s.status === 'fail')
+
+  return (
+    <div className="px-5 py-4 border-t border-border/40">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Connection test
+        </span>
+        <button
+          onClick={runTest}
+          disabled={!token || running}
+          className={cn(
+            'text-xs px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5',
+            running
+              ? 'text-muted-foreground bg-muted/30'
+              : allPassed && tested
+                ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15'
+                : 'text-primary bg-primary/10 hover:bg-primary/15',
+          )}
+        >
+          {running ? (
+            <><Loader2 className="w-3 h-3 animate-spin" /> Testing...</>
+          ) : allPassed && tested ? (
+            <><CircleCheck className="w-3 h-3" /> Connected</>
+          ) : (
+            <><Wifi className="w-3 h-3" /> Test connection</>
+          )}
+        </button>
+      </div>
+      <div className="flex items-center gap-3">
+        {steps.map((step, i) => (
+          <div key={step.label} className="flex items-center gap-1.5">
+            {i > 0 && (
+              <ArrowRight className={cn(
+                'w-3 h-3',
+                step.status === 'pass' ? 'text-emerald-400/50' : 'text-border/60',
+              )} />
+            )}
+            <div className={cn(
+              'flex items-center gap-1.5 text-xs px-2 py-1 rounded-md',
+              step.status === 'pass' && 'text-emerald-400 bg-emerald-500/8',
+              step.status === 'fail' && 'text-destructive bg-destructive/8',
+              step.status === 'running' && 'text-primary bg-primary/8',
+              step.status === 'idle' && 'text-muted-foreground/60',
+            )}>
+              {step.status === 'running' && <Loader2 className="w-3 h-3 animate-spin" />}
+              {step.status === 'pass' && <CircleCheck className="w-3 h-3" />}
+              {step.status === 'fail' && <CircleX className="w-3 h-3" />}
+              {step.status === 'idle' && <div className="w-3 h-3 rounded-full border border-current opacity-40" />}
+              {step.label}
+            </div>
+          </div>
+        ))}
+      </div>
+      {anyFailed && tested && !running && (
+        <p className="text-[11px] text-destructive/70 mt-2">
+          Connection failed. Check that your API key is active and the MCP server is running.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function ConnectGuide({ activeKeyPreview, sessionToken }: { activeKeyPreview: string | null; sessionToken: string | null }) {
   const [tab, setTab] = useState<'desktop' | 'code' | 'cursor'>('desktop')
 
-  const snippets: Record<string, { label: string; config: string }> = {
+  const keyDisplay = activeKeyPreview || 'ci_your-key-here'
+
+  const snippets: Record<string, { label: string; config: string; hint: string }> = {
     desktop: {
       label: 'Claude Desktop',
+      hint: 'Settings > Developer > Edit Config',
       config: `{
   "mcpServers": {
     "codeintel": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://mcp.opencodeintel.com/mcp"],
       "env": {
-        "API_KEY": "ci_your-key-here"
+        "API_KEY": "${keyDisplay}"
       }
     }
   }
@@ -186,16 +310,22 @@ function ConnectGuide() {
     },
     code: {
       label: 'Claude Code',
+      hint: 'Run in terminal',
       config: `claude mcp add codeintel \\
   --transport http \\
+  --header "Authorization: Bearer ${keyDisplay}" \\
   https://mcp.opencodeintel.com/mcp`,
     },
     cursor: {
       label: 'Cursor',
+      hint: '.cursor/mcp.json',
       config: `{
   "mcpServers": {
     "codeintel": {
-      "url": "https://mcp.opencodeintel.com/mcp"
+      "url": "https://mcp.opencodeintel.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${keyDisplay}"
+      }
     }
   }
 }`,
@@ -207,7 +337,10 @@ function ConnectGuide() {
   return (
     <div className="rounded-lg border border-border/60 bg-card/40 overflow-hidden">
       <div className="px-5 py-3 border-b border-border/40 flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground">Connect to your tools</span>
+        <div className="flex items-center gap-2">
+          <Wifi className="w-3.5 h-3.5 text-primary/70" />
+          <span className="text-sm font-medium text-foreground">Connect to your tools</span>
+        </div>
         <div className="flex gap-1">
           {Object.entries(snippets).map(([key, { label }]) => (
             <button
@@ -225,14 +358,25 @@ function ConnectGuide() {
           ))}
         </div>
       </div>
+
+      {/* Hint line */}
+      <div className="px-5 pt-3 pb-0">
+        <p className="text-[11px] text-muted-foreground/60">
+          {current.hint}
+        </p>
+      </div>
+
       <div className="relative">
-        <pre className="px-5 py-4 text-[12px] font-mono text-muted-foreground leading-relaxed overflow-x-auto">
+        <pre className="px-5 py-3 text-[12px] font-mono text-muted-foreground leading-relaxed overflow-x-auto">
           {current.config}
         </pre>
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-2 right-3">
           <CopyInline text={current.config} label="Config" />
         </div>
       </div>
+
+      {/* Connection test */}
+      <ConnectionTest token={sessionToken} />
     </div>
   )
 }
@@ -435,7 +579,12 @@ export function APIKeysPage() {
       )}
 
       {/* Connect guide */}
-      {activeKeys.length > 0 && <ConnectGuide />}
+      {activeKeys.length > 0 && (
+        <ConnectGuide
+          activeKeyPreview={activeKeys[0]?.key_preview || null}
+          sessionToken={token}
+        />
+      )}
 
       {/* Generate dialog */}
       <Dialog open={generateOpen} onOpenChange={(open) => { if (!open && !generatedKey) closeGenerateDialog() }}>
