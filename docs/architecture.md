@@ -1,4 +1,4 @@
-# OpenCodeIntel — System Architecture
+# OpenCodeIntel: System Architecture
 
 ## Overview
 
@@ -54,7 +54,7 @@ OpenCodeIntel is a RAG-based (Retrieval-Augmented Generation) code intelligence 
 
 ---
 
-## Indexing Pipeline (RAG — Knowledge Base Construction)
+## Indexing Pipeline (RAG: Knowledge Base Construction)
 
 ```text
 Repository (GitHub URL or local path)
@@ -117,7 +117,7 @@ Repository (GitHub URL or local path)
 
 ---
 
-## Query Pipeline (RAG — Retrieval + Context Assembly)
+## Query Pipeline (RAG: Retrieval + Context Assembly)
 
 ```text
 User Task: "add rate limiting to the settings endpoints"
