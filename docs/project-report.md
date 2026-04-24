@@ -54,6 +54,8 @@ Query → expansion → Pinecone search → dep expansion → rule matching
 
 *Full detailed diagrams with all component interactions: [`docs/architecture.md`](./architecture.md)*
 
+![System Architecture](https://github.com/user-attachments/assets/5c4f5846-184f-46ec-b4c4-a444cbb6540d)
+
 ---
 
 ## 3. Generative AI Components

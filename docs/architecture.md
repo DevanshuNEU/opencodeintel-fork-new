@@ -2,6 +2,10 @@
 
 ## Overview
 
+![System Architecture](https://github.com/user-attachments/assets/5c4f5846-184f-46ec-b4c4-a444cbb6540d)
+
+
+
 OpenCodeIntel is a RAG-based (Retrieval-Augmented Generation) code intelligence system. It indexes codebases into a vector database, then assembles per-task context for AI coding assistants via the Model Context Protocol (MCP).
 
 ---
