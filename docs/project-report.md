@@ -1,4 +1,4 @@
-# OpenCodeIntel — Project Report
+# OpenCodeIntel: Project Report
 
 **Course:** Generative AI  
 **Project:** AI-Powered Code Intelligence System  
@@ -14,13 +14,13 @@
 
 OpenCodeIntel (OCI) is an open-source, production-grade generative AI system that solves a real problem: AI coding assistants like Claude Code, Cursor, and Copilot do not know your codebase. They hallucinate function names, use wrong patterns, and put code in wrong files because they lack context.
 
-OCI builds a persistent, semantic knowledge base from your codebase and delivers exactly the right context — the relevant files, functions, and project rules — to any AI assistant the moment it needs them, via the Model Context Protocol (MCP).
+OCI builds a persistent, semantic knowledge base from your codebase and delivers exactly the right context (the relevant files, functions, and project rules) to any AI assistant the moment it needs them, via the Model Context Protocol (MCP).
 
 This is the open-source alternative to Augment Code, which raised $252M to solve the same problem for enterprise teams. OCI solves it for every developer, free and self-hostable.
 
 **Generative AI components implemented:**
-- Retrieval-Augmented Generation (RAG) — primary
-- Prompt Engineering — per-task context assembly with systematic rule injection
+- Retrieval-Augmented Generation (RAG): primary component
+- Prompt Engineering: per-task context assembly with systematic rule injection
 
 ---
 
@@ -30,16 +30,16 @@ See [`docs/architecture.md`](./architecture.md) for full diagrams.
 
 The system has four layers:
 
-**Layer 1 — Indexing (RAG Knowledge Base Construction)**  
+**Layer 1: Indexing (RAG Knowledge Base Construction)**  
 Repositories are parsed with tree-sitter at the function level. Each function is embedded using OpenAI `text-embedding-3-small` and stored in Pinecone (vector database). Import relationships are extracted into a dependency graph stored in Supabase.
 
-**Layer 2 — Retrieval (RAG Query Pipeline)**  
+**Layer 2: Retrieval (RAG Query Pipeline)**  
 Given a natural language task description, the system expands the query into semantic variants, runs cosine similarity search against Pinecone, expands results by one hop through the dependency graph, and matches project rules from `CLAUDE.md` / `AGENTS.md` / `.cursorrules`.
 
-**Layer 3 — Context Assembly (Prompt Engineering)**  
+**Layer 3: Context Assembly (Prompt Engineering)**  
 Retrieved chunks are ranked by relevance score and packed into a token budget (default 1,500 tokens). Matched rules are injected. The result is a structured markdown context package delivered to the AI assistant.
 
-**Layer 4 — MCP Protocol**  
+**Layer 4: MCP Protocol**  
 An MCP server exposes all capabilities as tools consumable by any MCP-compatible AI client (Claude Code, Cursor, Copilot, Gemini CLI) via stdio or streamable HTTP.
 
 ### Architecture Diagram
@@ -114,7 +114,7 @@ CLAUDE.md → AGENTS.md → .cursorrules → .codeintel/rules.md
 → CODING_GUIDELINES.md
 ```
 
-Rules files are split by `##` markdown headers into discrete sections. Each section is matched against the user's task using regex patterns and keyword overlap scoring. Only relevant rule sections are included — not the entire file — to stay within the token budget.
+Rules files are split by `##` markdown headers into discrete sections. Each section is matched against the user's task using regex patterns and keyword overlap scoring. Only relevant rule sections are included (not the entire file) to stay within the token budget.
 
 **Token Budget Management**
 
@@ -122,7 +122,7 @@ Context is packed greedily within a configurable token budget (default: 1,500 to
 
 **System Prompt Design for DNA Extraction**
 
-The `get_codebase_dna` tool uses tree-sitter to statically analyze the codebase and extract architectural patterns — auth patterns, service patterns, DB patterns, error patterns, naming conventions — without calling an LLM. This deterministic extraction produces machine-readable rules that serve as grounding context for AI code generation, reducing hallucination of project-specific names and patterns.
+The `get_codebase_dna` tool uses tree-sitter to statically analyze the codebase and extract architectural patterns (auth patterns, service patterns, DB patterns, error patterns, naming conventions) without calling an LLM. This deterministic extraction produces machine-readable rules that serve as grounding context for AI code generation, reducing hallucination of project-specific names and patterns.
 
 ---
 
@@ -142,7 +142,7 @@ The `get_codebase_dna` tool uses tree-sitter to statically analyze the codebase 
 | `search_v2/` | Function-level extraction (tree-sitter) |
 | `middleware/auth.py` | JWT + API key authentication |
 
-All services use the singleton pattern (instantiated once in `dependencies.py`, injected via FastAPI `Depends()`). This is critical for Pinecone connection reuse — creating a new connection per request would add ~800ms of latency.
+All services use the singleton pattern (instantiated once in `dependencies.py`, injected via FastAPI `Depends()`). This is critical for Pinecone connection reuse; creating a new connection per request would add ~800ms of latency.
 
 **Multi-tenancy:** Every Pinecone query filters by `repo_id` (UUID). Supabase Row-Level Security (RLS) enforces that users can only access their own repositories at the database level, independent of application logic.
 
@@ -156,11 +156,11 @@ Tools exposed: `search_code`, `get_context_for_task`, `get_codebase_dna`, `get_d
 
 ### 4.3 Frontend (React 18, TypeScript, Vite)
 
-Dashboard for repository management, API key generation, and indexing status. Built with shadcn/ui components and Tailwind CSS. All server state managed via TanStack Query (`useQuery`/`useMutation`) — no raw `fetch` in `useEffect`.
+Dashboard for repository management, API key generation, and indexing status. Built with shadcn/ui components and Tailwind CSS. All server state managed via TanStack Query (`useQuery`/`useMutation`); no raw `fetch` in `useEffect`.
 
 ### 4.4 Infrastructure
 
-- **Backend + MCP:** Railway (separate services, shared environment — using `MCP_API_KEY` to avoid collision with backend's `API_KEY`)
+- **Backend + MCP:** Railway (separate services, shared environment; uses `MCP_API_KEY` to avoid collision with backend's `API_KEY`)
 - **Frontend:** Vercel
 - **CI/CD:** GitHub Actions with path-filtered jobs (backend tests only run when `backend/**` changes)
 - **Domains:** GoDaddy → Vercel/Railway
@@ -257,19 +257,19 @@ Switching embedding models between `text-embedding-3-small` (1536d) and `text-em
 ## 8. Ethical Considerations
 
 **Data Privacy**  
-Code is a form of intellectual property. OCI's hosted service stores repository embeddings (vector representations, not raw source code) in Pinecone and metadata in Supabase. API keys are stored as SHA-256 hashes — the raw key is shown once and never persisted. Users retain full ownership of their data and can delete repositories at any time. The self-hosted deployment option (Docker Compose) gives users complete control over data residency.
+Code is a form of intellectual property. OCI's hosted service stores repository embeddings (vector representations, not raw source code) in Pinecone and metadata in Supabase. API keys are stored as SHA-256 hashes; the raw key is shown once and never persisted. Users retain full ownership of their data and can delete repositories at any time. The self-hosted deployment option (Docker Compose) gives users complete control over data residency.
 
 **Access Control**  
 Multi-tenancy is enforced at two layers: application-level (all queries filter by `repo_id` tied to the authenticated user) and database-level (Supabase Row-Level Security). These two independent layers prevent cross-user data leakage even if one layer has a bug.
 
 **Potential Misuse**  
-The context assembly feature could theoretically be used to extract sensitive patterns from a codebase (auth logic, secret handling). OCI mitigates this by requiring user authentication for all repository access and by not storing raw source code — only embeddings.
+The context assembly feature could theoretically be used to extract sensitive patterns from a codebase (auth logic, secret handling). OCI mitigates this by requiring user authentication for all repository access and by not storing raw source code, only embeddings.
 
 **Bias and Representation**  
 The embedding model (OpenAI `text-embedding-3-small`) may perform better on English-language identifiers and comments than on other languages. Codebases with non-English naming conventions may see lower retrieval recall. This is a known limitation.
 
 **Copyright**  
-OCI does not reproduce or redistribute source code. It stores vector embeddings (real-valued floating point arrays) which significantly reduces the risk of reconstructing original source code. Retrieval returns file paths and function signatures to help the AI locate relevant code — not the code itself verbatim (unless the user has authorized access to that repo).
+OCI does not reproduce or redistribute source code. It stores vector embeddings (real-valued floating point arrays) which significantly reduces the risk of reconstructing original source code. Retrieval returns file paths and function signatures to help the AI locate relevant code, not the code itself verbatim (unless the user has authorized access to that repo).
 
 **Content Filtering**  
 The system does not filter for malicious code patterns. It indexes whatever the user points it at. Users are responsible for ensuring they have authorization to index the repositories they connect.
