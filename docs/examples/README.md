@@ -8,13 +8,13 @@ These examples use the hosted instance at `mcp.opencodeintel.com`.
 ## Example 1: Per-Task Context Assembly
 
 **User task given to Claude Code:**
-```
+```text
 add rate limiting to the POST /api/v1/settings endpoint
 ```
 
 **OCI `get_context_for_task` response:**
 
-```
+```text
 CONTEXT PACKAGE — assembled for: "add rate limiting to the POST /api/v1/settings endpoint"
 Token budget: 1500 | Tokens used: 1,387 | Files found: 3
 
@@ -61,7 +61,7 @@ RULES (from AGENTS.md — matched to task)
 ## Example 2: Semantic Code Search
 
 **Query:**
-```
+```text
 search_code("authentication middleware JWT validation")
 ```
 
@@ -98,12 +98,12 @@ search_code("authentication middleware JWT validation")
 ## Example 3: Codebase DNA Extraction
 
 **Query:**
-```
+```text
 get_codebase_dna(repo_id="78aa181e-...")
 ```
 
 **Response (extracted architectural patterns):**
-```
+```text
 CODEBASE DNA — OpenCodeIntel Backend
 Extracted: 2025-04-24
 
@@ -147,12 +147,12 @@ TYPE HINTS
 ## Example 4: Impact Analysis
 
 **Query:**
-```
+```text
 analyze_impact(repo_id="78aa181e-...", file_path="backend/middleware/auth.py")
 ```
 
 **Response:**
-```
+```text
 IMPACT ANALYSIS — backend/middleware/auth.py
 
 Direct dependents (files that import this):
@@ -179,12 +179,12 @@ Risk assessment: HIGH
 ## Example 5: Dependency Graph
 
 **Query:**
-```
+```text
 get_dependency_graph(repo_id="78aa181e-...")
 ```
 
 **Partial response (most connected nodes):**
-```
+```text
 DEPENDENCY GRAPH — OpenCodeIntel Backend
 
 Most imported files (critical nodes):

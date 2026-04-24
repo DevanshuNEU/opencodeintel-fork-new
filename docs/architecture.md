@@ -12,12 +12,12 @@ OpenCodeIntel is a RAG-based (Retrieval-Augmented Generation) code intelligence 
 
 ## High-Level Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Developer's Machine                       │
 │                                                                  │
 │   ┌──────────┐    ┌────────────────┐    ┌──────────────────┐    │
-│   │  Claude  │    │  Cursor / VSC  │    │   Gemini CLI /   │    │
+│   │  Claude  │    │  Cursor / VS Code  │    │   Gemini CLI /   │    │
 │   │   Code   │    │   + Copilot    │    │   Any MCP client │    │
 │   └────┬─────┘    └───────┬────────┘    └────────┬─────────┘    │
 │        │                  │                       │              │
@@ -56,7 +56,7 @@ OpenCodeIntel is a RAG-based (Retrieval-Augmented Generation) code intelligence 
 
 ## Indexing Pipeline (RAG — Knowledge Base Construction)
 
-```
+```text
 Repository (GitHub URL or local path)
             │
             ▼
@@ -119,7 +119,7 @@ Repository (GitHub URL or local path)
 
 ## Query Pipeline (RAG — Retrieval + Context Assembly)
 
-```
+```text
 User Task: "add rate limiting to the settings endpoints"
             │
             ▼
@@ -179,7 +179,7 @@ Assembled Context (Markdown):
 
 ## DNA Extraction Pipeline (Prompt Engineering Component)
 
-```
+```text
 Repository Files
       │
       ▼
@@ -214,7 +214,7 @@ Repository Files
 
 ## Dependency Analysis Pipeline
 
-```
+```text
 Repository Source Files
          │
          ▼
@@ -251,7 +251,7 @@ Repository Source Files
 
 ## MCP Protocol Layer
 
-```
+```text
 MCP Client (Claude Code / Cursor / etc.)
          │
          │  JSON-RPC over stdio OR HTTP
@@ -299,7 +299,7 @@ MCP Client (Claude Code / Cursor / etc.)
 
 ## Data Flow: End-to-End
 
-```
+```text
 1. Developer adds repo URL at opencodeintel.com
          ↓
 2. Backend clones repo, tree-sitter parses all files

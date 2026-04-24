@@ -4,7 +4,7 @@
 **Project:** AI-Powered Code Intelligence System  
 **Author:** Devanshu Chicholikar  
 **Institution:** Northeastern University  
-**Date:** April 2025  
+**Report date (snapshot):** April 2025  
 **Live System:** https://opencodeintel.com  
 **Repository:** https://github.com/OpenCodeIntel/opencodeintel  
 
@@ -44,7 +44,7 @@ An MCP server exposes all capabilities as tools consumable by any MCP-compatible
 
 ### Architecture Diagram
 
-```
+```text
 Repository → tree-sitter parsing → OpenAI embeddings → Pinecone
                                  ↘ import graph     → Supabase
 
@@ -68,7 +68,7 @@ RAG is the architectural foundation of OpenCodeIntel.
 
 The knowledge base is built by parsing source code at function granularity using tree-sitter (an incremental parsing library that produces ASTs for Python, JavaScript, TypeScript, and TSX). Each parsed function is converted into rich embedding text:
 
-```
+```text
 File: backend/middleware/auth.py
 Function: _validate_jwt
 Parameters: token: str
@@ -108,7 +108,7 @@ Each vector stores metadata: `file_path`, `function_name`, `repo_id`, `chunk_typ
 The `get_context_for_task` tool is the primary prompt engineering component. It solves a specific problem: even with the right files retrieved, an AI assistant still needs to know the project's conventions (what exception class to use, what auth pattern to follow, where to put new files). Without this, the AI generates correct-looking but wrong code.
 
 The context assembler reads rule files in priority order:
-```
+```text
 CLAUDE.md → AGENTS.md → .cursorrules → .codeintel/rules.md
 → CONVENTIONS.md → .github/copilot-instructions.md
 → CODING_GUIDELINES.md
@@ -269,7 +269,7 @@ The context assembly feature could theoretically be used to extract sensitive pa
 The embedding model (OpenAI `text-embedding-3-small`) may perform better on English-language identifiers and comments than on other languages. Codebases with non-English naming conventions may see lower retrieval recall. This is a known limitation.
 
 **Copyright**  
-OCI does not reproduce or redistribute source code. It stores vector embeddings (real-valued floating point arrays) which cannot be reverse-engineered to reconstruct source code. Retrieval returns file paths and function signatures to help the AI locate relevant code — not the code itself verbatim (unless the user has authorized access to that repo).
+OCI does not reproduce or redistribute source code. It stores vector embeddings (real-valued floating point arrays) which significantly reduces the risk of reconstructing original source code. Retrieval returns file paths and function signatures to help the AI locate relevant code — not the code itself verbatim (unless the user has authorized access to that repo).
 
 **Content Filtering**  
 The system does not filter for malicious code patterns. It indexes whatever the user points it at. Users are responsible for ensuring they have authorization to index the repositories they connect.
@@ -289,7 +289,7 @@ The system does not filter for malicious code patterns. It indexes whatever the 
 
 ## Appendix: Repository Structure
 
-```
+```text
 opencodeintel/
 ├── backend/                  FastAPI backend (Python 3.11+)
 │   ├── services/
