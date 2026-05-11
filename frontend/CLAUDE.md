@@ -78,6 +78,6 @@ Most files stay under 200 lines. These are approved larger due to logical cohesi
 
 ## Off-limits files in frontend/
 
-- `bun.lockb`
+- `bun.lock`
 
 Never delete or hand-edit. Let Bun manage it.

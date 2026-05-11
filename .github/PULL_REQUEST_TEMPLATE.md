@@ -44,7 +44,7 @@
 
 - [ ] Data model matches ADR
 - [ ] Consistency guarantee matches ADR (strong / read-after-write / eventual)
-- [ ] Latency target honored, measured: p50 ___ ms / p95 ___ ms (ADR target: ___)
+- [ ] Latency target honored, measured: p50 `<value>` ms / p95 `<value>` ms (ADR target: `<value>`)
 - [ ] Blast radius is what the ADR predicted
 - [ ] All ADR acceptance criteria pass
 
