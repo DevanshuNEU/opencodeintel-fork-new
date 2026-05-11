@@ -1,0 +1,84 @@
+name: Dogfood Finding
+description: A friction you hit while using OCI's own MCP tools to build OCI. Capture in 60 seconds. Triage later.
+title: "[dogfood] "
+labels: ["dogfood-finding", "state/backlog", "type/fix"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Dogfooding is the forcing function. When OCI's own tools fail you mid-build, file it here in 60 seconds and keep coding. Triage happens during the Sunday `/oci-dogfood` review.
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What I tried
+      description: The exact tool call or workflow that triggered the friction.
+      placeholder: |
+        codeintel:search_code({
+          "query": "where authentication happens",
+          "repo_id": "78aa181e-2bbb-438b-97ee-9ffd494c4815"
+        })
+    validations:
+      required: true
+
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: Wrong result, slow result, error, or surprising behavior. Paste output if useful.
+      placeholder: Returned 50 results across non-auth files. The actual auth code at `backend/middleware/auth.py` was not in the top 20.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What I expected
+      description: What would have been useful.
+      placeholder: "`backend/middleware/auth.py` in the top 3 results, since it has 'auth' in the path and contains the auth functions."
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Repro steps
+      description: Minimal steps for someone else (or future-you) to reproduce.
+      placeholder: |
+        1. cd into OCI repo, ensure MCP server is connected
+        2. Call codeintel:search_code with the query above
+        3. Note auth.py is not in the top results
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tool
+    attributes:
+      label: Which OCI tool
+      description: The MCP tool that misbehaved.
+      options:
+        - codeintel:search_code
+        - codeintel:get_codebase_dna
+        - codeintel:analyze_impact
+        - codeintel:get_dependencies
+        - other (specify in body)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: stack
+    attributes:
+      label: Stack the fix likely lives in
+      description: Best guess. Reviewer-arch will refine during triage.
+      options:
+        - label: backend
+        - label: frontend
+        - label: mcp-server
+        - label: cross-cutting
+
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis (optional)
+      description: If you have a guess about the root cause, capture it so future-you does not re-derive.
+      placeholder: Search reranker weights "auth" too literally and misses semantic matches. Or include_paths filter is dropping middleware/.
