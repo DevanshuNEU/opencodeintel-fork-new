@@ -1,0 +1,122 @@
+name: DDIA Finding
+description: An OCI flaw spotted while reading Designing Data-Intensive Applications. Routes reading-time insight into shipped improvements.
+title: "[ddia Ch _] "
+labels: ["ddia-finding", "state/backlog"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Closes the loop between DDIA reading and OCI improvements. Different shape from `dogfood-finding`:
+        - `dogfood-finding` = "I used OCI's tools and they failed me"
+        - `ddia-finding` = "I read DDIA and realized OCI does X wrong"
+
+        Be precise. Recruiters reading these issues should see clean DDIA fluency.
+
+  - type: input
+    id: chapter
+    attributes:
+      label: DDIA chapter
+      description: Which chapter triggered this. Update the title prefix to match (e.g. `[ddia Ch 5]`).
+      placeholder: "Ch 5 - Replication"
+    validations:
+      required: true
+
+  - type: input
+    id: concept
+    attributes:
+      label: Specific concept
+      description: Which section or term inside that chapter. Be precise.
+      placeholder: "Read-after-write consistency under async replication"
+    validations:
+      required: true
+
+  - type: input
+    id: surface
+    attributes:
+      label: OCI surface affected
+      description: Which file, service, or design decision is wrong. Absolute path from repo root preferred.
+      placeholder: "backend/services/search.py, Pinecone upsert path"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: stack
+    attributes:
+      label: Stack
+      options:
+        - label: backend
+        - label: frontend
+        - label: mcp-server
+        - label: cross-cutting
+
+  - type: textarea
+    id: whats-wrong
+    attributes:
+      label: What is wrong (DDIA-grounded)
+      description: 2-4 sentences. Lead with the DDIA principle, then how OCI violates it. No vibes.
+      placeholder: |
+        DDIA Ch 5 argues that asynchronous replication breaks read-after-write within a session unless reads are pinned to the leader for a brief window. OCI's search endpoint writes to Pinecone (async upsert) then can re-read in the same request via the agent loop. Users see stale results immediately after indexing, even though the API returned 200. The right shape is reading metadata from Supabase (authoritative) within the staleness window, or pinning reads after writes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: fix-sketch
+    attributes:
+      label: Proposed fix sketch
+      description: 2-3 sentences OR write "needs ADR via /oci-design". Do not overdesign here.
+      placeholder: needs ADR via /oci-design - the right consistency boundary is non-trivial
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: DDIA-aligned acceptance criteria
+      description: Each criterion ties back to a DDIA principle. This is what makes the fix verifiably correct, not just "looks better."
+      placeholder: |
+        - [ ] Read-after-write within the same request returns the freshly indexed result (DDIA Ch 5 RYW guarantee)
+        - [ ] Cross-session reads document staleness window in the ADR
+
+  - type: dropdown
+    id: reliability
+    attributes:
+      label: Reliability impact
+      description: How badly does the current state hurt reliability (DDIA Ch 1 pillar)?
+      options:
+        - none
+        - minor
+        - major
+        - critical
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scalability
+    attributes:
+      label: Scalability impact
+      description: How badly does the current state hurt scalability?
+      options:
+        - none
+        - minor
+        - major
+        - critical
+    validations:
+      required: true
+
+  - type: dropdown
+    id: maintainability
+    attributes:
+      label: Maintainability impact
+      description: How badly does the current state hurt maintainability?
+      options:
+        - none
+        - minor
+        - major
+        - critical
+    validations:
+      required: true
+
+  - type: input
+    id: notes
+    attributes:
+      label: Chapter notes file
+      description: Path to your chapter notes for cross-reference.
+      placeholder: "learning/ddia/chapter-5.md"

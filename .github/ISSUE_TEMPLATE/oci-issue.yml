@@ -1,0 +1,127 @@
+name: OCI Issue (internal)
+description: Track an OCI work item (feat / refactor / chore / docs). For external bug reports use Bug Report; for external feature requests use Feature Request.
+title: "[OCI] "
+labels: ["state/backlog"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Internal OCI work tracker. Every issue here is a candidate for the OCI pipeline (`/oci-design` → `/oci-implement` → `/oci-pipeline` → `/oci-defend` → merge → `/oci-merge-done`).
+
+        Be specific. Vague issues do not earn ADRs and they do not ship.
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this exists
+      description: What forces this work? Tie to a Wave priority, a dogfood-finding, a DDIA-finding, a customer report, or a security/perf bound that has been hit. One paragraph. No "we want to improve X" - name what changes if we do not ship this.
+      placeholder: |
+        Search latency is 3.6s p95 (OPE-121). MCP tools used in agent loops have a 500ms budget. Without fixing this, the search MCP tool is unusable inline and Greptile / Solid integrations are dead on arrival.
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What ships
+      description: Concrete deliverables, one per bullet. Each bullet is ONE file change or ONE user-visible behavior. Do not bundle.
+      placeholder: |
+        - Replace Cohere reranker with the on-prem cross-encoder in `backend/services/search/rerank.py`
+        - Add `RERANKER_BACKEND` env var to `backend/config/startup_checks.py` (warning only)
+        - Update `mcp-server/api_client.py` to surface reranker name in tool response metadata
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Testable outcomes only. Either a unit test exists OR a manual repro is documented. "Looks good" is not a criterion. "p95 latency under 500ms on /api/v1/search" is.
+      placeholder: |
+        - [ ] `/api/v1/search` p95 < 500ms measured over 100 requests on the OCI-on-OCI corpus
+        - [ ] Reranker name appears in MCP tool response metadata
+        - [ ] Backend tests pass: `cd backend && pytest tests/ -v`
+    validations:
+      required: true
+
+  - type: dropdown
+    id: wave
+    attributes:
+      label: Wave
+      description: Which OCI thesis wave does this serve? `pre-thesis` if filed before `oci/strategy.md` is locked.
+      options:
+        - pre-thesis
+        - "1"
+        - "2"
+        - "3"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      description: Matches commit-message type. Apply the corresponding label after filing.
+      options:
+        - feat
+        - fix
+        - refactor
+        - perf
+        - docs
+        - test
+        - chore
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: stack
+    attributes:
+      label: Stack scope
+      description: Which stacks does this touch? Tick all that apply.
+      options:
+        - label: backend
+        - label: frontend
+        - label: mcp-server
+        - label: cross-cutting (ADR / vault / docs / multi-stack)
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - urgent
+        - high
+        - medium
+        - low
+      default: 2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: adr
+    attributes:
+      label: ADR required?
+      description: Yes for any feat or non-trivial change. No for small fixes / docs / chore. The OCI pipeline refuses to start `/oci-implement` if `adr-required` is set and no ADR exists.
+      options:
+        - "yes - run /oci-design before /oci-implement"
+        - "no - under ADR threshold"
+    validations:
+      required: true
+
+  - type: textarea
+    id: dogfooding
+    attributes:
+      label: Dogfooding signal
+      description: Did using OCI on OCI surface this need? If yes, link the moment or describe the failure. If no, write "no - filed from {plan / brainstorm / customer / regression / DDIA reading}".
+      placeholder: "yes - codeintel:search_code returned irrelevant results when I queried 'auth fallback path' while debugging Bug #1"
+
+  - type: textarea
+    id: related
+    attributes:
+      label: Related
+      description: Wave milestone (when thesis locks), prior ADRs, linked issues, external references.
+      placeholder: |
+        - Wave: pre-thesis (Phase 1 pipeline work)
+        - Prior ADRs: n/a
+        - Linked: #
+        - External: DDIA Ch 1 percentile-vs-average discussion
