@@ -470,10 +470,9 @@ async def get_repo_directories(
     directories to index instead of the entire repo.
     """
     repo = get_repo_or_404(repo_id, auth.user_id)
+    # Re-clone if the container was redeployed and wiped the working tree (#311).
+    await repo_manager.ensure_clone(repo)
     local_path = Path(repo["local_path"])
-
-    if not local_path.exists():
-        raise HTTPException(status_code=404, detail="Repo not cloned yet")
 
     dirs = await asyncio.to_thread(_scan_directories, local_path)
 
@@ -501,7 +500,9 @@ async def index_repository(
     
     try:
         repo = get_repo_or_404(repo_id, user_id)
-        
+        # Re-clone if the container was redeployed and wiped the working tree (#311).
+        await repo_manager.ensure_clone(repo)
+
         # Re-check size limits before indexing (in case tier changed or repo updated)
         analysis = repo_validator.analyze_repo(repo["local_path"])
         
@@ -765,10 +766,13 @@ async def index_repository_async(
     
     try:
         repo = get_repo_or_404(repo_id, user_id)
-        
+        # Re-clone before the size-check (which reads the working tree) so a redeployed
+        # container rehydrates here, before the 202, rather than failing the gate (#311).
+        await repo_manager.ensure_clone(repo)
+
         # Re-check size limits
         analysis = repo_validator.analyze_repo(repo["local_path"])
-        
+
         if not analysis.success:
             raise HTTPException(
                 status_code=500,
@@ -867,7 +871,15 @@ async def websocket_index(websocket: WebSocket, repo_id: str):
     if not repo:
         await websocket.close(code=4004, reason="Repository not found")
         return
-    
+
+    # Re-clone if the container was redeployed and wiped the working tree (#311).
+    try:
+        await repo_manager.ensure_clone(repo)
+    except Exception as e:
+        logger.error("Re-clone failed for websocket indexing", repo_id=repo_id, error=str(e))
+        await websocket.close(code=4005, reason="Repository clone unavailable")
+        return
+
     # Check size limits before WebSocket indexing
     analysis = repo_validator.analyze_repo(repo["local_path"])
     

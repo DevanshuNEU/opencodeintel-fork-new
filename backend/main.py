@@ -44,6 +44,10 @@ from routes.ws_repos import websocket_repo_indexing
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     validate_environment()
+    # Any repo left 'indexing' at boot is orphaned (indexing runs in-process; a restart
+    # kills it). Reset so the user can retry instead of seeing an eternal spinner. (#311)
+    from services.supabase_service import get_supabase_service
+    get_supabase_service().reset_stuck_indexing_jobs()
     await load_demo_repos()
     yield
     # Shutdown (cleanup if needed)

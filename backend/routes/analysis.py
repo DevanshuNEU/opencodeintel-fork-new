@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from dependencies import (
     dependency_analyzer, style_analyzer, dna_extractor,
-    get_repo_or_404
+    get_repo_or_404, repo_manager
 )
 from services.input_validator import InputValidator
 from middleware.auth import require_auth, AuthContext
@@ -35,6 +35,7 @@ async def get_dependency_graph(
                 return {**cached_graph, "cached": True}
 
         logger.info("Building fresh dependency graph", repo_id=repo_id, include_paths=repo.get("include_paths"))
+        await repo_manager.ensure_clone(repo)
         graph_data = dependency_analyzer.build_dependency_graph(repo["local_path"], include_paths=repo.get("include_paths"))
         dependency_analyzer.save_to_cache(repo_id, graph_data)
 
@@ -57,11 +58,14 @@ async def analyze_impact(
     try:
         repo = get_repo_or_404(repo_id, auth.user_id)
 
+        # Validate user input BEFORE any expensive/external work (re-clone). Reject traversal first.
         valid_path, path_error = InputValidator.validate_file_path(
             request.file_path, repo["local_path"]
         )
         if not valid_path:
             raise HTTPException(status_code=400, detail=f"Invalid file path: {path_error}")
+
+        await repo_manager.ensure_clone(repo)
 
         graph_data = dependency_analyzer.load_from_cache(repo_id)
         if not graph_data:
@@ -96,6 +100,7 @@ async def get_repository_insights(
         graph_data = dependency_analyzer.load_from_cache(repo_id)
         if not graph_data:
             logger.info("Building dependency graph for insights", repo_id=repo_id)
+            await repo_manager.ensure_clone(repo)
             graph_data = dependency_analyzer.build_dependency_graph(repo["local_path"], include_paths=repo.get("include_paths"))
             dependency_analyzer.save_to_cache(repo_id, graph_data)
 
@@ -134,6 +139,7 @@ async def get_style_analysis(
             return {**cached_style, "cached": True}
 
         logger.info("Analyzing code style", repo_id=repo_id)
+        await repo_manager.ensure_clone(repo)
         style_data = style_analyzer.analyze_repository_style(repo["local_path"], include_paths=repo.get("include_paths"))
         style_analyzer.save_to_cache(repo_id, style_data)
 
@@ -178,6 +184,7 @@ async def get_codebase_dna(
         logger.info("Extracting codebase DNA", repo_id=repo_id)
         metrics.increment("dna_extractions")
 
+        await repo_manager.ensure_clone(repo)
         dna = dna_extractor.extract_dna(repo["local_path"], repo_id, include_paths=repo.get("include_paths"))
         dna_extractor.save_to_cache(repo_id, dna)
 
