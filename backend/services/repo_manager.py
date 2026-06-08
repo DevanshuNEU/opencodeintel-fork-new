@@ -2,12 +2,40 @@
 Repository Manager (Supabase Edition)
 Handles repository CRUD operations with PostgreSQL via Supabase
 """
+import asyncio
+import os
+import shutil
 import uuid
-from typing import List, Optional
+from typing import Dict, List, Optional
 import git
 from pathlib import Path
+from fastapi import HTTPException
 from services.supabase_service import get_supabase_service
 from services.observability import logger, metrics
+
+
+class RepoCloneError(HTTPException):
+    """Repo working tree is missing and could not be restored from its git remote.
+
+    Subclasses HTTPException so it surfaces as an actionable 503 (handlers already re-raise
+    HTTPException) instead of an opaque 500. UX matters here: a redeploy is invisible to the
+    user, so the message has to tell them what to actually do. (#311)
+    """
+
+    def __init__(self, repo_id: str, reason: str = ""):
+        super().__init__(
+            status_code=503,
+            detail={
+                "error": "REPO_UNAVAILABLE",
+                "repo_id": repo_id,
+                "message": (
+                    "Repository source files are temporarily unavailable and could not be "
+                    "restored from the git remote. Private repositories are not yet supported "
+                    "for re-sync; for public repos, please retry shortly."
+                ),
+            },
+        )
+        self.reason = reason
 
 
 class RepositoryManager:
@@ -17,7 +45,11 @@ class RepositoryManager:
         self.repos_dir = Path("./repos")
         self.repos_dir.mkdir(exist_ok=True)
         self.db = get_supabase_service()
-        
+
+        # Per-repo locks so two concurrent ops on the same missing clone don't both clone.
+        # Single uvicorn worker means an in-process lock is sufficient here.
+        self._clone_locks: Dict[str, asyncio.Lock] = {}
+
         # Discover and sync existing repositories on startup
         self._sync_existing_repos()
     
@@ -126,10 +158,66 @@ class RepositoryManager:
         except Exception as e:
             # Cleanup on failure
             if local_path.exists():
-                import shutil
                 shutil.rmtree(local_path)
             raise Exception(f"Failed to clone repository: {str(e)}")
-    
+
+    async def ensure_clone(self, repo: dict) -> str:
+        """Guarantee the working tree exists on disk, lazily re-cloning from git_url if needed.
+
+        Railway redeploys wipe ./repos (ephemeral disk) but Pinecone/Supabase survive, so
+        local_path is a cache hint, not source of truth -- the git remote is. On a warm hit
+        this is a sub-millisecond stat with no behavior change; on a miss it re-clones.
+        Returns the canonical local path and refreshes repo['local_path'] in place.
+        """
+        repo_id = repo["id"]
+        canonical = self.repos_dir / repo_id
+
+        # Warm path: clone present. No re-clone, no event-loop work.
+        if (canonical / ".git").exists():
+            repo["local_path"] = str(canonical)
+            return str(canonical)
+
+        git_url = repo.get("git_url")
+        if not git_url or git_url == "unknown":
+            raise RepoCloneError(repo_id, "no git_url on record")
+        branch = repo.get("branch") or "main"
+
+        lock = self._clone_locks.setdefault(repo_id, asyncio.Lock())
+        async with lock:
+            # Another coroutine may have cloned while we waited for the lock.
+            if not (canonical / ".git").exists():
+                try:
+                    await asyncio.to_thread(self._clone_into_place, repo_id, git_url, branch, canonical)
+                except Exception as e:
+                    # Private repo (no creds on a fresh container), network failure, deleted
+                    # remote: surface as an actionable 503, not an opaque 500.
+                    logger.error("Re-clone failed", repo_id=repo_id, git_url=git_url, error=str(e))
+                    raise RepoCloneError(repo_id, str(e)) from e
+                logger.info("Re-cloned repo on demand (cache miss)", repo_id=repo_id, git_url=git_url)
+                metrics.increment("repos_recloned")
+
+        repo["local_path"] = str(canonical)
+        return str(canonical)
+
+    def _clone_into_place(self, repo_id: str, git_url: str, branch: str, canonical: Path) -> None:
+        """Clone into a temp dir then atomically rename into the canonical path.
+
+        The rename is the correctness guarantee: a crashed or concurrent clone never leaves a
+        half-populated canonical dir for a reader to trip over. Runs in a worker thread (git is
+        blocking I/O); never call directly on the event loop.
+        """
+        tmp = self.repos_dir / f".{repo_id}.tmp.{uuid.uuid4().hex}"
+        try:
+            git.Repo.clone_from(git_url, tmp, branch=branch, depth=1)
+            # Clear any leftover partial dir before the atomic swap.
+            if canonical.exists():
+                shutil.rmtree(canonical, ignore_errors=True)
+            os.rename(tmp, canonical)  # atomic on the same filesystem
+        except Exception:
+            if tmp.exists():
+                shutil.rmtree(tmp, ignore_errors=True)
+            raise
+
     def update_status(self, repo_id: str, status: str):
         """Update repository status"""
         self.db.update_repository_status(repo_id, status)
@@ -158,8 +246,6 @@ class RepositoryManager:
     
     def delete_repo(self, repo_id: str) -> bool:
         """Delete repository and clean up local files"""
-        import shutil
-        
         repo = self.get_repo(repo_id)
         if not repo:
             return False
