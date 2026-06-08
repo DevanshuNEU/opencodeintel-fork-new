@@ -4,11 +4,15 @@ Handles all database operations for CodeIntel
 """
 import os
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from supabase import create_client, Client, ClientOptions
 import uuid
 
 from services.observability import logger
+
+# A repo stuck in 'indexing' longer than this is treated as orphaned (its indexer
+# process died) and may be re-claimed on retry. The startup sweep is unconditional.
+STUCK_INDEXING_THRESHOLD_MINUTES = 30
 
 
 class SupabaseService:
@@ -87,23 +91,70 @@ class SupabaseService:
         return result.data[0] if result.data else None
     
     def update_repository_status(self, repo_id: str, status: str) -> None:
-        """Update repository status"""
-        self.client.table("repositories").update({"status": status}).eq("id", repo_id).execute()
-    
+        """Update repository status. Transitioning to 'indexing' stamps indexing_started_at
+        so the stuck-job reaper has a clock to measure against, regardless of which code path
+        started the job."""
+        updates: Dict = {"status": status}
+        if status == "indexing":
+            updates["indexing_started_at"] = datetime.utcnow().isoformat()
+        try:
+            self.client.table("repositories").update(updates).eq("id", repo_id).execute()
+        except Exception as e:
+            # Degrade gracefully if migration 003 (indexing_started_at) hasn't been applied yet:
+            # retry the status update without the new column instead of failing the index.
+            if "indexing_started_at" not in updates:
+                raise
+            logger.warning(
+                "Status update with indexing_started_at failed; retrying without it (apply migration 003)",
+                repo_id=repo_id, error=str(e),
+            )
+            self.client.table("repositories").update({"status": status}).eq("id", repo_id).execute()
+
     def try_set_indexing_status(self, repo_id: str) -> bool:
         """
-        Atomically set status to 'indexing' only if not already indexing.
-        
-        Returns True if status was set, False if repo was already indexing.
-        This prevents TOCTOU race conditions where two requests could both
-        see status != 'indexing' and both start indexing.
+        Atomically set status to 'indexing' only if not already actively indexing.
+
+        Returns True if status was set, False if a fresh indexing job already owns the repo.
+        This prevents TOCTOU race conditions where two requests both see status != 'indexing'
+        and both start indexing. A row stuck in 'indexing' past the threshold (its process died)
+        -- or with no start stamp at all (legacy/pre-migration) -- is treated as orphaned and
+        re-claimed, so a crashed job never permanently blocks retry.
+        """
+        cutoff = (datetime.utcnow() - timedelta(minutes=STUCK_INDEXING_THRESHOLD_MINUTES)).isoformat()
+        try:
+            result = self.client.table("repositories").update(
+                {"status": "indexing", "indexing_started_at": datetime.utcnow().isoformat()}
+            ).eq("id", repo_id).or_(
+                f"status.neq.indexing,indexing_started_at.is.null,indexing_started_at.lt.{cutoff}"
+            ).execute()
+        except Exception as e:
+            # Degrade gracefully if migration 003 hasn't been applied yet: fall back to the
+            # original atomic compare-and-set (no steal-on-stale) so indexing still works.
+            logger.warning(
+                "try_set_indexing steal path failed; falling back to basic CAS (apply migration 003)",
+                repo_id=repo_id, error=str(e),
+            )
+            result = self.client.table("repositories").update(
+                {"status": "indexing"}
+            ).eq("id", repo_id).neq("status", "indexing").execute()
+
+        # If result.data is empty, no rows matched (a fresh indexing job owns it)
+        return bool(result.data)
+
+    def reset_stuck_indexing_jobs(self) -> int:
+        """Reset every repo left in 'indexing' to 'error' so the user can retry.
+
+        Called once on startup: indexing runs in-process (BackgroundTasks / WebSocket), so a
+        restart kills any in-flight job and every 'indexing' row at boot is by definition
+        orphaned. Returns the number of rows reset.
         """
         result = self.client.table("repositories").update(
-            {"status": "indexing"}
-        ).eq("id", repo_id).neq("status", "indexing").execute()
-        
-        # If result.data is empty, no rows matched (already indexing)
-        return bool(result.data)
+            {"status": "error"}
+        ).eq("status", "indexing").execute()
+        count = len(result.data) if result.data else 0
+        if count:
+            logger.warning("Reset orphaned indexing jobs on startup", count=count)
+        return count
     
     def update_file_count(self, repo_id: str, count: int) -> None:
         """Update repository file count"""
