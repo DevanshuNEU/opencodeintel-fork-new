@@ -100,12 +100,13 @@ class SupabaseService:
         try:
             self.client.table("repositories").update(updates).eq("id", repo_id).execute()
         except Exception as e:
-            # Degrade gracefully if migration 003 (indexing_started_at) hasn't been applied yet:
-            # retry the status update without the new column instead of failing the index.
-            if "indexing_started_at" not in updates:
+            # Only swallow the specific case where migration 003 (indexing_started_at) has not been
+            # applied yet -- detected by the column name appearing in the DB error. Any other error
+            # (network, constraint, etc.) must re-raise so a real failure isn't masked by the retry.
+            if "indexing_started_at" not in updates or "indexing_started_at" not in str(e):
                 raise
             logger.warning(
-                "Status update with indexing_started_at failed; retrying without it (apply migration 003)",
+                "indexing_started_at column missing; retrying status update without it (apply migration 003)",
                 repo_id=repo_id, error=str(e),
             )
             self.client.table("repositories").update({"status": status}).eq("id", repo_id).execute()
@@ -120,6 +121,11 @@ class SupabaseService:
         -- or with no start stamp at all (legacy/pre-migration) -- is treated as orphaned and
         re-claimed, so a crashed job never permanently blocks retry.
         """
+        # cutoff is the staleness threshold for stealing an orphaned 'indexing' lock, derived from
+        # STUCK_INDEXING_THRESHOLD_MINUTES and a SERVER-CONTROLLED datetime.utcnow(). It is never
+        # user input, so interpolating it into the PostgREST .or_ filter string is safe. If any
+        # user-supplied value is ever introduced into this filter, parameterize it via the SDK
+        # (do not f-string it) to avoid filter-injection.
         cutoff = (datetime.utcnow() - timedelta(minutes=STUCK_INDEXING_THRESHOLD_MINUTES)).isoformat()
         try:
             result = self.client.table("repositories").update(
@@ -128,10 +134,12 @@ class SupabaseService:
                 f"status.neq.indexing,indexing_started_at.is.null,indexing_started_at.lt.{cutoff}"
             ).execute()
         except Exception as e:
-            # Degrade gracefully if migration 003 hasn't been applied yet: fall back to the
-            # original atomic compare-and-set (no steal-on-stale) so indexing still works.
+            # Only fall back when migration 003 (indexing_started_at) is missing -- detected by the
+            # column name in the DB error. Re-raise anything else so a real failure isn't masked.
+            if "indexing_started_at" not in str(e):
+                raise
             logger.warning(
-                "try_set_indexing steal path failed; falling back to basic CAS (apply migration 003)",
+                "indexing_started_at column missing; falling back to basic CAS (apply migration 003)",
                 repo_id=repo_id, error=str(e),
             )
             result = self.client.table("repositories").update(

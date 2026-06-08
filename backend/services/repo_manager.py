@@ -209,9 +209,12 @@ class RepositoryManager:
         tmp = self.repos_dir / f".{repo_id}.tmp.{uuid.uuid4().hex}"
         try:
             git.Repo.clone_from(git_url, tmp, branch=branch, depth=1)
-            # Clear any leftover partial dir before the atomic swap.
+            # Clear any leftover partial dir before the atomic swap. Do NOT ignore errors here:
+            # a failed removal must surface (the outer except re-raises it, and ensure_clone wraps
+            # it into a logged RepoCloneError) rather than letting us rename onto a dir we could
+            # not clean, which would fail later with a more confusing error.
             if canonical.exists():
-                shutil.rmtree(canonical, ignore_errors=True)
+                shutil.rmtree(canonical)
             os.rename(tmp, canonical)  # atomic on the same filesystem
         except Exception:
             if tmp.exists():

@@ -169,13 +169,31 @@ class TestStuckJobRecovery:
         """Steal path errors without the column -> fall back to the original atomic CAS."""
         svc = self._service()
         eq_chain = svc.client.table.return_value.update.return_value.eq.return_value
-        eq_chain.or_.return_value.execute.side_effect = Exception("PGRST204 column missing")
+        eq_chain.or_.return_value.execute.side_effect = Exception(
+            "PGRST204 Could not find the 'indexing_started_at' column in schema cache"
+        )
         fallback = MagicMock()
         fallback.data = [{"id": "r1"}]
         eq_chain.neq.return_value.execute.return_value = fallback
 
         assert svc.try_set_indexing_status("r1") is True
         eq_chain.neq.assert_called_once_with("status", "indexing")
+
+    def test_update_status_reraises_unrelated_error(self):
+        """A non-migration error must NOT be masked by the missing-column fallback."""
+        svc = self._service()
+        chain = svc.client.table.return_value.update.return_value.eq.return_value
+        chain.execute.side_effect = Exception("connection reset by peer")
+        with pytest.raises(Exception, match="connection reset"):
+            svc.update_repository_status("r1", "indexing")
+
+    def test_try_set_indexing_reraises_unrelated_error(self):
+        """A non-migration error must NOT trigger the basic-CAS fallback."""
+        svc = self._service()
+        eq_chain = svc.client.table.return_value.update.return_value.eq.return_value
+        eq_chain.or_.return_value.execute.side_effect = Exception("connection reset by peer")
+        with pytest.raises(Exception, match="connection reset"):
+            svc.try_set_indexing_status("r1")
 
 
 class TestRouteWiring:
