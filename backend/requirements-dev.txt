@@ -1,0 +1,5 @@
+# Dev / eval-only dependencies. NOT installed in production.
+# Kept separate from requirements.txt so heavy eval deps never reach the backend
+# startup path (oci known-bug #3: optional imports must not crash startup).
+# Install with: pip install -r backend/requirements-dev.txt
+ranx>=0.3.20
