@@ -1,0 +1,3 @@
+# Per-run eval artifacts are not committed; the durable comparison point is baseline.json.
+*
+!.gitignore
