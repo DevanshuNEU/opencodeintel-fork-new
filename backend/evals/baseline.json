@@ -1,0 +1,13 @@
+{
+  "calibrated": false,
+  "tolerance": 0.05,
+  "free_core": {
+    "recall@10": null,
+    "mrr": null
+  },
+  "pro_reranked": {
+    "recall@10": null,
+    "mrr": null
+  },
+  "note": "Set calibrated=true and fill the numbers after the first real `python -m evals` run against a populated index. Until calibrated, the pytest gate skips rather than asserting against a fake baseline."
+}

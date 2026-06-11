@@ -1,0 +1,65 @@
+{
+  "_about": "Human-labeled retrieval ground truth for OCI #312. Queries are agent-shaped (the way Claude Code phrases a search_code call), NOT keyword-shaped. expected_files are labeled BLIND -- decided by reading the repo source, never by looking at what search returns (see FM-2 in the ADR). Paths are repo-root-relative and must match the file_path strings the index stores; the first run's per-query breakdown is the calibration step. repo_id defaults to OCI's own indexed repo (env OCI_EVAL_REPO_ID overrides per run).",
+  "queries": [
+    {
+      "query_id": "q01",
+      "query": "where is the JWT validated before a request reaches a route",
+      "expected_files": ["backend/middleware/auth.py"],
+      "notes": "auth middleware; JWT local decode + API-key fallback"
+    },
+    {
+      "query_id": "q02",
+      "query": "how does hybrid search combine BM25 keyword scores with semantic vector scores",
+      "expected_files": ["backend/services/search_v2/hybrid_searcher.py"],
+      "notes": "RRF fusion of BM25 + semantic candidates"
+    },
+    {
+      "query_id": "q03",
+      "query": "where is Cohere reranking applied to the search candidates",
+      "expected_files": ["backend/services/search_v2/hybrid_searcher.py"],
+      "notes": "rerank step gated on COHERE_API_KEY (pro tier)"
+    },
+    {
+      "query_id": "q04",
+      "query": "how are code embeddings created in batches for indexing",
+      "expected_files": ["backend/services/indexer_optimized.py"],
+      "notes": "_create_embeddings_batch, EMBEDDING_BATCH_SIZE"
+    },
+    {
+      "query_id": "q05",
+      "query": "which API route handles the version 2 search request",
+      "expected_files": ["backend/routes/search_v2.py"],
+      "notes": "POST /search/v2 route; the path the MCP search_code tool hits"
+    },
+    {
+      "query_id": "q06",
+      "query": "how is repository cloning made durable and recovered when an indexing job gets stuck",
+      "expected_files": ["backend/services/repo_manager.py", "backend/services/supabase_service.py"],
+      "notes": "ensure_clone chokepoint + reset_stuck_indexing_jobs (PR #316)"
+    },
+    {
+      "query_id": "q07",
+      "query": "where are import dependency graphs extracted from the parsed AST",
+      "expected_files": ["backend/services/dependency_analyzer.py"],
+      "notes": "tree-sitter import graph extraction, singleton service"
+    },
+    {
+      "query_id": "q08",
+      "query": "how does the MCP server forward a search_code tool call to the backend API",
+      "expected_files": ["mcp-server/handlers.py"],
+      "notes": "_handle_search posts to /search/v2"
+    },
+    {
+      "query_id": "q09",
+      "query": "where is the codebase DNA and architectural pattern detection implemented",
+      "expected_files": ["backend/services/dna_extractor.py"],
+      "notes": "DNAExtractor.extract, team-rules detection"
+    },
+    {
+      "query_id": "q10",
+      "query": "how does file path filtering avoid matching adjacent sibling directories",
+      "expected_files": ["backend/services/indexer_optimized.py"],
+      "notes": "_discover_code_files include_paths; Path.parts not str.startswith (known-bug #5)"
+    }
+  ]
+}
