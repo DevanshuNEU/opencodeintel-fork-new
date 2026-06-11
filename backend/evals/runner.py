@@ -8,11 +8,15 @@ Tiers (Cohere reranking is pro-only -- you pay for Cohere):
   reranking=False -> free tier  (deterministic BM25 + vector core ranker, no Cohere)
   reranking=True  -> pro tier   (Cohere rerank; requires COHERE_API_KEY)
 """
+import asyncio
 import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple
+
+if TYPE_CHECKING:  # typing-only import; avoids the heavy runtime import (known-bug #3)
+    from services.indexer_optimized import OptimizedCodeIndexer
 
 EVAL_DIR = Path(__file__).parent
 GROUND_TRUTH_PATH = EVAL_DIR / "ground_truth" / "queries.json"
@@ -42,7 +46,7 @@ def _dedupe_files_by_rank(results: List[dict]) -> List[Tuple[str, float]]:
     return list(seen.items())
 
 
-async def _preflight(indexer, repo_id: str) -> bool:
+async def _preflight(indexer: "OptimizedCodeIndexer", repo_id: str) -> bool:
     """Fail-closed corpus check: does the index actually have vectors for this repo?
 
     Guards against measuring a stale/empty index (known-bug #4: Pinecone is eventual
@@ -58,7 +62,13 @@ async def _preflight(indexer, repo_id: str) -> bool:
         return False
 
 
-async def run_eval(reranking: bool, repo_id_default: str = DEFAULT_REPO_ID) -> dict:
+def _write_results(path: Path, payload: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(payload)
+
+
+# returns a heterogeneous result dict (metrics + per-query breakdown + metadata); Any is intentional
+async def run_eval(reranking: bool, repo_id_default: str = DEFAULT_REPO_ID) -> Dict[str, Any]:
     """Run the full query set through search_v2 and compute metrics for one tier."""
     from dependencies import indexer  # isolated import (known-bug #3)
 
@@ -137,6 +147,7 @@ async def run_eval(reranking: bool, repo_id_default: str = DEFAULT_REPO_ID) -> d
         "metrics": metrics,
         "per_query": per_query,
     }
-    RESULTS_DIR.mkdir(exist_ok=True)
-    (RESULTS_DIR / f"eval_{tier}_{ts}.json").write_text(json.dumps(out, indent=2))
+    results_path = RESULTS_DIR / f"eval_{tier}_{ts}.json"
+    # write off the event loop so this async function stays non-blocking (backend rule)
+    await asyncio.to_thread(_write_results, results_path, json.dumps(out, indent=2))
     return out

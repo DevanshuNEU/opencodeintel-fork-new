@@ -24,7 +24,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_recall_at_10_meets_baseline():
+def test_recall_at_10_meets_baseline() -> None:
     baseline = load_baseline()
     if not baseline.get("calibrated"):
         pytest.skip("baseline not calibrated yet; run `python -m evals` and record numbers first")

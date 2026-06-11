@@ -7,11 +7,13 @@ Usage (from backend/):
 """
 import argparse
 import asyncio
+from typing import Any, Dict
 
 from .runner import run_eval
 
 
-def _print_table(label: str, out: dict) -> None:
+# out is the heterogeneous result dict from run_eval; Any is intentional
+def _print_table(label: str, out: Dict[str, Any]) -> None:
     print(f"\n=== {label}  (tier={out['tier']}, reranking={out['reranking']}) ===")
     print(
         f"queries scored: {out['n_queries_scored']}   "
