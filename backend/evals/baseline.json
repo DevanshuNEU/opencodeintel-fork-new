@@ -1,13 +1,13 @@
 {
-  "calibrated": false,
+  "calibrated": true,
   "tolerance": 0.05,
   "free_core": {
-    "recall@10": null,
-    "mrr": null
+    "recall@10": 0.8,
+    "mrr": 0.8
   },
   "pro_reranked": {
-    "recall@10": null,
-    "mrr": null
+    "recall@10": 0.85,
+    "mrr": 0.6583
   },
-  "note": "Set calibrated=true and fill the numbers after the first real `python -m evals` run against a populated index. Until calibrated, the pytest gate skips rather than asserting against a fake baseline."
+  "note": "Calibrated 2026-06-12 against the OCI repo index (repo_id 78aa181e-..., PINECONE_INDEX_NAME=codeintel) over the 10-query ground-truth set. Free-tier is the CI regression baseline; the pytest gate asserts free recall@10 >= 0.8 - tolerance. Reranking raises recall@10 to 0.85 but lowers MRR to 0.658 on this set (pulls one more expected file into top-10 while demoting rank-1 hits) -- pro tier is not strictly better here. Known ranker misses: q06 (durable repo-state) and q10 (path-filtering). Re-calibrate after any search_v2 ranker/embedding change."
 }
