@@ -35,12 +35,21 @@ def load_baseline(path: Path = BASELINE_PATH) -> dict:
     return json.loads(path.read_text())
 
 
-def _dedupe_files_by_rank(results: List[dict]) -> List[Tuple[str, float]]:
+def _to_repo_relative(file_path: str, repo_id: str) -> str:
+    """The index stores paths as `repos/<repo_id>/<repo-root-relative>`; ground truth
+    is repo-root-relative (and stays that way so it's portable across repo_ids). Strip
+    the exact storage prefix so the two compare. Exact match on repo_id, so we never
+    over-trim a path that happens to start with `repos/`."""
+    prefix = f"repos/{repo_id}/"
+    return file_path[len(prefix):] if file_path.startswith(prefix) else file_path
+
+
+def _dedupe_files_by_rank(results: List[dict], repo_id: str) -> List[Tuple[str, float]]:
     """search_v2 returns function-level hits; collapse to file-level, keeping the
     best (first) rank per file. Returns [(file_path, score)] in rank order."""
     seen: Dict[str, float] = {}
     for r in results:
-        fp = r.get("file_path") or ""
+        fp = _to_repo_relative(r.get("file_path") or "", repo_id)
         if fp and fp not in seen:
             seen[fp] = float(r.get("score", 0.0))
     return list(seen.items())
@@ -113,7 +122,7 @@ async def run_eval(reranking: bool, repo_id_default: str = DEFAULT_REPO_ID) -> D
             # no-hit from a swallowed error here, so flag it loudly instead of hiding it.
             empties.append(qid)
 
-        ranked = _dedupe_files_by_rank(results)
+        ranked = _dedupe_files_by_rank(results, repo_id)
         ranked_paths = [fp for fp, _ in ranked]
         run[qid] = {fp: score for fp, score in ranked} or {"__no_results__": 0.0}
 
