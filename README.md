@@ -91,6 +91,14 @@ Connect as an MCP server. Your AI assistant gets real context about your codebas
 
 ---
 
+## Research
+
+The retrieval design came out of a week of experiments in December 2025, published with every query set, raw result and the day-by-day log: [OpenCodeIntel/retrieval-research](https://github.com/OpenCodeIntel/retrieval-research).
+
+The headline result is 94% average Hit@1 across 14 open-source codebases (665 queries), using BM25 and embedding fusion with Voyage `rerank-2` on top. Most of those queries were generated from function names, so read the caveats in that README before quoting the number. Production search uses a different reranker and is measured by its own regression eval in [`backend/evals`](./backend/evals).
+
+---
+
 ## Quick Start
 
 ### Hosted (Fastest)
@@ -217,6 +225,7 @@ Want to contribute code? See [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [Deployment Guide](./docs/deployment.md)
 - [MCP Integration](./docs/mcp-setup.md)  
 - [Troubleshooting](./docs/docker-troubleshooting.md)
+- [Retrieval research (Dec 2025)](https://github.com/OpenCodeIntel/retrieval-research)
 
 ---
 
