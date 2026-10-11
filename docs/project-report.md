@@ -186,6 +186,8 @@ n is small (30 cold, 15 cached), so treat p95 as tail-indicative. The script and
 
 The production regression eval in [`backend/evals`](../backend/evals) uses human-labelled queries whose expected files are chosen by reading the repo, never by looking at what search returns. Its baseline (June 2026, 10 queries on one repository): Recall@10 0.80 without reranking and 0.85 with it; MRR 0.80 without reranking and 0.66 with it. On this set, reranking finds more of the right files but ranks the top hit lower, so it is not a clear win yet.
 
+The research that shaped the retrieval design (December 2025, 14 open-source codebases, 665 queries, 94% average Hit@1 with Voyage `rerank-2` on a research harness) is published with its query sets, raw results and caveats at [OpenCodeIntel/retrieval-research](https://github.com/OpenCodeIntel/retrieval-research). Those numbers come from a different harness and reranker than production, so they are not a production score.
+
 ### 5.4 Test Coverage
 
 | Component | Tests | Status |
