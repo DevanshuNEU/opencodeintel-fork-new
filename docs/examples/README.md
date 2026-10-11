@@ -206,19 +206,15 @@ Total nodes: 23
 
 ## Performance Benchmarks
 
-Measured on hosted instance (Railway, 1 vCPU, 512MB RAM):
+Measured on production (api.opencodeintel.com, search v3 with reranking) on 2026-10-09, through the public playground: 30 unique cache-miss queries, then 15 of them repeated.
 
-| Operation | p50 | p95 | p99 |
+| Search | p50 | p95 | Measured as |
 |---|---|---|---|
-| `search_code` (top-10) | 210ms | 380ms | 520ms |
-| `get_context_for_task` | 340ms | 580ms | 750ms |
-| `get_codebase_dna` | 180ms | 310ms | 420ms |
-| `get_dependency_graph` | 95ms | 180ms | 240ms |
-| `analyze_impact` | 110ms | 200ms | 290ms |
-| Full repo indexing (1k files) | 4.2min | — | — |
-| Full repo indexing (10k files) | 38min | — | — |
+| Cold (cache miss: embedding, hybrid retrieval, reranking) | 641ms | 1,380ms | server-reported search time |
+| Cached repeat | 242ms | 385ms | client wall time from Boston, network included |
+
+n is small (30 cold, 15 cached), so treat p95 as tail-indicative. The script and raw results live outside this repo; rerun the same playground queries to reproduce.
 
 Embedding model: `text-embedding-3-small` (1536 dimensions)
 Vector DB: Pinecone Serverless, AWS us-east-1, cosine similarity
-Search recall@10 on internal test set: **87.3%**
-Context assembly relevance (human-rated, n=50 tasks): **91%**
+Retrieval quality is tracked by the regression eval in [`backend/evals`](../../backend/evals) (human-labelled queries, expected files chosen by reading the repo).

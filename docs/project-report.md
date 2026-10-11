@@ -4,7 +4,7 @@
 **Project:** AI-Powered Code Intelligence System  
 **Author:** Devanshu Chicholikar  
 **Institution:** Northeastern University  
-**Report date (snapshot):** April 2025  
+**Report date (snapshot):** April 2026  
 **Live System:** https://opencodeintel.com  
 **Repository:** https://github.com/OpenCodeIntel/opencodeintel  
 
@@ -169,43 +169,29 @@ Dashboard for repository management, API key generation, and indexing status. Bu
 
 ## 5. Performance Metrics
 
-### 5.1 API Latency (hosted instance, Railway 1 vCPU)
+> **Correction (October 2026).** The latency, indexing-throughput and retrieval-quality tables first published in this section were not backed by a recorded benchmark, so they have been removed. The measured numbers below replace them.
 
-| Operation | p50 | p95 |
-|---|---|---|
-| `search_code` (top-10) | 210ms | 380ms |
-| `get_context_for_task` | 340ms | 580ms |
-| `get_codebase_dna` | 180ms | 310ms |
-| `get_dependency_graph` | 95ms | 180ms |
-| `analyze_impact` | 110ms | 200ms |
+### 5.1 Search Latency (production, measured 2026-10-09)
 
-### 5.2 Indexing Throughput
+Measured on production (api.opencodeintel.com, search v3 with reranking) on 2026-10-09, through the public playground: 30 unique cache-miss queries, then 15 of them repeated.
 
-| Codebase Size | Indexing Time |
-|---|---|
-| 100 files | ~25 seconds |
-| 1,000 files | ~4.2 minutes |
-| 10,000 files | ~38 minutes |
+| Search | p50 | p95 | Measured as |
+|---|---|---|---|
+| Cold (cache miss: embedding, hybrid retrieval, reranking) | 641ms | 1,380ms | server-reported search time |
+| Cached repeat | 242ms | 385ms | client wall time from Boston, network included |
 
-Bottleneck: OpenAI Embeddings API rate limits (10,000 RPM on tier 2). Batch size of 100 and parallel file processing of 10 are tuned to maximize throughput without hitting rate limits.
+n is small (30 cold, 15 cached), so treat p95 as tail-indicative. The script and raw results live outside this repo; rerun the same playground queries to reproduce.
 
-### 5.3 Retrieval Quality
+### 5.2 Retrieval Quality
 
-| Metric | Value |
-|---|---|
-| Search recall@10 (internal test set) | 87.3% |
-| Context assembly relevance (human-rated, n=50 tasks) | 91% |
-| False positive rate (irrelevant files in context) | 8.2% |
-| Mean context tokens assembled | 1,284 / 1,500 budget |
-
-Search recall@10 is measured by asking 50 known coding tasks and checking whether the ground-truth file appears in the top-10 results. 87.3% recall means the correct file is returned in 9 of 10 cases.
+The production regression eval in [`backend/evals`](../backend/evals) uses human-labelled queries whose expected files are chosen by reading the repo, never by looking at what search returns. Its baseline (June 2026, 10 queries on one repository): Recall@10 0.80 without reranking and 0.85 with it; MRR 0.80 without reranking and 0.66 with it. On this set, reranking finds more of the right files but ranks the top hit lower, so it is not a clear win yet.
 
 ### 5.4 Test Coverage
 
 | Component | Tests | Status |
 |---|---|---|
-| Backend | 392+ pytest tests | Passing |
-| MCP Server | 45+ pytest tests | Passing |
+| Backend | 400+ pytest tests (407 test functions, Oct 2026) | Passing |
+| MCP Server | 60 pytest tests (Oct 2026) | Passing |
 | Frontend | TypeScript build | Passing |
 
 ---
@@ -302,7 +288,7 @@ opencodeintel/
 │   ├── middleware/
 │   │   └── auth.py                 JWT + API key auth
 │   ├── routes/                     API endpoints (/api/v1/*)
-│   └── tests/                      392+ pytest tests
+│   └── tests/                      400+ pytest tests
 ├── mcp-server/               MCP protocol server (FastMCP)
 │   ├── server.py                   FastMCP app, dual transport
 │   ├── tools.py                    Tool schema definitions

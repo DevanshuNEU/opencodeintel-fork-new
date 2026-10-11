@@ -49,7 +49,7 @@ Root rules in `../CLAUDE.md` apply. This file adds backend-specific rules.
 
 ## Tests
 
-- pytest in `tests/`. Run: `cd backend && pytest tests/ -v`. 392+ tests at HEAD.
+- pytest in `tests/`. Run: `cd backend && pytest tests/ -v`. 400+ tests at HEAD (407 test functions, Oct 2026).
 - Mock fidelity matters more than coverage: a `Mock(return_value="result")` for Pinecone passes the test but does not reflect production. Reviewer-qa flags this.
 - Every authed endpoint needs both a "JWT valid" test AND a "JWT invalid -> API key fallback works" test. The Bug #1 gap was the missing fallback test.
 
