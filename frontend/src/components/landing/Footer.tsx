@@ -78,7 +78,7 @@ export function Footer() {
             © {new Date().getFullYear()} OpenCodeIntel. Open source under MIT.
           </p>
           <p className="text-sm text-muted-foreground/60">
-            Built with ❤️ by <a href="https://devanshu.dev" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Devanshu</a>
+            Built by <a href="https://www.devanshuchicholikar.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Devanshu Chicholikar</a>
           </p>
         </div>
       </div>
