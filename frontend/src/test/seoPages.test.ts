@@ -246,3 +246,13 @@ describe('review follow-ups', () => {
     expect([...files.keys()].sort()).toEqual(expected)
   })
 })
+
+describe('Search Console verification', () => {
+  // Google re-checks this tag; removing it un-verifies the property.
+  const TAG = '<meta name="google-site-verification" content="2uJp-zoTXu1mABMC0hE0Q39p5y5E0LP1IBED0yX3MwU" />'
+
+  it('is in index.html and survives into the generated home page', () => {
+    expect(indexHtml).toContain(TAG)
+    expect(renderAll(indexHtml).get('index.html')).toContain(TAG)
+  })
+})
