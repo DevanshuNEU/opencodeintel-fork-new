@@ -5,10 +5,32 @@
   "installCommand": "npm install",
   "framework": "vite",
   "ignoreCommand": "git diff HEAD^ HEAD --quiet -- .",
+  "cleanUrls": true,
+  "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/login",
+      "destination": "/app-shell"
+    },
+    {
+      "source": "/signup",
+      "destination": "/app-shell"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/app-shell"
+    },
+    {
+      "source": "/dashboard/:path*",
+      "destination": "/app-shell"
+    },
+    {
+      "source": "/admin",
+      "destination": "/app-shell"
+    },
+    {
+      "source": "/github/callback",
+      "destination": "/app-shell"
     }
   ],
   "headers": [
@@ -35,6 +57,69 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/login",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/signup",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/dashboard",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/dashboard/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/admin",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/github/callback",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/app-shell",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
         }
       ]
     }
